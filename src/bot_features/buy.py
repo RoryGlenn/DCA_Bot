@@ -1,6 +1,12 @@
 
-"""buy.py: Buys coin on kraken exchange based on users config file."""
+"""buy.py: Buys coin on kraken exchange based on users config file.
 
+1. Have a list of coins that you want to buy.
+2. Pull data from trading view based on 3c settings.
+3. Make decision on whether to buy or not.
+4. After base order is filled, create sell limit order at 0.5% higher
+5. every time a safety order is filled, cancel current sell limit order and create a new sell limit order
+"""
 
 import datetime
 import glob
@@ -8,8 +14,7 @@ import os
 from pprint import pprint
 
 import pandas as pd
-from kraken_files.kraken_enums import (DCA_, Buy_, Data, Dicts, FileMode, Nap,
-                                       StableCoins, Trade)
+from kraken_files.kraken_enums import *
 from util.globals import G
 
 from bot_features.base import Base
@@ -17,28 +22,6 @@ from bot_features.dca import DCA
 from bot_features.sell import Sell
 from bot_features.tradingview import TradingView
 
-# import krakenex
-# k = krakenex.API()
-# k.query_private()
-
-
-
-ENGINE                  = "openpyxl"
-SAFETY_ORDERS_DIRECTORY = os.getcwd() + "\\src\\safety_orders"
-QUANTITY                = 2
-ORDER_TXIDS_DIRECTORY   = "src/order_txids"
-TXID_SHEET              = "txids"
-TXIDS                   = "txids"
-TXIDS_FILE              = "src/order_txids/txids.xlsx" # these are txids for every limit order the bot has placed
-
-
-"""
-1. Have a list of coins that you want to buy.
-2. Pull data from trading view based on 3c settings.
-3. Make decision on whether to buy or not.
-4. After base order is filled, create sell limit order at 0.5% higher
-5. every time a safety order is filled, cancel current sell limit order and create a new sell limit order
-"""
 
 class Buy(Base):
     def __init__(self, parameter_dict: dict) -> None:
@@ -209,7 +192,7 @@ class Buy(Base):
         open_orders:             dict = self.get_open_orders()[Dicts.RESULT][Dicts.OPEN]
         open_order_symbol_pairs: set  = {d[Dicts.DESCR][Data.PAIR] for (_, d) in open_orders.items()}
 
-        for file in glob.iglob(SAFETY_ORDERS_DIRECTORY+"\*.xlsx"):
+        for file in glob.iglob(SAFETY_ORDER_DIRECTORY+"/"+"\*.xlsx"):
             df          = pd.read_excel(file)
             symbol_pair = file.split("\\")[-1].replace(".xlsx", "") # get the file name without the extention (symbol_pair)
 

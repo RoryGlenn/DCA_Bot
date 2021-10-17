@@ -6,14 +6,9 @@ import os
 from pprint import pprint
 
 import pandas as pd
-from kraken_files.kraken_enums import DCA_, FileMode, SOColumns
+from kraken_files.kraken_enums import *
 from util.globals import G
 
-BASE_ORDER          = 1
-DECIMAL_MAX         = 8
-DIRECTORY_PATH      = os.getcwd() + "/src/safety_orders"
-SO_SHEET_NAME       = "Safety Order Table"
-ENGINE              = "openpyxl"
 
 class DCA(DCA_):
     def __init__(self, symbol: str, order_min: float, bid_price: float):
@@ -24,8 +19,8 @@ class DCA(DCA_):
         self.required_price_levels:             list         = list()
         self.required_change_percentage_levels: list         = list()
         self.symbol:                            str          = symbol
-        self.safety_order_directory:            str          = DIRECTORY_PATH
-        self.file_path:                         str          = DIRECTORY_PATH + "\\" + self.symbol + ".xlsx"
+        self.safety_order_directory:            str          = SAFETY_ORDER_DIRECTORY
+        self.file_path:                         str          = SAFETY_ORDER_DIRECTORY + "/" + self.symbol + ".xlsx"
         self.bid_price:                         float        = bid_price
         self.base_order_quantity_to_buy:        float        = 0
         self.safety_order_quantity_to_buy:      float        = 0

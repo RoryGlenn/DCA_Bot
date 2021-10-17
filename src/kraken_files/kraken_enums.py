@@ -1,5 +1,21 @@
 from enum import auto
 
+SAFETY_ORDER_DIRECTORY = "src/kraken_files/excel_files/safety_orders"
+SELL_ORDER_DIRECTORY   = "src/kraken_files/excel_files/sell_orders/"
+TXIDS                  = "txids"
+ENGINE                 = "openpyxl"
+
+QUANTITY                = 2
+ORDER_TXIDS_DIRECTORY   = "src/kraken_files/excel_files/order_txids"
+TXID_SHEET              = "txids"
+TXIDS_FILE              = "src/kraken_files/excel_files/order_txids/txids.xlsx" # these are txids for every limit order the bot has placed
+
+# DCA
+BASE_ORDER          = 1
+DECIMAL_MAX         = 8
+DIRECTORY_PATH      = "src/kraken_files/excel_files/safety_orders"
+SO_SHEET_NAME       = "Safety Order Table"
+ENGINE              = "openpyxl"
 
 
 class Base_:
@@ -14,7 +30,7 @@ class Buy_:
     TIME_MINUTES = 1
     USD_TO_SPEND = auto()
     LIST = list()
-    PRICES = "src/entry_prices/average_prices.xlsx"
+    PRICES = "src/kraken_files/excel_files/average_prices.xlsx"
 
 
 class Sell_:
@@ -22,7 +38,7 @@ class Sell_:
     PERCENT = auto()
     TIME_MINUTES = auto()
     BLACKLIST = auto()
-    PRICES = "src/entry_prices/average_prices.xlsx"
+    PRICES = "src/kraken_files/excel_files/average_prices.xlsx"
 
 
 class Tip_:
@@ -275,7 +291,7 @@ class FileMode:
     """
     Configuration file for the rake bot to use on users account and wallets
     """
-    CONFIG_FILE = 'src/config.txt'
+    CONFIG_FILE = 'src/kraken_files/config.txt'
 
 
 class Misc:

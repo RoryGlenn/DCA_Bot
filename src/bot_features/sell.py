@@ -10,11 +10,6 @@ from util.globals import G
 
 from bot_features.base import Base
 
-SAFETY_ORDER_DIRECTORY = "src/safety_orders"
-SELL_ORDER_DIRECTORY   = "src/sell_orders/"
-TXIDS                  = "txids"
-ENGINE                 = "openpyxl"
-
 class Sell(Base):
     def __init__(self, parameter_dict: dict) -> None:
         super().__init__(parameter_dict)

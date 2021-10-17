@@ -1,10 +1,9 @@
 # !/usr/bin/env python
 
-"""main.py: Entry point for the Kraken bot"""
+"""main.py: Entry point for the DCA bot"""
 
 __author__     = "Rory M. Glenn"
-__copyright__  = "Copyright 2021, Kraken-Bot"
-__credits__    = ["Girzan", "Boods"]
+__copyright__  = "Copyright 2021, DCA-Bot"
 __license__    = "MIT"
 __version__    = "1.0"
 __maintainer__ = "Rory Glenn"
@@ -14,12 +13,9 @@ __status__     = "Production"
 import os
 import sys
 from datetime import datetime
-from threading import Thread
 
 from bot_features.buy import Buy
-from bot_features.distribution import Distribution
-from bot_features.sell import Sell
-from kraken_files.kraken_enums import Buy_, Distribution_, Misc, Sell_, Threads
+from kraken_files.kraken_enums import *
 from util.config_parser import ConfigParser
 from util.globals import G
 
