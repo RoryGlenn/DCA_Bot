@@ -1,0 +1,16 @@
+dist
+build
+logs
+error_logs
+safety_orders
+order_txids
+src/order_txids/txids.xlsx
+__pycache__
+
+
+*.vscode
+*.pyc
+*.code-workspace
+*.json
+*.spec
+*lnk
