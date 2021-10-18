@@ -11,7 +11,6 @@
 import datetime
 import glob
 import os
-import openpyxl
 import pandas as pd
 
 from pprint                    import pprint
@@ -43,7 +42,6 @@ class Buy(Base):
         self.account_balance    = self.get_parsed_account_balance()
         self.asset_pairs_dict   = self.get_all_tradable_asset_pairs()[Dicts.RESULT]
         self.__create_excel_directory()
-        # self.__create_open_orders_directory()
         return
 
     def __get_buy_time(self) -> str:
@@ -95,15 +93,15 @@ class Buy(Base):
         filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
 
         if os.path.exists(filename):
-            df_sa = pd.read_excel(filename, sheet_name=SheetNames.SOTABLE)
-            df_oo = pd.read_excel(filename, sheet_name=SheetNames.OPEN_ORDERS)
-            df_so = pd.read_excel(filename, sheet_name=SheetNames.SELL_ORDERS)
+            df_sa = pd.read_excel(filename, SheetNames.SAFETY_ORDERS)
+            df_oo = pd.read_excel(filename, SheetNames.OPEN_ORDERS)
+            df_so = pd.read_excel(filename, SheetNames.SELL_ORDERS)
 
             df_oo.loc[len(df_oo),   SLColumns.TXIDS]     = buy_result[Dicts.RESULT][Data.TXID][0]
             df_oo.loc[len(df_oo)-1, SLColumns.REQ_PRICE] = str(required_price)                
 
             with pd.ExcelWriter(filename, engine=OPENPYXL, mode=FileMode.WRITE_TRUNCATE) as writer:
-                df_sa.to_excel(writer, SheetNames.SOTABLE,     index=False)
+                df_sa.to_excel(writer, SheetNames.SAFETY_ORDERS,     index=False)
                 df_oo.to_excel(writer, SheetNames.OPEN_ORDERS, index=False)
                 df_so.to_excel(writer, SheetNames.SELL_ORDERS, index=False)
         return
@@ -118,12 +116,6 @@ class Buy(Base):
                 if dictionary[Dicts.DESCR][Data.PAIR] == alt_symbol_pair:
                     count += 1
         return count
-
-    def __get_sell_txid(self, open_orders: dict, open_order_txid: str) -> str:
-        pprint(open_orders)
-        for order_txid in open_orders[Dicts.RESULT][Data.TRADES]:
-            if open_orders[Dicts.RESULT][Data.TRADES][order_txid] == open_order_txid:
-                return order_txid
 
     def __set_post_buy_variables(self, symbol: str) -> None:
         """Sets variables in order to make an buy order."""
@@ -206,7 +198,7 @@ class Buy(Base):
         
         filled_trades_order_txids = dict()
         self.trade_history        = self.get_trades_history()
-        df                        = pd.read_excel(filename)
+        df                        = pd.read_excel(filename, SheetNames.OPEN_ORDERS)
         
         for trade_txid, dictionary in self.trade_history[Dicts.RESULT][Data.TRADES].items():
             filled_trades_order_txids[dictionary[Data.ORDER_TXID]] = trade_txid
@@ -228,7 +220,7 @@ class Buy(Base):
         open_order_symbol_pairs: set  = {d[Dicts.DESCR][Data.PAIR] for (_, d) in open_orders.items()}
 
         for file in glob.iglob(EXCEL_FILES_DIRECTORY+"/"+"\*.xlsx"):
-            df          = pd.read_excel(file)
+            df          = pd.read_excel(file, SheetNames.SAFETY_ORDERS)
             symbol_pair = file.split("\\")[-1].replace(".xlsx", "") # get the file name without the extention (symbol_pair)
 
             if len(df.index) == 0 and symbol_pair not in open_order_symbol_pairs:

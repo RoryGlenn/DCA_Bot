@@ -410,6 +410,6 @@ class SLColumns:
     REQ_PRICE = "required_price"
 
 class SheetNames:
-    SOTABLE = "safety_order_table"
+    SAFETY_ORDERS = "safety_order_table"
     OPEN_ORDERS = "open_orders"
     SELL_ORDERS = "sell_orders"

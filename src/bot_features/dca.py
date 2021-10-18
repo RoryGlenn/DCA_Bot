@@ -8,7 +8,6 @@ from pprint import pprint
 import pandas as pd
 from kraken_files.kraken_enums import *
 from util.globals import G
-import numpy as np
 
 
 class DCA(DCA_):
@@ -200,7 +199,7 @@ class DCA(DCA_):
 
     def __load_safety_order_table(self) -> None:
         """Uses a DataFrame to load the .xlsx file associated with the symbol into memory."""
-        self.safety_order_table = pd.read_excel(self.file_path)
+        self.safety_order_table = pd.read_excel(self.file_path, SheetNames.SAFETY_ORDERS)
         return
 
     def __set_safety_order_table(self) -> None:
@@ -220,26 +219,26 @@ class DCA(DCA_):
     def __create_excel_file(self) -> None:
         with pd.ExcelWriter(self.file_path, engine=OPENPYXL, mode=FileMode.WRITE_TRUNCATE) as writer:
             # create the safety order table sheet
-            self.safety_order_table.to_excel(writer, sheet_name=SheetNames.SOTABLE, index=False)
+            self.safety_order_table.to_excel(writer, SheetNames.SAFETY_ORDERS, index=False)
             
             # create the open_orders sheet
             df1 = pd.DataFrame(data={OOColumns.TXIDS: []})
-            df1.to_excel(writer, sheet_name=SheetNames.OPEN_ORDERS, index=False)
+            df1.to_excel(writer, SheetNames.OPEN_ORDERS, index=False)
 
             df2 = pd.DataFrame(data={SLColumns.TXIDS: [], SLColumns.REQ_PRICE: []})
-            df2.to_excel(writer, sheet_name=SheetNames.SELL_ORDERS, index=False)
+            df2.to_excel(writer, SheetNames.SELL_ORDERS, index=False)
         return
 
 
     def __save_safety_order_table(self) -> None:
         """Writes self.safety_order_table to excel file"""
-        df2 = pd.read_excel(self.file_path, sheet_name=SheetNames.OPEN_ORDERS)
-        df3 = pd.read_excel(self.file_path, sheet_name=SheetNames.SELL_ORDERS)
+        df2 = pd.read_excel(self.file_path, SheetNames.OPEN_ORDERS)
+        df3 = pd.read_excel(self.file_path, SheetNames.SELL_ORDERS)
 
         with pd.ExcelWriter(self.file_path, engine=OPENPYXL, mode=FileMode.WRITE_TRUNCATE) as writer:
-            self.safety_order_table.to_excel(writer, sheet_name=SheetNames.SOTABLE, index=False)
-            df2.to_excel(writer, sheet_name=SheetNames.OPEN_ORDERS, index=False)
-            df3.to_excel(writer, sheet_name=SheetNames.SELL_ORDERS, index=False)
+            self.safety_order_table.to_excel(writer, SheetNames.SAFETY_ORDERS, index=False)
+            df2.to_excel(writer, SheetNames.OPEN_ORDERS, index=False)
+            df3.to_excel(writer, SheetNames.SELL_ORDERS, index=False)
         return
 
     def __set_buy_orders(self) -> None:
@@ -261,21 +260,14 @@ class DCA(DCA_):
            2. drop the unnamed column.
            3. drop the safety order that we just put into the exchange. (this will always be the first row in the excel sheet)
            4. save the new table with the dropped rows."""
-        safety_order_table = pd.read_excel(self.file_path)
+        safety_order_table = pd.read_excel(self.file_path, SheetNames.SAFETY_ORDERS)
         safety_order_table.drop(0, inplace=True)
         self.safety_order_table = safety_order_table
-        return
-
-    def __delete_excel_file(self) -> None:
-        """Deletes the excel file."""
-        if os.path.exists(self.file_path):
-            os.remove(self.file_path)
         return
 
     def update_safety_orders(self) -> None:
         """Rewrites the excel file with the dropped rows."""
         self.__remove_rows()
-        # self.__delete_excel_file()
         self.__save_safety_order_table()
         return
         
