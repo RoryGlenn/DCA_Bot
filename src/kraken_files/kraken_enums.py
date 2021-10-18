@@ -1,21 +1,19 @@
 from enum import auto
 
-SAFETY_ORDER_DIRECTORY = "src/kraken_files/excel_files/safety_orders"
-SELL_ORDER_DIRECTORY   = "src/kraken_files/excel_files/sell_orders/"
-TXIDS                  = "txids"
-ENGINE                 = "openpyxl"
+EXCEL_FILES_DIRECTORY  = "src/kraken_files/excel_files"
+# OPEN_ORDERS_DIRECTORY  = "src/kraken_files/excel_files/open_orders"
+# SAFETY_ORDER_DIRECTORY = "src/kraken_files/excel_files/safety_orders"
+# SELL_ORDERS_DIRECTORY   = "src/kraken_files/excel_files/sell_orders"
 
+TXIDS                  = "txids"
 QUANTITY                = 2
-ORDER_TXIDS_DIRECTORY   = "src/kraken_files/excel_files/order_txids"
 TXID_SHEET              = "txids"
-TXIDS_FILE              = "src/kraken_files/excel_files/order_txids/txids.xlsx" # these are txids for every limit order the bot has placed
 
 # DCA
 BASE_ORDER          = 1
 DECIMAL_MAX         = 8
-DIRECTORY_PATH      = "src/kraken_files/excel_files/safety_orders"
-SO_SHEET_NAME       = "Safety Order Table"
-ENGINE              = "openpyxl"
+# SO_SHEET_NAME       = "Safety Order Table"
+OPENPYXL              = "openpyxl"
 
 
 class Base_:
@@ -403,3 +401,15 @@ class DFColumns:
     SYMBOL = "Symbol"
     AVERAGE_PRICE = "Average Price"
     QUANTITY = "Quantity"
+
+class OOColumns:
+    TXIDS = "txids"
+
+class SLColumns:
+    TXIDS = "txids"
+    REQ_PRICE = "required_price"
+
+class SheetNames:
+    SOTABLE = "safety_order_table"
+    OPEN_ORDERS = "open_orders"
+    SELL_ORDERS = "sell_orders"

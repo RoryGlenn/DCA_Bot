@@ -18,22 +18,22 @@ class Sell(Base):
     def __create_directory(self) -> None:
         """Create a directory for the safety orders."""
         try:
-            if not os.path.exists(SELL_ORDER_DIRECTORY):
-                os.mkdir(SELL_ORDER_DIRECTORY)
+            if not os.path.exists(EXCEL_FILES_DIRECTORY):
+                os.mkdir(EXCEL_FILES_DIRECTORY)
         except Exception as e:
             G.log_file.print_and_log(e=e)
         return
 
     def __create_file(self, symbol_pair: str) -> None:
         """Create the sell order file if it doesn't exist."""
-        filename = SELL_ORDER_DIRECTORY + symbol_pair + ".xlsx"
+        filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
         if not os.path.exists(filename):
             self.__df_to_excel(filename, pd.DataFrame(data={TXIDS: []}) )
         return
     
     def __df_to_excel(self, file_name: str, df: pd.DataFrame) -> None:
         """Write the DataFrame to an excel file."""
-        with pd.ExcelWriter(file_name, engine=ENGINE, mode=FileMode.WRITE_TRUNCATE) as writer:
+        with pd.ExcelWriter(file_name, engine=OPENPYXL, mode=FileMode.WRITE_TRUNCATE) as writer:
             df.to_excel(writer, index=False)
         return
 
@@ -46,7 +46,7 @@ class Sell(Base):
 
     def __cancel_sell_order(self, symbol_pair: str) -> None:
         """Open the sell_txids.xlsx file, cancel all sell orders by symbol name."""
-        filename = SELL_ORDER_DIRECTORY + symbol_pair + ".xlsx"
+        filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
         for txid in pd.read_excel(filename)[TXIDS].to_list():
             self.cancel_order(txid)
             df = pd.read_excel(filename)
@@ -55,7 +55,7 @@ class Sell(Base):
         return
 
     def get_required_price(self, symbol_pair: str) -> float:
-        filename = SAFETY_ORDER_DIRECTORY + "/" + symbol_pair + ".xlsx"
+        filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
         return float(pd.read_excel(filename)[SOColumns.REQ_PRICE][0])
 
     def __get_max_price_prec(self, symbol_pair: str) -> int:
@@ -71,11 +71,10 @@ class Sell(Base):
 
     def __update_sell_order(self, symbol_pair: str, order_result: dict) -> None:
         """log the sell order in sell_orders/txids.xlsx."""
-        filename = SELL_ORDER_DIRECTORY + symbol_pair + ".xlsx"
+        filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
         pprint(order_result) # {'error': ['EOrder:Insufficient funds']}
-        txid     = order_result[Dicts.RESULT][Data.TXID]
-        df       = pd.read_excel(filename)
-        df.loc[len(df.index)] = txid
+        df                    = pd.read_excel(filename)
+        df.loc[len(df.index)] = order_result[Dicts.RESULT][Data.TXID]
 
         self.__df_to_excel(filename, df)
         return
@@ -89,6 +88,5 @@ class Sell(Base):
         self.__create_directory()
         self.__create_file(symbol_pair)
         self.__cancel_sell_order(symbol_pair)
-        # order_result = self.__place_sell_limit_order(symbol_pair)
-        # self.__update_sell_order(symbol_pair, order_result)
-        return
+        order_result = self.__place_sell_limit_order(symbol_pair)
+        self.__update_sell_order(symbol_pair, order_result)

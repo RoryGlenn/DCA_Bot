@@ -4,6 +4,7 @@ logs
 error_logs
 safety_orders
 order_txids
+open_orders
 src/order_txids/txids.xlsx
 __pycache__
 

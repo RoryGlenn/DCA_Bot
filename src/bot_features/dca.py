@@ -8,6 +8,7 @@ from pprint import pprint
 import pandas as pd
 from kraken_files.kraken_enums import *
 from util.globals import G
+import numpy as np
 
 
 class DCA(DCA_):
@@ -19,8 +20,8 @@ class DCA(DCA_):
         self.required_price_levels:             list         = list()
         self.required_change_percentage_levels: list         = list()
         self.symbol:                            str          = symbol
-        self.safety_order_directory:            str          = SAFETY_ORDER_DIRECTORY
-        self.file_path:                         str          = SAFETY_ORDER_DIRECTORY + "/" + self.symbol + ".xlsx"
+        self.excel_directory:                   str          = EXCEL_FILES_DIRECTORY
+        self.file_path:                         str          = EXCEL_FILES_DIRECTORY + "/" + self.symbol + ".xlsx"
         self.bid_price:                         float        = bid_price
         self.base_order_quantity_to_buy:        float        = 0
         self.safety_order_quantity_to_buy:      float        = 0
@@ -35,19 +36,22 @@ class DCA(DCA_):
     def __start(self) -> None:
         """Essentially the main function for DCA class.
 
-        If the .xlsx file associated with the symbol passed in exists, the bot has previously
+        1. If the .xlsx file associated with the symbol passed in exists, the bot has previously
         put in at least DCA_.SAFETY_ORDERS_ACTIVE_MAX orders into the exchange. 
         The bot will continue to read from the .xlsx file until it runs out of safety orders.
         
-        Once the bot runs out of safety orders, there is nothing left to do but to wait until the
+        2. Once the bot runs out of safety orders, there is nothing left to do but to wait until the
         right time to sell the coin.
 
-        Once the coin crosses the entry price threshold, it will start to sell.
-
-        If the sheet doesn't exist, the bot has not traded the coin and we should create a new one if the bot trades it.
+        3. If the sheet doesn't exist, the bot has not traded the coin and we should create a new one if the bot trades it.
         
         """
         self.__create_directory()
+
+        """
+        Need a way to sell the amount of coin from all the previous orders.
+        This may include the quantity that we have no bought yet but is in an open order.
+        """
 
         if not self.__has_safety_order_table():
             self.__set_deviation_percentage_levels()
@@ -58,7 +62,7 @@ class DCA(DCA_):
             self.__set_required_price_levels()
             self.__set_required_change_percentage_levels()
             self.__set_safety_order_table()
-            self.__save_safety_order_table()
+            self.__create_excel_file()
         else:
             """if the safety order table exists for the symbol"""
             self.__load_safety_order_table()
@@ -68,8 +72,8 @@ class DCA(DCA_):
     def __create_directory(self) -> None:
         """Create a directory for the safety orders."""
         try:
-            if not os.path.exists(self.safety_order_directory):
-                os.mkdir(self.safety_order_directory)
+            if not os.path.exists(self.excel_directory):
+                os.mkdir(self.excel_directory)
         except Exception as e:
             G.log_file.print_and_log(e=e)
         return
@@ -213,10 +217,29 @@ class DCA(DCA_):
                                     SOColumns.REQ_CHANGE_PERC: self.required_change_percentage_levels})
         return
 
+    def __create_excel_file(self) -> None:
+        with pd.ExcelWriter(self.file_path, engine=OPENPYXL, mode=FileMode.WRITE_TRUNCATE) as writer:
+            # create the safety order table sheet
+            self.safety_order_table.to_excel(writer, sheet_name=SheetNames.SOTABLE, index=False)
+            
+            # create the open_orders sheet
+            df1 = pd.DataFrame(data={OOColumns.TXIDS: []})
+            df1.to_excel(writer, sheet_name=SheetNames.OPEN_ORDERS, index=False)
+
+            df2 = pd.DataFrame(data={SLColumns.TXIDS: [], SLColumns.REQ_PRICE: []})
+            df2.to_excel(writer, sheet_name=SheetNames.SELL_ORDERS, index=False)
+        return
+
+
     def __save_safety_order_table(self) -> None:
         """Writes self.safety_order_table to excel file"""
-        with pd.ExcelWriter(self.file_path, engine=ENGINE, mode=FileMode.WRITE_TRUNCATE) as writer:
-            self.safety_order_table.to_excel(writer, sheet_name=SO_SHEET_NAME, index=False)
+        df2 = pd.read_excel(self.file_path, sheet_name=SheetNames.OPEN_ORDERS)
+        df3 = pd.read_excel(self.file_path, sheet_name=SheetNames.SELL_ORDERS)
+
+        with pd.ExcelWriter(self.file_path, engine=OPENPYXL, mode=FileMode.WRITE_TRUNCATE) as writer:
+            self.safety_order_table.to_excel(writer, sheet_name=SheetNames.SOTABLE, index=False)
+            df2.to_excel(writer, sheet_name=SheetNames.OPEN_ORDERS, index=False)
+            df3.to_excel(writer, sheet_name=SheetNames.SELL_ORDERS, index=False)
         return
 
     def __set_buy_orders(self) -> None:
@@ -252,7 +275,7 @@ class DCA(DCA_):
     def update_safety_orders(self) -> None:
         """Rewrites the excel file with the dropped rows."""
         self.__remove_rows()
-        self.__delete_excel_file()
+        # self.__delete_excel_file()
         self.__save_safety_order_table()
         return
         

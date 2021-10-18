@@ -6,9 +6,8 @@ from kraken_files.kraken_enums import FileMode
 
 class Log():
     def __init__(self):
-        self.log_directory_path = os.getcwd() + "\\src\\logs"
-        self.log_file_path = self.log_directory_path + \
-            "\\" + str(datetime.date.today()) + ".txt"
+        self.log_directory_path = "src/kraken_files/logs"
+        self.log_file_path      = self.log_directory_path + "/" + str(datetime.date.today()) + ".txt"
 
     def get_current_time(self) -> datetime:
         return datetime.datetime.now().strftime("%H:%M:%S")
@@ -35,7 +34,7 @@ class Log():
         except Exception as e:
             print(e)
 
-    def write(self, text, file_path=os.getcwd() + "\\src\\logs" + "\\" + str(datetime.date.today()) + ".txt"):
+    def write(self, text, file_path="src/kraken_files/logs/" + str(datetime.date.today()) + ".txt"):
         """Writes to the end of the log file"""
         try:
             with open(file_path, FileMode.WRITE_APPEND) as file:

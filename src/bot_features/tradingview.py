@@ -16,7 +16,10 @@ class TVData:
         Interval.INTERVAL_4_HOURS]
 
 
-class TradingView:
+class TradingView():
+    def __init__(self) -> None:
+        pass
+
     def __get_recommendation(self, symbol_pair: str, interval: str) -> list:
         """Get a recommendation (buy or sell) for the symbol."""
         try:
@@ -32,7 +35,6 @@ class TradingView:
         
         for interval in TVData.INTERVALS:
             rec = self.__get_recommendation(symbol_pair, interval)
-            # print(interval, rec)
             if rec != TVData.BUY and rec != TVData.STRONG_BUY:
                 return False
         return True

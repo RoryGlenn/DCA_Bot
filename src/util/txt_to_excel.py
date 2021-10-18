@@ -11,7 +11,6 @@ def create_entry_price_dict() -> None:
     buy_list in the config file.
 
     """
-
     entry_price_dict = dict()
     
     with open(TXT_PATH, 'r') as file:

@@ -9,7 +9,7 @@ from pprint import pprint
 import pandas as pd
 import requests
 from kraken_files.kraken_api import KrakenAPI
-from kraken_files.kraken_enums import Dicts, KrakenFiles, Nap, StableCoins
+from kraken_files.kraken_enums import *
 from util.globals import G
 
 KRAKEN_API_KEY    = 'kraken_api_key'
@@ -170,6 +170,12 @@ class Base(KrakenAPI):
         We have to do this with symbols like XXLM, or XLTC"""
         return self.get_withdrawal_minimum(symbol[1:])
 
+    def get_quantity_owned(self, symbol: str) -> float:
+        account_balance = self.get_account_balance()
+        for sym, value in account_balance.items():
+            if sym == symbol:
+                return float(value)
+        return 0
 
     def convert_quantities(self, coin1_qty: float, coin2_ask_price: float) -> float:
         """Get the value of coin1 in terms of coin2.
