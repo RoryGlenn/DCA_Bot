@@ -33,8 +33,14 @@ class Sell(Base):
     
     def __df_to_excel(self, file_name: str, df: pd.DataFrame) -> None:
         """Write the DataFrame to an excel file."""
+
+        df1 = pd.read_excel(file_name, sheet_name=SheetNames.SOTABLE)
+        df2 = pd.read_excel(file_name, sheet_name=SheetNames.OPEN_ORDERS)
+
         with pd.ExcelWriter(file_name, engine=OPENPYXL, mode=FileMode.WRITE_TRUNCATE) as writer:
-            df.to_excel(writer, index=False)
+            df1.to_excel(writer, sheet_name=SheetNames.SOTABLE,     index=False)
+            df2.to_excel(writer, sheet_name=SheetNames.OPEN_ORDERS, index=False)
+            df.to_excel(writer,  sheet_name=SheetNames.SELL_ORDERS, index=False)
         return
 
     def __get_quantity_owned(self, symbol: str) -> float:
@@ -47,10 +53,13 @@ class Sell(Base):
     def __cancel_sell_order(self, symbol_pair: str) -> None:
         """Open the sell_txids.xlsx file, cancel all sell orders by symbol name."""
         filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
-        for txid in pd.read_excel(filename)[TXIDS].to_list():
+        txids_list = pd.read_excel(filename, sheet_name=SLColumns.TXIDS)[TXIDS].to_list()
+
+        for txid in txids_list:
             self.cancel_order(txid)
-            df = pd.read_excel(filename)
+            df = pd.read_excel(filename, sheet_name=SLColumns.TXIDS)
             df = df[ df[TXIDS] == txid]
+
             self.__df_to_excel(filename, df)
         return
 
@@ -85,8 +94,8 @@ class Sell(Base):
             1. cancel all open sell orders for symbol_pair
             2. create a new sell limit order at the next 'Required price' column.
         """
-        self.__create_directory()
-        self.__create_file(symbol_pair)
+        # self.__create_directory()
+        # self.__create_file(symbol_pair)
         self.__cancel_sell_order(symbol_pair)
         order_result = self.__place_sell_limit_order(symbol_pair)
         self.__update_sell_order(symbol_pair, order_result)

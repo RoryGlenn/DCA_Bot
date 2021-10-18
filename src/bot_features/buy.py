@@ -251,10 +251,10 @@ class Buy(Base):
         self.__init_loop_variables()
 
         while True:
-            # for symbol in Buy_.LIST:
-            #     # if our orders were filled change the average price file to the new price and qty
-            #     self.__update_filled_limit_orders(symbol)
-            #     self.__update_completed_safety_order_files()
+            for symbol in Buy_.LIST:
+                # if our orders were filled change the average price file to the new price and qty
+                self.__update_filled_limit_orders(symbol)
+                self.__update_completed_safety_order_files()
 
             try:
                 self.wait(message=f"buy_loop: Waiting till {self.__get_buy_time()} to buy", timeout=Buy_.TIME_MINUTES*10)
