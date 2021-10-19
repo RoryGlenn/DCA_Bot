@@ -222,23 +222,24 @@ class DCA(DCA_):
             self.safety_order_table.to_excel(writer, SheetNames.SAFETY_ORDERS, index=False)
             
             # create the open_orders sheet
-            df1 = pd.DataFrame(data={OOColumns.TXIDS: []})
-            df1.to_excel(writer, SheetNames.OPEN_ORDERS, index=False)
+            df1 = pd.DataFrame(data={OBOColumns.TXIDS: [], OBOColumns.REQ_PRICE: []})
+            df1.to_excel(writer, SheetNames.OPEN_BUY_ORDERS, index=False)
 
-            df2 = pd.DataFrame(data={SLColumns.TXIDS: [], SLColumns.REQ_PRICE: []})
-            df2.to_excel(writer, SheetNames.SELL_ORDERS, index=False)
+            # create the sell_orders sheet
+            df2 = pd.DataFrame(data={OSOColumns.TXIDS: []})
+            df2.to_excel(writer, SheetNames.OPEN_SELL_ORDERS, index=False)
         return
 
 
     def __save_safety_order_table(self) -> None:
         """Writes self.safety_order_table to excel file"""
-        df2 = pd.read_excel(self.file_path, SheetNames.OPEN_ORDERS)
-        df3 = pd.read_excel(self.file_path, SheetNames.SELL_ORDERS)
+        df2 = pd.read_excel(self.file_path, SheetNames.OPEN_BUY_ORDERS)
+        df3 = pd.read_excel(self.file_path, SheetNames.OPEN_SELL_ORDERS)
 
         with pd.ExcelWriter(self.file_path, engine=OPENPYXL, mode=FileMode.WRITE_TRUNCATE) as writer:
             self.safety_order_table.to_excel(writer, SheetNames.SAFETY_ORDERS, index=False)
-            df2.to_excel(writer, SheetNames.OPEN_ORDERS, index=False)
-            df3.to_excel(writer, SheetNames.SELL_ORDERS, index=False)
+            df2.to_excel(writer, SheetNames.OPEN_BUY_ORDERS, index=False)
+            df3.to_excel(writer, SheetNames.OPEN_SELL_ORDERS, index=False)
         return
 
     def __set_buy_orders(self) -> None:

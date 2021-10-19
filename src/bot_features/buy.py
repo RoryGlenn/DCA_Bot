@@ -68,7 +68,7 @@ class Buy(Base):
         # is the coin a buy and do we already own the coin?
         return
 
-    def save_open_order_txid(self, buy_result: dict, symbol_pair: str, required_price: float) -> None:
+    def save_open_buy_order_txid(self, buy_result: dict, symbol_pair: str, required_price: float) -> None:
         """
         Once a limit order is placed successfully, update the order orders file
         by appending the new txid to the end of the file.
@@ -78,16 +78,16 @@ class Buy(Base):
 
         if os.path.exists(filename):
             df_sa = pd.read_excel(filename, SheetNames.SAFETY_ORDERS)
-            df_oo = pd.read_excel(filename, SheetNames.OPEN_ORDERS)
-            df_so = pd.read_excel(filename, SheetNames.SELL_ORDERS)
+            df_oo = pd.read_excel(filename, SheetNames.OPEN_BUY_ORDERS)
+            df_so = pd.read_excel(filename, SheetNames.OPEN_SELL_ORDERS)
 
-            df_oo.loc[len(df_oo),   SLColumns.TXIDS]     = buy_result[Dicts.RESULT][Data.TXID][0]
-            df_oo.loc[len(df_oo)-1, SLColumns.REQ_PRICE] = str(required_price)                
+            df_oo.loc[len(df_oo),   OBOColumns.TXIDS]     = buy_result[Dicts.RESULT][Data.TXID][0]
+            df_oo.loc[len(df_oo)-1, OBOColumns.REQ_PRICE] = required_price
 
             with pd.ExcelWriter(filename, engine=OPENPYXL, mode=FileMode.WRITE_TRUNCATE) as writer:
                 df_sa.to_excel(writer, SheetNames.SAFETY_ORDERS,     index=False)
-                df_oo.to_excel(writer, SheetNames.OPEN_ORDERS, index=False)
-                df_so.to_excel(writer, SheetNames.SELL_ORDERS, index=False)
+                df_oo.to_excel(writer, SheetNames.OPEN_BUY_ORDERS, index=False)
+                df_so.to_excel(writer, SheetNames.OPEN_SELL_ORDERS, index=False)
         return
 
     def __get_open_orders_on_symbol_pair(self, symbol: str) -> str:
@@ -137,12 +137,11 @@ class Buy(Base):
                     price_max_prec   = self.get_pair_decimals(self.symbol_pair)
                     rounded_price    = self.round_decimals_down(price, price_max_prec)
                     rounded_quantity = self.round_decimals_down(quantity, self.get_max_volume_precision(symbol))
-                    # req_profit_price = self.round_decimals_down(self.sell.get_required_price(self.symbol_pair), price_max_prec)
                     req_profit_price = self.round_decimals_down(self.__get_required_price(), price_max_prec)
                     buy_result       = self.limit_order(Trade.BUY, rounded_quantity, self.symbol_pair, rounded_price)
 
                     """ the next sell limit order should always be from the top of the safety orders.
-                    For example: 
+                    For example:
                         Base order = 1,   $100
                         SO1        = 1,   $98.7
                         SO2        = 2.5, $96.5
@@ -156,7 +155,7 @@ class Buy(Base):
                         G.log_file.print_and_log(message=f"buy_loop: limit order placed {self.symbol_pair} {buy_result[Dicts.RESULT]}", money=True)
                         
                         # keep track of the open order txid
-                        self.save_open_order_txid(buy_result, self.symbol_pair, req_profit_price)
+                        self.save_open_buy_order_txid(buy_result, self.symbol_pair, req_profit_price)
 
                         """once the limit order was entered successfully, delete it from the excel sheet"""
                         self.dca.update_safety_orders()
@@ -191,7 +190,7 @@ class Buy(Base):
         
         filled_trades_order_txids = dict()
         self.trade_history        = self.get_trades_history()
-        df                        = pd.read_excel(filename, SheetNames.OPEN_ORDERS)
+        df                        = pd.read_excel(filename, SheetNames.OPEN_BUY_ORDERS)
         
         for trade_txid, dictionary in self.trade_history[Dicts.RESULT][Data.TRADES].items():
             filled_trades_order_txids[dictionary[Data.ORDER_TXID]] = trade_txid
@@ -233,7 +232,7 @@ class Buy(Base):
         
         self.__init_loop_variables()
         bought_list = list()
-        
+
         while True:
             for symbol in Buy_.LIST:
                 self.__update_filled_limit_orders(symbol)
@@ -247,15 +246,15 @@ class Buy(Base):
                         self.wait(message=f"buy_loop: checking {symbol}", timeout=Nap.LONG)
                         self.__set_pre_buy_variables(symbol)
                         
-                        # if symbol is in the bought list, we don't care if it is a good time to buy or not, we need to manage it
-                        if not self.is_buy and symbol not in bought_list:
-                            continue
+                        # # if symbol is in the bought list, we don't care if it is a good time to buy or not, we need to manage it
+                        # if not self.is_buy and symbol not in bought_list:
+                        #     continue
 
                         self.__set_post_buy_variables(symbol)
                         self.__place_limit_orders(symbol)
                         bought_list.append(symbol)
                     except Exception as e:
-                        G.log_file.print_and_log(message="buy_loop:", e=e)        
+                        G.log_file.print_and_log(message="buy_loop:", e=e)
                         continue
             except Exception as e:
                 G.log_file.print_and_log(message="buy_loop:", e=e)

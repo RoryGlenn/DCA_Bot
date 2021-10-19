@@ -381,6 +381,19 @@ class ConfigKeys:
     DCA_SAFETY_ORDER_PRICE_DEVIATION = "dca_safety_order_price_deviation"
 
 
+
+
+
+class Threads:
+    BUY = "thread_buy"
+    SELL = "thread_sell"
+    DISTRIBUTION = "thread_distribution"
+
+class DFColumns:
+    SYMBOL = "Symbol"
+    AVERAGE_PRICE = "Average Price"
+    QUANTITY = "Quantity"
+
 class SOColumns:
     SAFETY_ORDER_NO = "Safety Order No."
     DEVIATION = "Deviation, %"
@@ -390,26 +403,15 @@ class SOColumns:
     REQ_PRICE = "Required price"
     REQ_CHANGE_PERC = "Required Change %"
 
-
-class Threads:
-    BUY = "thread_buy"
-    SELL = "thread_sell"
-    DISTRIBUTION = "thread_distribution"
-
-
-class DFColumns:
-    SYMBOL = "Symbol"
-    AVERAGE_PRICE = "Average Price"
-    QUANTITY = "Quantity"
-
-class OOColumns:
-    TXIDS = "txids"
-
-class SLColumns:
+class OBOColumns:
     TXIDS = "txids"
     REQ_PRICE = "required_price"
 
+class OSOColumns:
+    TXIDS = "txids"
+    # REQ_PRICE = "required_price"
+
 class SheetNames:
-    SAFETY_ORDERS = "safety_order_table"
-    OPEN_ORDERS = "open_orders"
-    SELL_ORDERS = "sell_orders"
+    SAFETY_ORDERS = "safety_orders"
+    OPEN_BUY_ORDERS = "open_buy_orders"
+    OPEN_SELL_ORDERS = "open_sell_orders"
