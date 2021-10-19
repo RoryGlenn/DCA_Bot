@@ -81,7 +81,7 @@ class Sell(Base):
     def __update_sell_order(self, symbol_pair: str, order_result: dict) -> None:
         """log the sell order in sell_orders/txids.xlsx."""
         filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
-        # pprint(order_result) # {'error': ['EOrder:Insufficient funds']}
+        
         df                    = pd.read_excel(filename, SheetNames.SELL_ORDERS)
         df.loc[len(df.index)] = order_result[Dicts.RESULT][Data.TXID]
 

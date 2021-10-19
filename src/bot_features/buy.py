@@ -233,9 +233,9 @@ class Buy(Base):
         
         self.__init_loop_variables()
         bought_list = list()
+        
         while True:
             for symbol in Buy_.LIST:
-                # if our orders were filled change the average price file to the new price and qty
                 self.__update_filled_limit_orders(symbol)
                 self.__update_completed_safety_order_files()
 
@@ -247,10 +247,13 @@ class Buy(Base):
                         self.wait(message=f"buy_loop: checking {symbol}", timeout=Nap.LONG)
                         self.__set_pre_buy_variables(symbol)
                         
-                        if not self.is_buy: continue # and symbol not in bought_list
+                        # if symbol is in the bought list, we don't care if it is a good time to buy or not, we need to manage it
+                        if not self.is_buy and symbol not in bought_list:
+                            continue
 
                         self.__set_post_buy_variables(symbol)
-                        self.__place_limit_orders(symbol) #bought_list.append(symbol)
+                        self.__place_limit_orders(symbol)
+                        bought_list.append(symbol)
                     except Exception as e:
                         G.log_file.print_and_log(message="buy_loop:", e=e)        
                         continue
