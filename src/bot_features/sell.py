@@ -52,8 +52,8 @@ class Sell(Base):
 
     def __cancel_sell_order(self, symbol_pair: str) -> None:
         """Open the sell_txids.xlsx file, cancel all sell orders by symbol name."""
-        filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
-        txids_list = pd.read_excel(filename, SLColumns.TXIDS)[TXIDS].to_list()
+        filename   = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
+        txids_list = pd.read_excel(filename, SheetNames.SELL_ORDERS)[TXIDS].to_list()
 
         for txid in txids_list:
             self.cancel_order(txid)
@@ -81,7 +81,7 @@ class Sell(Base):
     def __update_sell_order(self, symbol_pair: str, order_result: dict) -> None:
         """log the sell order in sell_orders/txids.xlsx."""
         filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
-        pprint(order_result) # {'error': ['EOrder:Insufficient funds']}
+        # pprint(order_result) # {'error': ['EOrder:Insufficient funds']}
         df                    = pd.read_excel(filename, SheetNames.SELL_ORDERS)
         df.loc[len(df.index)] = order_result[Dicts.RESULT][Data.TXID]
 

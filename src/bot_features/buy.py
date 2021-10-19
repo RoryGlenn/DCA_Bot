@@ -111,54 +111,63 @@ class Buy(Base):
         self.dca.account_balance = self.get_parsed_account_balance()
         return
 
+    def __get_required_price(self):
+        filename = EXCEL_FILES_DIRECTORY + "/" + self.symbol_pair + ".xlsx"
+        df       = pd.read_excel(filename, SheetNames.SAFETY_ORDERS)
+        return float(df[SOColumns.REQ_PRICE].to_list()[0])
+
     def __place_limit_orders(self, symbol: str) -> None:
         """Place the safety orders that were set inside of the DCA class.
         If the limit order was entered successfully, update the excel sheet by removing the order we just placed.
         """
-        num_open_orders    = self.__get_open_orders_on_symbol_pair(symbol)
-        num_orders_to_make = abs(num_open_orders-DCA_.SAFETY_ORDERS_ACTIVE_MAX)
-        
-        # TODO
-        # 1. put limit orders in for each safety order with the correct quantity. This includes quantity that we may not own yet
+        try:
+            num_open_orders    = self.__get_open_orders_on_symbol_pair(symbol)
+            num_orders_to_make = abs(num_open_orders-DCA_.SAFETY_ORDERS_ACTIVE_MAX)
+            
+            # TODO
+            # 1. put limit orders in for each safety order with the correct quantity. This includes quantity that we may not own yet
 
-        # if the max active orders are already put in, and are still active, there is nothing left to do.
-        if num_open_orders >= DCA_.SAFETY_ORDERS_ACTIVE_MAX:
-            # Max safety orders are already active.
-            return
+            # if the max active orders are already put in, and are still active, there is nothing left to do.
+            if num_open_orders >= DCA_.SAFETY_ORDERS_ACTIVE_MAX:
+                # Max safety orders are already active.
+                return
 
-        for _, safety_order_dict in self.dca.safety_orders.items():
-            for price, quantity in safety_order_dict.items():
-                price_max_prec   = self.get_pair_decimals(self.symbol_pair)
-                rounded_price    = self.round_decimals_down(price, price_max_prec)
-                rounded_quantity = self.round_decimals_down(quantity, self.get_max_volume_precision(symbol))
-                req_profit_price = self.round_decimals_down(self.sell.get_required_price(self.symbol_pair), price_max_prec)
-                buy_result       = self.limit_order(Trade.BUY, rounded_quantity, self.symbol_pair, rounded_price)
+            for _, safety_order_dict in self.dca.safety_orders.items():
+                for price, quantity in safety_order_dict.items():
+                    price_max_prec   = self.get_pair_decimals(self.symbol_pair)
+                    rounded_price    = self.round_decimals_down(price, price_max_prec)
+                    rounded_quantity = self.round_decimals_down(quantity, self.get_max_volume_precision(symbol))
+                    # req_profit_price = self.round_decimals_down(self.sell.get_required_price(self.symbol_pair), price_max_prec)
+                    req_profit_price = self.round_decimals_down(self.__get_required_price(), price_max_prec)
+                    buy_result       = self.limit_order(Trade.BUY, rounded_quantity, self.symbol_pair, rounded_price)
 
-                """ the next sell limit order should always be from the top of the safety orders.
-                For example: 
-                    Base order = 1,   $100
-                    SO1        = 1,   $98.7
-                    SO2        = 2.5, $96.5
+                    """ the next sell limit order should always be from the top of the safety orders.
+                    For example: 
+                        Base order = 1,   $100
+                        SO1        = 1,   $98.7
+                        SO2        = 2.5, $96.5
 
-                    Then our first sell order should be 1, for $100 + 0.5%
-                    If SO1, is filled, the previous sell order should be cancelled and a new sell order should be placed: Base Order+SO1, required_price1
-                    If SO2, is filled, the previous sell order should be cancelled and a new sell order should be placed: Base Order+SO1+SO2, required_price2
-                """
+                        Then our first sell order should be 1, for $100 + 0.5%
+                        If SO1, is filled, the previous sell order should be cancelled and a new sell order should be placed: Base Order+SO1, required_price1
+                        If SO2, is filled, the previous sell order should be cancelled and a new sell order should be placed: Base Order+SO1+SO2, required_price2
+                    """
 
-                if self.has_result(buy_result):
-                    G.log_file.print_and_log(message=f"buy_loop: limit order placed {self.symbol_pair} {buy_result[Dicts.RESULT]}", money=True)
-                    
-                    # keep track of the open order txid
-                    self.save_open_order_txid(buy_result, self.symbol_pair, req_profit_price)
+                    if self.has_result(buy_result):
+                        G.log_file.print_and_log(message=f"buy_loop: limit order placed {self.symbol_pair} {buy_result[Dicts.RESULT]}", money=True)
+                        
+                        # keep track of the open order txid
+                        self.save_open_order_txid(buy_result, self.symbol_pair, req_profit_price)
 
-                    """once the limit order was entered successfully, delete it from the excel sheet"""
-                    self.dca.update_safety_orders()
-                    num_orders_to_make -= 1
-                else:
-                    G.log_file.print_and_log(message=f"buy_loop: {buy_result}", money=True)
+                        """once the limit order was entered successfully, delete it from the excel sheet"""
+                        self.dca.update_safety_orders()
+                        num_orders_to_make -= 1
+                    else:
+                        G.log_file.print_and_log(message=f"buy_loop: {buy_result}", money=True)
 
-            if num_orders_to_make <= 0:
-                break
+                if num_orders_to_make <= 0:
+                    break
+        except Exception as e:
+            G.log_file.print_and_log(e=e)
         return
 
     def __update_filled_limit_orders(self, symbol: str) -> None:
@@ -216,14 +225,14 @@ class Buy(Base):
 ##################################################################################################################################
 
     def buy_loop(self) -> None:
-        """The main function for buying coin."""
+        """The main function for trading coins."""
         
         ##########################################
         self.cancel_all_orders()
         ##########################################
         
         self.__init_loop_variables()
-
+        bought_list = list()
         while True:
             for symbol in Buy_.LIST:
                 # if our orders were filled change the average price file to the new price and qty
@@ -231,17 +240,17 @@ class Buy(Base):
                 self.__update_completed_safety_order_files()
 
             try:
-                self.wait(message=f"buy_loop: Waiting till {self.__get_buy_time()} to buy", timeout=Buy_.TIME_MINUTES*10)
+                self.wait(message=f"buy_loop: Waiting till {self.__get_buy_time()} to buy", timeout=Buy_.TIME_MINUTES*60)
 
                 for symbol in Buy_.LIST:
                     try:
-                        self.wait(message=f"buy_loop: checking asset {symbol}", timeout=Nap.LONG)
+                        self.wait(message=f"buy_loop: checking {symbol}", timeout=Nap.LONG)
                         self.__set_pre_buy_variables(symbol)
                         
-                        if not self.is_buy: continue
+                        if not self.is_buy: continue # and symbol not in bought_list
 
                         self.__set_post_buy_variables(symbol)
-                        self.__place_limit_orders(symbol)
+                        self.__place_limit_orders(symbol) #bought_list.append(symbol)
                     except Exception as e:
                         G.log_file.print_and_log(message="buy_loop:", e=e)        
                         continue
