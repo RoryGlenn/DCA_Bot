@@ -54,16 +54,6 @@ class Buy(Base):
             os.mkdir(EXCEL_FILES_DIRECTORY)
         return
 
-    def __create_open_orders_file(self, symbol_pair: str, sheet_name: str, txid: str, required_price: float) -> None:
-        """Create the txids.xlsx file."""
-        filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
-        if not os.path.exists(filename):
-            df = pd.DataFrame(data={OOColumns.TXIDS: [txid]})
-            with pd.ExcelWriter(filename, engine=OPENPYXL, mode=FileMode.WRITE_TRUNCATE) as writer:
-                df.to_excel(writer, sheet_name, index=False)
-        return
-
-
     def __get_recommendation(self, symbol_pair: str) -> bool:
         """Get the recommendation from trading view."""
         ta = TradingView()
@@ -76,12 +66,6 @@ class Buy(Base):
         alt_name         = self.get_alt_name(symbol)
         self.is_buy      = self.__get_recommendation(alt_name+StableCoins.USD)
         # is the coin a buy and do we already own the coin?
-        return
-
-    def __df_to_excel(self, file_name: str, sheet_name: str, df: pd.DataFrame) -> None:
-        """Write the DataFrame to an excel file."""
-        with pd.ExcelWriter(file_name, engine=OPENPYXL, mode=FileMode.WRITE_TRUNCATE) as writer:
-            df.to_excel(writer, sheet_name=sheet_name, index=False)
         return
 
     def save_open_order_txid(self, buy_result: dict, symbol_pair: str, required_price: float) -> None:
@@ -213,8 +197,6 @@ class Buy(Base):
         """For every file that exists in the safety_orders directory, check if it contains any more safety orders.
         If it is empty and there are no open orders on that symbol, delete the file.
         
-        If the txid for the open orders does not exist inside of txid.xlsx, should we add to it???????????????????????????????
-
         """
         open_orders:             dict = self.get_open_orders()[Dicts.RESULT][Dicts.OPEN]
         open_order_symbol_pairs: set  = {d[Dicts.DESCR][Data.PAIR] for (_, d) in open_orders.items()}
@@ -256,7 +238,7 @@ class Buy(Base):
                         self.wait(message=f"buy_loop: checking asset {symbol}", timeout=Nap.LONG)
                         self.__set_pre_buy_variables(symbol)
                         
-                        # if not self.is_buy: continue
+                        if not self.is_buy: continue
 
                         self.__set_post_buy_variables(symbol)
                         self.__place_limit_orders(symbol)
