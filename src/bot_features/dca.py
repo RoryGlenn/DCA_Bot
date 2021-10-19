@@ -22,8 +22,8 @@ class DCA(DCA_):
         self.excel_directory:                   str          = EXCEL_FILES_DIRECTORY
         self.file_path:                         str          = EXCEL_FILES_DIRECTORY + "/" + self.symbol + ".xlsx"
         self.bid_price:                         float        = bid_price
-        self.base_order_quantity_to_buy:        float        = 0
-        self.safety_order_quantity_to_buy:      float        = 0
+        self.base_order_quantity_to_buy:        float        = 0.0
+        self.safety_order_quantity_to_buy:      float        = 0.0
         self.order_min:                         float        = order_min
         self.safety_orders:                     dict         = { }
         self.account_balance:                   dict         = { }

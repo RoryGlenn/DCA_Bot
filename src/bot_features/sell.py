@@ -1,42 +1,34 @@
 
 """sell.py: Sells coin on kraken exchange based on users config file."""
 
-# import os
-from pprint import pprint
-
 import pandas as pd
 from kraken_files.kraken_enums import *
-from util.globals import G
-
 from bot_features.base import Base
+from pprint import pprint
+
 
 class Sell(Base):
     def __init__(self, parameter_dict: dict) -> None:
         super().__init__(parameter_dict)
         self.asset_pairs_dict: dict = self.get_all_tradable_asset_pairs()[Dicts.RESULT]
+        self.sell_order_placed: bool = False
 
-    # def __create_directory(self) -> None:
-    #     """Create a directory for the safety orders."""
-    #     try:
-    #         if not os.path.exists(EXCEL_FILES_DIRECTORY):
-    #             os.mkdir(EXCEL_FILES_DIRECTORY)
-    #     except Exception as e:
-    #         G.log_file.print_and_log(e=e)
-    #     return
+    def __save_to_open_buy_orders(self, symbol_pair: str, df2: pd.DataFrame) -> None:
+        """Write the DataFrame to an excel file."""
+        filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
+        df1 = pd.read_excel(filename, SheetNames.SAFETY_ORDERS)
+        df3 = pd.read_excel(filename, SheetNames.OPEN_SELL_ORDERS)
 
-    # def __create_file(self, symbol_pair: str) -> None:
-    #     """Create the sell order file if it doesn't exist."""
-    #     filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
-    #     if not os.path.exists(filename):
-    #         self.__save_to_sell_orders(filename, pd.DataFrame(data={TXIDS: []}) )
-    #     return
-    
-    def __save_to_sell_orders(self, file_name: str, df3: pd.DataFrame) -> None:
+        with pd.ExcelWriter(filename, engine=OPENPYXL, mode=FileMode.WRITE_TRUNCATE) as writer:
+            df1.to_excel(writer, SheetNames.SAFETY_ORDERS,   index=False)
+            df2.to_excel(writer, SheetNames.OPEN_BUY_ORDERS, index=False)
+            df3.to_excel(writer, SheetNames.OPEN_SELL_ORDERS,index=False)
+        return
+
+    def __save_to_open_sell_orders(self, file_name: str, df3: pd.DataFrame) -> None:
         """Write the DataFrame to an excel file."""
         df1 = pd.read_excel(file_name, SheetNames.SAFETY_ORDERS)
         df2 = pd.read_excel(file_name, SheetNames.OPEN_BUY_ORDERS)
-
-        print(df3)
 
         with pd.ExcelWriter(file_name, engine=OPENPYXL, mode=FileMode.WRITE_TRUNCATE) as writer:
             df1.to_excel(writer, SheetNames.SAFETY_ORDERS, index=False)
@@ -64,13 +56,13 @@ class Sell(Base):
             df = pd.read_excel(filename, OSOColumns.TXIDS)
             df = df[ df[TXIDS] == txid]
 
-            self.__save_to_sell_orders(filename, df)
+            self.__save_to_open_sell_orders(filename, df)
         return
 
     def __get_required_price(self, symbol_pair: str) -> float:
         filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
-        # return float(pd.read_excel(filename, SheetNames.SELL_ORDERS)[SOColumns.REQ_PRICE][0]) # errors out because nothing is put into sell_orders sheet
-        return float(pd.read_excel(filename, SheetNames.OPEN_BUY_ORDERS)[OBOColumns.REQ_PRICE][0]) # errors out because nothing is put into sell_orders sheet
+        
+        return float(pd.read_excel(filename, SheetNames.OPEN_BUY_ORDERS)[OBOColumns.REQ_PRICE][0])
 
     def __get_max_price_prec(self, symbol_pair: str) -> int:
         return self.get_max_price_precision(symbol_pair[:-4]) if StableCoins.ZUSD in symbol_pair else self.get_max_price_precision(symbol_pair[:-3])
@@ -81,19 +73,32 @@ class Sell(Base):
     def __place_sell_limit_order(self, symbol_pair: str) -> dict:
         required_price = self.round_decimals_down(self.__get_required_price(symbol_pair), self.__get_max_price_prec(symbol_pair)) 
         qty            = self.round_decimals_down(self.__get_quantity_owned(symbol_pair), self.__get_max_volume_prec(symbol_pair))
-        return self.limit_order(Trade.SELL, qty, symbol_pair, required_price)
+        sell_order_result = self.limit_order(Trade.SELL, qty, symbol_pair, required_price)
+
+        if self.has_result(sell_order_result):
+            """Now that the sell order has been placed, we will watch it closely until it is filled. """
+            self.sell_order_placed = True
+        return 
+
+    def __update_open_buy_orders(self, symbol_pair: str) -> None:
+        """If the first open_buy_order has been filled and the sell order has been placed successfully,
+        we need to remove the first row in the open_buy_orders sheet as it is no longer open and needed 
+        to place the next sell limit order."""
+
+        filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
+        df       = pd.read_excel(filename, SheetNames.OPEN_BUY_ORDERS)
+        df.drop(0, inplace=True)
+        self.__save_to_open_buy_orders(symbol_pair, df)
+        return
 
     def __update_sell_order(self, symbol_pair: str, order_result: dict) -> None:
         """log the sell order in sell_orders/txids.xlsx."""
         filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
-        pprint(order_result)
-
+        
         if self.has_result(order_result):
-            df                    = pd.read_excel(filename, SheetNames.OPEN_BUY_ORDERS)
-            print(df)
+            df                    = pd.read_excel(filename, SheetNames.OPEN_SELL_ORDERS)
             df.loc[len(df.index), OSOColumns.TXIDS] = order_result[Dicts.RESULT][Data.TXID][0]
-            print(df)
-            self.__save_to_sell_orders(filename, df)
+            self.__save_to_open_sell_orders(filename, df)
         return
 
     def start(self, symbol_pair: str) -> None:
@@ -102,11 +107,15 @@ class Sell(Base):
             1. cancel all open sell orders for symbol_pair
             2. create a new sell limit order at the next 'Required price' column.
         """
-        # cancel previous sell order (if it exists)
+        # cancel previous sell order (if it exists).
         self.__cancel_sell_order(symbol_pair)
         
-        # place new sell order
+        # place new sell order.
         sell_order_result = self.__place_sell_limit_order(symbol_pair)
-        
-        # update open_sell_orders sheet
+
+        # update open_buy_orders sheet by removing filled buy orders.
+        self.__update_open_buy_orders(symbol_pair)
+
+        # update open_sell_orders sheet.
         self.__update_sell_order(symbol_pair, sell_order_result)
+

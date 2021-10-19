@@ -33,7 +33,7 @@ class Buy(Base):
         self.symbol_pair:             str   = ""
         self.is_buy:                  bool  = False
         self.dca:                     DCA   = None
-        self.sell:                    Sell  = Sell(parameter_dict)        
+        self.sell:                    Sell  = Sell(parameter_dict)
         return
 
     def __init_loop_variables(self) -> None:
@@ -169,9 +169,61 @@ class Buy(Base):
             G.log_file.print_and_log(e=e)
         return
 
-    def __update_filled_limit_orders(self, symbol: str) -> None:
+    # def __save_to_open_buy_orders(self, symbol_pair: str, df2: pd.DataFrame) -> None:
+    #     """Write the DataFrame to an excel file."""
+    #     filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
+    #     df1 = pd.read_excel(filename, SheetNames.SAFETY_ORDERS)
+    #     df3 = pd.read_excel(filename, SheetNames.OPEN_SELL_ORDERS)
+
+    #     with pd.ExcelWriter(filename, engine=OPENPYXL, mode=FileMode.WRITE_TRUNCATE) as writer:
+    #         df1.to_excel(writer, SheetNames.SAFETY_ORDERS,   index=False)
+    #         df2.to_excel(writer, SheetNames.OPEN_BUY_ORDERS, index=False)
+    #         df3.to_excel(writer, SheetNames.OPEN_SELL_ORDERS,index=False)
+    #     return
+
+    # def __update_open_buy_orders(self, symbol_pair: str) -> None:
+    #     """If the first open_buy_order has been filled and the sell order has been placed successfully,
+    #     we need to remove the first row in the open_buy_orders sheet as it is no longer open and needed 
+    #     to place the next sell limit order."""
+
+    #     filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
+    #     df       = pd.read_excel(filename, SheetNames.OPEN_BUY_ORDERS)
+    #     df.drop(0, inplace=True)
+    #     self.__save_to_open_buy_orders(symbol_pair, df)
+    #     return
+
+    def __update_completed_trades(self, symbol: str, bought_list: list) -> list:
         """
-        Updates the OPEN_ORDERS_FILE if a buy limit order has been filled.
+        If the sell order was filled, cancel all buy orders, remove symbol from bought_list, delete excel_file.
+        """
+
+        symbol_pair = self.get_tradable_asset_pair(symbol)
+        filename    = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
+        
+        if not os.path.exists(filename):
+            return
+        
+        filled_sell_order_txids = dict()
+        self.trade_history        = self.get_trades_history()
+        df                        = pd.read_excel(filename, SheetNames.OPEN_SELL_ORDERS)
+        
+        for trade_txid, dictionary in self.trade_history[Dicts.RESULT][Data.TRADES].items():
+            filled_sell_order_txids[dictionary[Data.ORDER_TXID]] = trade_txid
+
+        for sell_order_txid in df[TXIDS].to_list():
+            if sell_order_txid in filled_sell_order_txids.keys():
+                # the sell order has filled and we have completed the entire process!!!
+                open_buy_orders = pd.read_excel(filename, SheetNames.OPEN_BUY_ORDERS)
+                for txid in open_buy_orders[TXIDS].to_list():
+                    self.cancel_order(txid)
+                    os.remove(filename)
+                    if symbol in bought_list:
+                        bought_list.remove(symbol)
+        return bought_list
+
+    def __update_filled_orders(self, symbol: str) -> None:
+        """
+        Updates the open_buy_orders sheet if a buy limit order has been filled.
         Accomplishes this by checking to see if the txid exists in the trade history list.
 
         1. Read all txids from txids.xlsx file into DataFrame.
@@ -199,6 +251,7 @@ class Buy(Base):
             if open_order_txid in filled_trades_order_txids.keys():
                 # if the txid is in the trade history, the order was filled.
                 self.sell.start(symbol_pair)
+                # self.__update_open_buy_orders(symbol_pair)
         return
 
     def __update_completed_safety_order_files(self) -> None:
@@ -235,8 +288,9 @@ class Buy(Base):
 
         while True:
             for symbol in Buy_.LIST:
-                self.__update_filled_limit_orders(symbol)
-                self.__update_completed_safety_order_files()
+                self.__update_filled_orders(symbol)
+                bought_list = self.__update_completed_trades(symbol, bought_list)
+                # self.__update_completed_safety_order_files()
 
             try:
                 self.wait(message=f"buy_loop: Waiting till {self.__get_buy_time()} to buy", timeout=Buy_.TIME_MINUTES*60)
@@ -249,6 +303,11 @@ class Buy(Base):
                         # # if symbol is in the bought list, we don't care if it is a good time to buy or not, we need to manage it
                         # if not self.is_buy and symbol not in bought_list:
                         #     continue
+
+                        """
+                        If the sell order was filled, cancel all buy orders, remove symbol from bought_list, delete excel_file.
+                        """
+                        
 
                         self.__set_post_buy_variables(symbol)
                         self.__place_limit_orders(symbol)
