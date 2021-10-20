@@ -73,12 +73,7 @@ class Sell(Base):
     def __place_sell_limit_order(self, symbol_pair: str) -> dict:
         required_price = self.round_decimals_down(self.__get_required_price(symbol_pair), self.__get_max_price_prec(symbol_pair)) 
         qty            = self.round_decimals_down(self.__get_quantity_owned(symbol_pair), self.__get_max_volume_prec(symbol_pair))
-        sell_order_result = self.limit_order(Trade.SELL, qty, symbol_pair, required_price)
-
-        if self.has_result(sell_order_result):
-            """Now that the sell order has been placed, we will watch it closely until it is filled. """
-            self.sell_order_placed = True
-        return 
+        return self.limit_order(Trade.SELL, qty, symbol_pair, required_price)
 
     def __update_open_buy_orders(self, symbol_pair: str) -> None:
         """If the first open_buy_order has been filled and the sell order has been placed successfully,

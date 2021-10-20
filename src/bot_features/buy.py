@@ -201,7 +201,7 @@ class Buy(Base):
         filename    = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
         
         if not os.path.exists(filename):
-            return
+            return bought_list
         
         filled_sell_order_txids = dict()
         self.trade_history        = self.get_trades_history()
@@ -216,7 +216,9 @@ class Buy(Base):
                 open_buy_orders = pd.read_excel(filename, SheetNames.OPEN_BUY_ORDERS)
                 for txid in open_buy_orders[TXIDS].to_list():
                     self.cancel_order(txid)
-                    os.remove(filename)
+
+                    if os.path.exists(filename):
+                        os.remove(filename)
                     if symbol in bought_list:
                         bought_list.remove(symbol)
         return bought_list
@@ -280,7 +282,10 @@ class Buy(Base):
         """The main function for trading coins."""
         
         ##########################################
-        self.cancel_all_orders()
+        # self.cancel_all_orders()
+        # testfile = EXCEL_FILES_DIRECTORY+"/XXBTZUSD.xlsx"
+        # if os.path.exists(testfile):
+        #     os.remove(testfile)
         ##########################################
         
         self.__init_loop_variables()
@@ -300,14 +305,9 @@ class Buy(Base):
                         self.wait(message=f"buy_loop: checking {symbol}", timeout=Nap.LONG)
                         self.__set_pre_buy_variables(symbol)
                         
-                        # # if symbol is in the bought list, we don't care if it is a good time to buy or not, we need to manage it
-                        # if not self.is_buy and symbol not in bought_list:
-                        #     continue
-
-                        """
-                        If the sell order was filled, cancel all buy orders, remove symbol from bought_list, delete excel_file.
-                        """
-                        
+                        # if symbol is in the bought list, we don't care if it is a good time to buy or not, we need to manage it
+                        if not self.is_buy and symbol not in bought_list:
+                            continue
 
                         self.__set_post_buy_variables(symbol)
                         self.__place_limit_orders(symbol)
