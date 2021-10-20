@@ -253,7 +253,6 @@ class Buy(Base):
             if open_order_txid in filled_trades_order_txids.keys():
                 # if the txid is in the trade history, the order was filled.
                 self.sell.start(symbol_pair)
-                # self.__update_open_buy_orders(symbol_pair)
         return
 
     def __update_completed_safety_order_files(self) -> None:
@@ -296,7 +295,6 @@ class Buy(Base):
                 self.__update_filled_orders(symbol)
                 bought_list = self.__update_completed_trades(symbol, bought_list)
                 # self.__update_completed_safety_order_files()
-
             try:
                 self.wait(message=f"buy_loop: Waiting till {self.__get_buy_time()} to buy", timeout=Buy_.TIME_MINUTES*60)
 

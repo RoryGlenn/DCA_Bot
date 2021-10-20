@@ -53,7 +53,8 @@ class Sell(Base):
         # therefore, this for loop is skipped.
         for txid in txids_list:
             self.cancel_order(txid)
-            df = pd.read_excel(filename, OSOColumns.TXIDS)
+            # df = pd.read_excel(filename, OSOColumns.TXIDS)
+            df = pd.read_excel(filename, SheetNames.OPEN_SELL_ORDERS)
             df = df[ df[TXIDS] == txid]
 
             self.__save_to_open_sell_orders(filename, df)
