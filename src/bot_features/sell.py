@@ -5,6 +5,7 @@ import pandas as pd
 from kraken_files.kraken_enums import *
 from bot_features.base import Base
 from pprint import pprint
+from util.globals              import G
 
 
 class Sell(Base):
@@ -13,6 +14,9 @@ class Sell(Base):
         self.asset_pairs_dict: dict = self.get_all_tradable_asset_pairs()[Dicts.RESULT]
         self.sell_order_placed: bool = False
 
+    ############
+    ### helpers
+    ############
     def __save_to_open_buy_orders(self, symbol_pair: str, df2: pd.DataFrame) -> None:
         """Write the DataFrame to an excel file."""
         filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
@@ -44,22 +48,6 @@ class Sell(Base):
                     return float(qty)
         return 0.0
 
-    def __cancel_sell_order(self, symbol_pair: str) -> None:
-        """Open the sell_txids.xlsx file, cancel all sell orders by symbol name."""
-        filename   = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
-        txids_list = pd.read_excel(filename, SheetNames.OPEN_SELL_ORDERS)[TXIDS].to_list()
-
-        # on first sell order, there will be no txid inside of the sell_order sheet,
-        # therefore, this for loop is skipped.
-        for txid in txids_list:
-            self.cancel_order(txid)
-            # df = pd.read_excel(filename, OSOColumns.TXIDS)
-            df = pd.read_excel(filename, SheetNames.OPEN_SELL_ORDERS)
-            df = df[ df[TXIDS] == txid]
-
-            self.__save_to_open_sell_orders(filename, df)
-        return
-
     def __get_required_price(self, symbol_pair: str) -> float:
         filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
         
@@ -71,10 +59,31 @@ class Sell(Base):
     def __get_max_volume_prec(self, symbol_pair: str) -> int:
         return self.get_max_volume_precision(symbol_pair[:-4]) if StableCoins.ZUSD in symbol_pair else self.get_max_volume_precision(symbol_pair[:-3])
 
+##################################################################
+### 
+##################################################################
+    def __cancel_sell_order(self, symbol_pair: str) -> None:
+        """Open the sell_txids.xlsx file, cancel all sell orders by symbol name."""
+        filename   = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
+        txids_list = pd.read_excel(filename, SheetNames.OPEN_SELL_ORDERS)[TXIDS].to_list()
+
+        # on first sell order, there will be no txid inside of the sell_order sheet,
+        # therefore, this for loop is skipped.
+        for txid in txids_list:
+            self.cancel_order(txid)
+            df = pd.read_excel(filename, SheetNames.OPEN_SELL_ORDERS)
+            df = df[ df[TXIDS] == txid]
+            self.__save_to_open_sell_orders(filename, df)
+        return
+
     def __place_sell_limit_order(self, symbol_pair: str) -> dict:
-        required_price = self.round_decimals_down(self.__get_required_price(symbol_pair), self.__get_max_price_prec(symbol_pair)) 
-        qty            = self.round_decimals_down(self.__get_quantity_owned(symbol_pair), self.__get_max_volume_prec(symbol_pair))
-        return self.limit_order(Trade.SELL, qty, symbol_pair, required_price)
+        required_price    = self.round_decimals_down(self.__get_required_price(symbol_pair), self.__get_max_price_prec(symbol_pair)) 
+        qty               = self.round_decimals_down(self.__get_quantity_owned(symbol_pair), self.__get_max_volume_prec(symbol_pair))
+        sell_order_result = self.limit_order(Trade.SELL, qty, symbol_pair, required_price)
+        
+        if self.has_result(sell_order_result):
+            G.log_file.print_and_log(message=f"sell: limit order placed {symbol_pair} {sell_order_result[Dicts.RESULT]}")
+        return sell_order_result
 
     def __update_open_buy_orders(self, symbol_pair: str) -> None:
         """If the first open_buy_order has been filled and the sell order has been placed successfully,
@@ -97,6 +106,9 @@ class Sell(Base):
             self.__save_to_open_sell_orders(filename, df)
         return
 
+##################################################################
+### Run the entire sell process
+##################################################################
     def start(self, symbol_pair: str) -> None:
         """
         Triggered everytime a new buy limit order is placed.
@@ -108,6 +120,8 @@ class Sell(Base):
         
         # place new sell order.
         sell_order_result = self.__place_sell_limit_order(symbol_pair)
+
+
 
         # update open_buy_orders sheet by removing filled buy orders.
         self.__update_open_buy_orders(symbol_pair)
