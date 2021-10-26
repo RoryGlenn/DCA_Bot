@@ -1,9 +1,10 @@
 """tradingview.py - pulls data from tradingview.com to see which coins we should buy."""
 
 import os
+import time
 
-from tradingview_ta import TA_Handler, Interval
-from pprint import pprint
+from tradingview_ta            import TA_Handler, Interval
+from pprint                    import pprint
 from kraken_files.kraken_enums import *
 
 class TVData:
@@ -18,7 +19,9 @@ class TVData:
         Interval.INTERVAL_15_MINUTES, 
         Interval.INTERVAL_1_HOUR, 
         Interval.INTERVAL_4_HOURS,
-        Interval.INTERVAL_1_DAY
+        Interval.INTERVAL_1_DAY,
+        Interval.INTERVAL_1_WEEK,
+        Interval.INTERVAL_1_MONTH
         ]
 
 
@@ -29,6 +32,7 @@ class TradingView():
     def __get_recommendation(self, symbol_pair: str, interval: str) -> list:
         """Get a recommendation (buy or sell) for the symbol."""
         try:
+            time.sleep(0.5)
             symbol_data = TA_Handler(symbol=symbol_pair, screener=TVData.SCREENER, exchange=TVData.EXCHANGE, interval=interval)
             return symbol_data.get_analysis().summary[TVData.RECOMMENDATION]
         except Exception as e:
@@ -57,10 +61,17 @@ class TradingView():
         buy_list = list()
 
         with open(KRAKEN_COINS) as file:
-            lines = file.readlines()
-            for symbol in lines:
+            lines     = file.readlines()
+            iteration = 1
+            total     = len(lines)
+
+            for symbol in sorted(lines):
                 symbol = symbol.replace("\n", "")
+
+                print(f"{iteration} : {total} {symbol}")
+
                 if symbol not in StableCoins.STABLE_COINS_LIST:
                     if self.is_buy(symbol+StableCoins.USD):
                         buy_list.append(symbol+StableCoins.USD)
+                iteration+=1
         return buy_list

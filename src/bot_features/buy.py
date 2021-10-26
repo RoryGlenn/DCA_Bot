@@ -17,7 +17,6 @@ import glob
 
 from pprint                    import pprint
 
-from tradingview_ta.main import TA_Handler
 from kraken_files.kraken_enums import *
 from util.globals              import G
 from bot_features.base         import Base
@@ -39,6 +38,7 @@ class Buy(Base):
         self.is_buy:                  bool  = False
         self.dca:                     DCA   = None
         self.sell:                    Sell  = Sell(parameter_dict)
+        self.ta:                      TradingView = TradingView()
         return
 
     def __init_loop_variables(self) -> None:
@@ -47,6 +47,7 @@ class Buy(Base):
         self.account_balance    = self.get_parsed_account_balance()
         self.asset_pairs_dict   = self.get_all_tradable_asset_pairs()[Dicts.RESULT]
         self.__create_excel_directory()
+        self.update_buy_list()
         return
 
     def __get_buy_time(self) -> str:
@@ -258,6 +259,25 @@ class Buy(Base):
         return
 
 
+    def update_buy_list(self) -> None:
+        """Get all names that are in excel_files and add them to the Buy_.LIST.
+        Note: if a user creates a new buy list in the config.txt file without completing previous trades,
+        the bot will add the previous trades to the new buy list in an attempt to complete them.
+        
+        """
+        for filename in glob.iglob(EXCEL_FILES_DIRECTORY+"/*"):
+            # get the symbol name
+            symbol = filename.split("/")[2].split("\\")[1].replace(".xlsx", "")
+
+            if symbol[-4:] == StableCoins.ZUSD:
+                symbol = symbol[:-4]
+            elif symbol[-3:] == StableCoins.USD:
+                symbol = symbol[:-3]
+
+            if symbol not in Buy_.LIST:
+                Buy_.LIST.append(symbol)
+        return
+
 ##################################################################################################################################
 ### BUY_LOOP
 ##################################################################################################################################
@@ -268,9 +288,6 @@ class Buy(Base):
         self.__init_loop_variables()
         bought_set = set()
 
-        # ta = TradingView()
-        # pprint(ta.get_all_kraken_coins_analysis())
-        
         while True:
             for symbol in Buy_.LIST:
                 self.__update_filled_orders(symbol)
@@ -298,4 +315,5 @@ class Buy(Base):
         return
 
 
-
+# 10-26-21 buy list
+# ['ATOMUSD', 'XTZUSD', 'XMRUSD', 'CRVUSD', 'KAVAUSD', 'TBTCUSD']
