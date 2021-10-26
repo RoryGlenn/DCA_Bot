@@ -7,7 +7,7 @@ order_txids
 open_orders
 src/order_txids/txids.xlsx
 __pycache__
-
+excel_files
 
 *.vscode
 *.pyc
@@ -15,3 +15,4 @@ __pycache__
 *.json
 *.spec
 *lnk
+*.xlsx
