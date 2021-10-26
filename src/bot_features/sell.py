@@ -2,10 +2,11 @@
 """sell.py: Sells coin on kraken exchange based on users config file."""
 
 import pandas as pd
+
+from pprint                    import pprint
 from kraken_files.kraken_enums import *
-from bot_features.base import Base
-from pprint import pprint
 from util.globals              import G
+from bot_features.base         import Base
 
 
 class Sell(Base):
@@ -14,9 +15,6 @@ class Sell(Base):
         self.asset_pairs_dict: dict = self.get_all_tradable_asset_pairs()[Dicts.RESULT]
         self.sell_order_placed: bool = False
 
-    ############
-    ### helpers
-    ############
     def __save_to_open_buy_orders(self, symbol_pair: str, df2: pd.DataFrame) -> None:
         """Write the DataFrame to an excel file."""
         filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
@@ -101,7 +99,7 @@ class Sell(Base):
         filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
         
         if self.has_result(order_result):
-            df                    = pd.read_excel(filename, SheetNames.OPEN_SELL_ORDERS)
+            df = pd.read_excel(filename, SheetNames.OPEN_SELL_ORDERS)
             df.loc[len(df.index), OSOColumns.TXIDS] = order_result[Dicts.RESULT][Data.TXID][0]
             self.__save_to_open_sell_orders(filename, df)
         return
@@ -120,8 +118,6 @@ class Sell(Base):
         
         # place new sell order.
         sell_order_result = self.__place_sell_limit_order(symbol_pair)
-
-
 
         # update open_buy_orders sheet by removing filled buy orders.
         self.__update_open_buy_orders(symbol_pair)

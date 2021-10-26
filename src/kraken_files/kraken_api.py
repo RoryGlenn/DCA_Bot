@@ -1,14 +1,15 @@
+import base64
 import datetime
-import requests
-import time
-import urllib.parse
 import hashlib
 import hmac
-import base64
 import math
+import time
+import urllib.parse
 
-from util.globals              import G
-from kraken_files.kraken_enums import ExportReport, Trade, Method, Data, Dicts
+import requests
+from util.globals import G
+
+from kraken_files.kraken_enums import *
 
 
 class KrakenAPI(object):

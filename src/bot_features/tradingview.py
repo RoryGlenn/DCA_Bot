@@ -1,6 +1,10 @@
+"""tradingview.py - pulls data from tradingview.com to see which coins we should buy."""
+
+import os
+
 from tradingview_ta import TA_Handler, Interval
 from pprint import pprint
-
+from kraken_files.kraken_enums import *
 
 class TVData:
     SCREENER       = "crypto"
@@ -38,3 +42,24 @@ class TradingView():
             if rec != TVData.BUY and rec != TVData.STRONG_BUY:
                 return False
         return True
+
+    def get_all_kraken_coins_analysis(self) -> list:
+        """
+        For every coin on the kraken exchange, 
+        get the analysis to see which one is a buy according to the time intervals.
+        
+        """
+        if not os.path.exist(KRAKEN_COINS):
+            return []
+
+        buy_list = list()
+
+        with open(KRAKEN_COINS) as file:
+            lines = file.readlines()
+            for symbol in lines:
+                symbol = symbol.replace("\n", "")
+                if symbol not in StableCoins.STABLE_COINS_LIST:
+                    if self.is_buy(symbol+StableCoins.USD):
+                        buy_list.append(symbol+StableCoins.USD)
+        return buy_list
+

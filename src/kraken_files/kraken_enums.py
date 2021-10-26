@@ -1,26 +1,17 @@
 from enum import auto
 
 EXCEL_FILES_DIRECTORY  = "src/kraken_files/excel_files"
-# OPEN_ORDERS_DIRECTORY  = "src/kraken_files/excel_files/open_orders"
-# SAFETY_ORDER_DIRECTORY = "src/kraken_files/excel_files/safety_orders"
-# SELL_ORDERS_DIRECTORY   = "src/kraken_files/excel_files/sell_orders"
 
-TXIDS                  = "txids"
-QUANTITY                = 2
-TXID_SHEET              = "txids"
+KRAKEN_COINS = "src/kraken_files/kraken_coins.txt"
+
+TXIDS      = "txids"
+QUANTITY   = 2
+TXID_SHEET = "txids"
 
 # DCA
-BASE_ORDER          = 1
-DECIMAL_MAX         = 8
-# SO_SHEET_NAME       = "Safety Order Table"
-OPENPYXL              = "openpyxl"
-
-
-class Base_:
-    NOTIONAL_MIN = 10.1
-    NOTIONAL_MAX = 20
-    USDT_TRADE_MIN = 5
-
+BASE_ORDER  = 1
+DECIMAL_MAX = 8
+OPENPYXL    = "openpyxl"
 
 class Buy_:
     BUY = auto()
@@ -29,41 +20,6 @@ class Buy_:
     USD_TO_SPEND = auto()
     LIST = list()
     PRICES = "src/kraken_files/excel_files/average_prices.xlsx"
-
-
-class Sell_:
-    SELL = auto()
-    PERCENT = auto()
-    TIME_MINUTES = auto()
-    BLACKLIST = auto()
-    PRICES = "src/kraken_files/excel_files/average_prices.xlsx"
-
-
-class Tip_:
-    TIP = auto()
-    SYMBOL = "XXLM"
-    PERCENT = auto()
-    ADDRESS = auto()
-
-
-class ExternalWallet:
-    SYMBOL = auto()
-    AMOUNT_USD = auto()
-    USD_LIMIT = auto()
-    ADDRESS = auto()
-    PERCENT = auto()
-
-
-class Distribution_:
-    DISTRIBUTE = auto()
-    DISTRIBUTE_TO = auto()
-    DISTRIBUTE_DAY = auto()
-    SYMBOL = auto()
-    AMOUNT_USD = auto()
-    USD_LIMIT = auto()
-    USDT_WITHDRAWL_ADDRESS = auto()
-    PERCENT = auto()
-    TIME_MINUTES = auto()
 
 class DCA_:
     TARGET_PROFIT_PERCENT = auto()
@@ -294,8 +250,6 @@ class FileMode:
 
 class Misc:
     CLEAR = "cls"
-    NOTHING = 0
-
 
 class KrakenFiles:
     WITHDRAWAL_MINIMUMS = "src/kraken_files/csv_files/Withdrawal_Minimums_and_Fees.csv"
@@ -303,71 +257,13 @@ class KrakenFiles:
     DEPOSIT_MINIMUMS = "src/kraken_files/csv_files/Deposit_Minimums_and_Fees.csv"
     DEPOSIT_CONFIRMATIONS = "src/kraken_files/csv_files/Deposit_Confirmation.csv"
 
-
-class KrakenDepositMethods:
-    d = {
-        "BTC": 'Bitcoin',
-        "XRP": 'Ripple XRP',
-        "ETH": 'Ether (Hex)',
-        "BCH": 'Bitcoin Cash',
-        "XLM": 'Stellar XLM',
-        "EOS": 'EOS',
-        "LTC": 'Litecoin',
-        "ADA": 'ADA',
-        "XMR": 'Monero',
-        "DASH": 'Dash',
-        "XTZ": 'XTZ',
-        "ZEC": 'Zcash (Transparent)',
-        "QTUM": 'QTUM',
-        "REP": 'REP',
-        "GNO": 'GNO',
-        "BAT": 'BAT',
-        "ICX": 'Icon',
-        "WAVES": 'Waves',
-        "DAI": 'Dai',
-        "LINK": 'Link'}
-
-
 class ConfigKeys:
     # kraken
     KRAKEN_API_KEY = "kraken_api_key"
     KRAKEN_SECRET_KEY = "kraken_secret_key"
 
-    # twilio
-    TWILIO_ACCOUNT_SID = "twilio_account_sid"
-    TWILIO_AUTH_TOKEN = "twilio_auth_token"
-    TWILIO_BOT_PHONENUMBER = "twilio_bot_phonenumber"
-    TWILIO_MY_CELL_NUMBER = "twilio_my_cell_number"
-
     # buy
-    BUY = "buy"
-    BUY_TIME_MINUTES = "buy_time_minutes"
-    BUY_USD_TO_SPEND = "buy_usd_to_spend"
     BUY_LIST = "buy_list"
-
-    # sell
-    SELL = "sell"
-    SELL_PERCENT = "sell_percent"
-    SELL_TIME_MINUTES = "sell_time_minutes"
-    # SELL_THRESHOLD_PERCENT = "sell_threshold_percent"
-    SELL_BLACKLIST = "sell_blacklist"
-
-    # tip
-    TIP = "tip"
-    TIP_PERCENT = "tip_percent"
-    TIP_ADDRESS = "tip_address"
-
-    # external wallet
-    EXTERNAL_WALLET_NAME = "external_wallet_name"
-    EXTERNAL_WALLET_TRIGGER_LIMIT = "external_walllet_trigger_limit"
-    EXTERNAL_WALLET_TRANSFER_PERCENT = "external_wallet_transfer_percent"
-
-    # distribute
-    DISTRIBUTE = "distribute"
-    DISTRIBUTE_TO = "distribute_to"
-    DISTRIBUTE_DAY = "distribute_day"
-    DISTRIBUTE_SYMBOL = "distribute_symbol"
-    DISTRIBUTE_AMOUNT_USD = "distribute_amount_usd"
 
     # dca
     DCA_TARGET_PROFIT_PERCENT = "dca_target_profit_percent"
@@ -379,10 +275,6 @@ class ConfigKeys:
     DCA_SAFETY_ORDER_VOLUME_SCALE = "dca_safety_order_volume_scale"
     DCA_SAFETY_ORDER_STEP_SCALE = "dca_safety_order_step_scale"
     DCA_SAFETY_ORDER_PRICE_DEVIATION = "dca_safety_order_price_deviation"
-
-
-
-
 
 class Threads:
     BUY = "thread_buy"
@@ -409,7 +301,6 @@ class OBOColumns:
 
 class OSOColumns:
     TXIDS = "txids"
-    # REQ_PRICE = "required_price"
 
 class SheetNames:
     SAFETY_ORDERS = "safety_orders"

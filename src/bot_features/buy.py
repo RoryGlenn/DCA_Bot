@@ -4,16 +4,20 @@
 1. Have a list of coins that you want to buy.
 2. Pull data from trading view based on 3c settings.
 3. Make decision on whether to buy or not.
-4. After base order is filled, create sell limit order at 0.5% higher
+4. After base order is filled, create sell limit order at % higher
 5. every time a safety order is filled, cancel current sell limit order and create a new sell limit order
 """
 
+############## Buy list in DCA bot should be decided from the HULL moving average in trading view.!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 import datetime
-import glob
 import os
 import pandas as pd
+import glob
 
 from pprint                    import pprint
+
+from tradingview_ta.main import TA_Handler
 from kraken_files.kraken_enums import *
 from util.globals              import G
 from bot_features.base         import Base
@@ -21,13 +25,14 @@ from bot_features.dca          import DCA
 from bot_features.sell         import Sell
 from bot_features.tradingview  import TradingView
 
+
 class Buy(Base):
     def __init__(self, parameter_dict: dict) -> None:
         super().__init__(parameter_dict)
         
-        self.account_balance:         dict  = {}
-        self.kraken_assets_dict:      dict  = {}
-        self.trade_history:           dict  = {}
+        self.account_balance:         dict  = { }
+        self.kraken_assets_dict:      dict  = { }
+        self.trade_history:           dict  = { }
         self.bid_price:               float = 0.0
         self.quantity_to_buy:         float = 0.0
         self.symbol_pair:             str   = ""
@@ -65,7 +70,6 @@ class Buy(Base):
         self.bid_price   = self.get_bid_price(self.symbol_pair)
         alt_name         = self.get_alt_name(symbol)
         self.is_buy      = self.__get_recommendation(alt_name+StableCoins.USD)
-        # is the coin a buy and do we already own the coin?
         return
 
     def save_open_buy_order_txid(self, buy_result: dict, symbol_pair: str, required_price: float) -> None:
@@ -85,8 +89,8 @@ class Buy(Base):
             df_oo.loc[len(df_oo)-1, OBOColumns.REQ_PRICE] = required_price
 
             with pd.ExcelWriter(filename, engine=OPENPYXL, mode=FileMode.WRITE_TRUNCATE) as writer:
-                df_sa.to_excel(writer, SheetNames.SAFETY_ORDERS,     index=False)
-                df_oo.to_excel(writer, SheetNames.OPEN_BUY_ORDERS, index=False)
+                df_sa.to_excel(writer, SheetNames.SAFETY_ORDERS,    index=False)
+                df_oo.to_excel(writer, SheetNames.OPEN_BUY_ORDERS,  index=False)
                 df_so.to_excel(writer, SheetNames.OPEN_SELL_ORDERS, index=False)
         return
 
@@ -124,9 +128,6 @@ class Buy(Base):
             num_open_orders    = self.__get_open_orders_on_symbol_pair(symbol)
             num_orders_to_make = abs(num_open_orders-DCA_.SAFETY_ORDERS_ACTIVE_MAX)
             
-            # TODO
-            # 1. put limit orders in for each safety order with the correct quantity. This includes quantity that we may not own yet
-
             # if the max active orders are already put in, and are still active, there is nothing left to do.
             if num_open_orders >= DCA_.SAFETY_ORDERS_ACTIVE_MAX:
                 # Max safety orders are already active.
@@ -169,59 +170,61 @@ class Buy(Base):
             G.log_file.print_and_log(e=e)
         return
 
-    # def __save_to_open_buy_orders(self, symbol_pair: str, df2: pd.DataFrame) -> None:
-    #     """Write the DataFrame to an excel file."""
-    #     filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
-    #     df1 = pd.read_excel(filename, SheetNames.SAFETY_ORDERS)
-    #     df3 = pd.read_excel(filename, SheetNames.OPEN_SELL_ORDERS)
+    def __update_bought_set(self):
+        """Get all the symbol names from the EXCEL_FILES_DIRECTORY
+            and create the set of coins we are currently buying."""
+        bought_set = set()
 
-    #     with pd.ExcelWriter(filename, engine=OPENPYXL, mode=FileMode.WRITE_TRUNCATE) as writer:
-    #         df1.to_excel(writer, SheetNames.SAFETY_ORDERS,   index=False)
-    #         df2.to_excel(writer, SheetNames.OPEN_BUY_ORDERS, index=False)
-    #         df3.to_excel(writer, SheetNames.OPEN_SELL_ORDERS,index=False)
-    #     return
+        # iterate through all files in EXCEL_FILES_DIRECTORY
+        for filename in glob.iglob(EXCEL_FILES_DIRECTORY+"/*"):
+            # get the symbol name
+            symbol = filename.split("/")[2].split("\\")[1].replace(".xlsx", "")
 
-    # def __update_open_buy_orders(self, symbol_pair: str) -> None:
-    #     """If the first open_buy_order has been filled and the sell order has been placed successfully,
-    #     we need to remove the first row in the open_buy_orders sheet as it is no longer open and needed 
-    #     to place the next sell limit order."""
+            if symbol[-4:] == StableCoins.ZUSD:
+                symbol = symbol[:-4]
+            elif symbol[-3:] == StableCoins.USD:
+                symbol = symbol[:-3]
 
-    #     filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
-    #     df       = pd.read_excel(filename, SheetNames.OPEN_BUY_ORDERS)
-    #     df.drop(0, inplace=True)
-    #     self.__save_to_open_buy_orders(symbol_pair, df)
-    #     return
+            bought_set.add(symbol)
+        return bought_set
 
-    def __update_completed_trades(self, symbol: str, bought_list: list) -> list:
+    def __update_completed_trades(self, symbol: str) -> None:
         """
-        If the sell order was filled, cancel all buy orders, remove symbol from bought_list, delete excel_file.
+        If the sell order was filled, cancel all buy orders, 
+        remove symbol from bought_list, delete excel_file. 
+        
         """
-
         symbol_pair = self.get_tradable_asset_pair(symbol)
         filename    = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
         
         if not os.path.exists(filename):
-            return bought_list
+            return
         
         filled_sell_order_txids = dict()
-        self.trade_history        = self.get_trades_history()
-        df                        = pd.read_excel(filename, SheetNames.OPEN_SELL_ORDERS)
+        self.trade_history      = self.get_trades_history()
+        df                      = pd.read_excel(filename, SheetNames.OPEN_SELL_ORDERS)
         
         for trade_txid, dictionary in self.trade_history[Dicts.RESULT][Data.TRADES].items():
             filled_sell_order_txids[dictionary[Data.ORDER_TXID]] = trade_txid
 
+        """
+        If the sell order has been filled, we have sold the coin for a profit.
+        The things left to do is:
+          1. cancel any remaining buy order
+          2. delete the excel file
+          3. remove symbol from bought_set
+          4. start the process all over again!
+        """
         for sell_order_txid in df[TXIDS].to_list():
             if sell_order_txid in filled_sell_order_txids.keys():
                 # the sell order has filled and we have completed the entire process!!!
                 open_buy_orders = pd.read_excel(filename, SheetNames.OPEN_BUY_ORDERS)
+
                 for txid in open_buy_orders[TXIDS].to_list():
                     self.cancel_order(txid)
-
                     if os.path.exists(filename):
                         os.remove(filename)
-                    if symbol in bought_list:
-                        bought_list.remove(symbol)
-        return bought_list
+        return
 
     def __update_filled_orders(self, symbol: str) -> None:
         """
@@ -235,7 +238,6 @@ class Buy(Base):
         Note: Function is called only once inside of the buy loop.
         
         """
-
         symbol_pair = self.get_tradable_asset_pair(symbol)
         filename    = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
         
@@ -255,23 +257,6 @@ class Buy(Base):
                 self.sell.start(symbol_pair)
         return
 
-    def __update_completed_safety_order_files(self) -> None:
-        """For every file that exists in the safety_orders directory, check if it contains any more safety orders.
-        If it is empty and there are no open orders on that symbol, delete the file.
-        
-        """
-        open_orders:             dict = self.get_open_orders()[Dicts.RESULT][Dicts.OPEN]
-        open_order_symbol_pairs: set  = {d[Dicts.DESCR][Data.PAIR] for (_, d) in open_orders.items()}
-
-        for file in glob.iglob(EXCEL_FILES_DIRECTORY+"/"+"\*.xlsx"):
-            df          = pd.read_excel(file, SheetNames.SAFETY_ORDERS)
-            symbol_pair = file.split("\\")[-1].replace(".xlsx", "") # get the file name without the extention (symbol_pair)
-
-            if len(df.index) == 0 and symbol_pair not in open_order_symbol_pairs:
-                """there are no more safety orders left to place, so delete the file."""
-                os.remove(file)
-        return
-
 
 ##################################################################################################################################
 ### BUY_LOOP
@@ -280,22 +265,18 @@ class Buy(Base):
     def buy_loop(self) -> None:
         """The main function for trading coins."""
         
-        ##########################################
-        # self.cancel_all_orders()
-        # testfile = EXCEL_FILES_DIRECTORY+"/XXBTZUSD.xlsx"
-        # if os.path.exists(testfile):
-        #     os.remove(testfile)
-        ##########################################
-        
         self.__init_loop_variables()
-        bought_list = list()
+        bought_set = set()
 
+        # ta = TradingView()
+        # pprint(ta.get_all_kraken_coins_analysis())
+        
         while True:
             for symbol in Buy_.LIST:
                 self.__update_filled_orders(symbol)
-                bought_list = self.__update_completed_trades(symbol, bought_list)
-                # self.__update_completed_safety_order_files()
+                self.__update_completed_trades(symbol)
             try:
+                bought_set = self.__update_bought_set()
                 self.wait(message=f"buy_loop: Waiting till {self.__get_buy_time()} to buy", timeout=Buy_.TIME_MINUTES*60)
 
                 for symbol in Buy_.LIST:
@@ -304,12 +285,11 @@ class Buy(Base):
                         self.__set_pre_buy_variables(symbol)
                         
                         # if symbol is in the bought list, we don't care if it is a good time to buy or not, we need to manage it
-                        if not self.is_buy and symbol not in bought_list:
+                        if not self.is_buy and symbol not in bought_set:
                             continue
 
                         self.__set_post_buy_variables(symbol)
                         self.__place_limit_orders(symbol)
-                        bought_list.append(symbol)
                     except Exception as e:
                         G.log_file.print_and_log(message="buy_loop:", e=e)
                         continue

@@ -42,7 +42,7 @@ TWILIO
 
   - To make .exe
   cd into src directory
-  pyinstaller --noconfirm --onefile --name "Kraken_Bot" --add-binary "images/Kraken_01.ico;files" -i images/Kraken_01.ico main.py
+  pyinstaller --noconfirm --onefile --name "DCA_Kraken_Bot" main.py
 
 ###############################################
 SERVER
