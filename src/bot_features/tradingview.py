@@ -17,7 +17,9 @@ class TVData:
         Interval.INTERVAL_5_MINUTES, 
         Interval.INTERVAL_15_MINUTES, 
         Interval.INTERVAL_1_HOUR, 
-        Interval.INTERVAL_4_HOURS]
+        Interval.INTERVAL_4_HOURS,
+        Interval.INTERVAL_1_DAY
+        ]
 
 
 class TradingView():
@@ -49,7 +51,7 @@ class TradingView():
         get the analysis to see which one is a buy according to the time intervals.
         
         """
-        if not os.path.exist(KRAKEN_COINS):
+        if not os.path.exists(KRAKEN_COINS):
             return []
 
         buy_list = list()
@@ -62,4 +64,3 @@ class TradingView():
                     if self.is_buy(symbol+StableCoins.USD):
                         buy_list.append(symbol+StableCoins.USD)
         return buy_list
-

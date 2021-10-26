@@ -4,7 +4,6 @@ kraken_secret_key                = "gqnoKy0HFy/CxhChWrulMy4XEbmeOaSrZ7hn1D4Vyork
 buy_list                         = "SOL, XXLM"
 
 dca_target_profit_percent        = 0.5
-dca_trailing_deviation           = 0.1
 dca_safety_orders_max            = 7
 dca_safety_orders_active_max     = 2
 dca_safety_order_volume_scale    = 2.5

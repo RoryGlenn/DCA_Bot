@@ -2,7 +2,7 @@ from enum import auto
 
 EXCEL_FILES_DIRECTORY  = "src/kraken_files/excel_files"
 
-KRAKEN_COINS = "src/kraken_files/kraken_coins.txt"
+KRAKEN_COINS = "src/kraken_files/txt_files/kraken_coins.txt"
 
 TXIDS      = "txids"
 QUANTITY   = 2
@@ -19,7 +19,7 @@ class Buy_:
     TIME_MINUTES = 1
     USD_TO_SPEND = auto()
     LIST = list()
-    PRICES = "src/kraken_files/excel_files/average_prices.xlsx"
+    # PRICES = "src/kraken_files/excel_files/average_prices.xlsx"
 
 class DCA_:
     TARGET_PROFIT_PERCENT = auto()
@@ -245,7 +245,7 @@ class FileMode:
     """
     Configuration file for the rake bot to use on users account and wallets
     """
-    CONFIG_FILE = 'src/kraken_files/config.txt'
+    CONFIG_FILE = 'src/kraken_files/txt_files/config.txt'
 
 
 class Misc:
@@ -267,7 +267,7 @@ class ConfigKeys:
 
     # dca
     DCA_TARGET_PROFIT_PERCENT = "dca_target_profit_percent"
-    DCA_TRAILING_DEVIATION = "dca_trailing_deviation"
+    # DCA_TRAILING_DEVIATION = "dca_trailing_deviation"
     DCA_BASE_ORDER_SIZE = "dca_base_order_size"
     DCA_SAFETY_ORDERS_MAX = "dca_safety_orders_max"
     DCA_SAFETY_ORDERS_ACTIVE_MAX = "dca_safety_orders_active_max"

@@ -1,12 +1,11 @@
 """config_parser.py - scans for config.txt file and applies users settings."""
 
-
 import sys
-from datetime import datetime
 
-from kraken_files.kraken_enums import DCA_, Buy_, ConfigKeys, FileMode
+from datetime                  import datetime
+from kraken_files.kraken_enums import *
+from util.globals              import G
 
-from util.globals import G
 
 class ConfigParser():
 
@@ -24,7 +23,7 @@ class ConfigParser():
 
             # dca
             ConfigKeys.DCA_TARGET_PROFIT_PERCENT,
-            ConfigKeys.DCA_TRAILING_DEVIATION,
+            # ConfigKeys.DCA_TRAILING_DEVIATION,
             ConfigKeys.DCA_BASE_ORDER_SIZE,
             ConfigKeys.DCA_SAFETY_ORDERS_MAX,
             ConfigKeys.DCA_SAFETY_ORDERS_ACTIVE_MAX,
@@ -80,7 +79,7 @@ class ConfigParser():
 
         # DCA
         DCA_.TARGET_PROFIT_PERCENT          = float(cfg_dict[ConfigKeys.DCA_TARGET_PROFIT_PERCENT])
-        DCA_.TRAILING_DEVIATION             = float(cfg_dict[ConfigKeys.DCA_TRAILING_DEVIATION])
+        # DCA_.TRAILING_DEVIATION             = float(cfg_dict[ConfigKeys.DCA_TRAILING_DEVIATION])
         DCA_.SAFETY_ORDER_VOLUME_SCALE      = float(cfg_dict[ConfigKeys.DCA_SAFETY_ORDER_VOLUME_SCALE])
         DCA_.SAFETY_ORDERS_MAX              = int(cfg_dict[ConfigKeys.DCA_SAFETY_ORDERS_MAX])
         DCA_.SAFETY_ORDERS_ACTIVE_MAX       = int(cfg_dict[ConfigKeys.DCA_SAFETY_ORDERS_ACTIVE_MAX])
