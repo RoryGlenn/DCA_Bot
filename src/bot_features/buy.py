@@ -260,18 +260,24 @@ class Buy(Base):
 
 
     def update_buy_list(self) -> None:
-        """Get all names that are in excel_files and add them to the Buy_.LIST.
+        """Get all names that are in EXCEL_FILES_DIRECTORY and add them to the Buy_.LIST.
         Note: if a user creates a new buy list in the config.txt file without completing previous trades,
-        the bot will add the previous trades to the new buy list in an attempt to complete them.
+        the bot will add the previous trades to the new buy list in an attempt to finish them.
         
         """
+        exception_list = ["CHZ", "XTZ"]
+
         for filename in glob.iglob(EXCEL_FILES_DIRECTORY+"/*"):
+            
             # get the symbol name
             symbol = filename.split("/")[2].split("\\")[1].replace(".xlsx", "")
-
-            if symbol[-4:] == StableCoins.ZUSD:
-                symbol = symbol[:-4]
-            elif symbol[-3:] == StableCoins.USD:
+            
+            if symbol[:-3] not in exception_list:
+                if symbol[-4:] == StableCoins.ZUSD:
+                    symbol = symbol[:-4]
+                elif symbol[-3:] == StableCoins.USD:
+                    symbol = symbol[:-3]
+            else:
                 symbol = symbol[:-3]
 
             if symbol not in Buy_.LIST:
