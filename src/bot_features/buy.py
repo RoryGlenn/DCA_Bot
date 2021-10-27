@@ -47,7 +47,7 @@ class Buy(Base):
         self.account_balance    = self.get_parsed_account_balance()
         self.asset_pairs_dict   = self.get_all_tradable_asset_pairs()[Dicts.RESULT]
         self.__create_excel_directory()
-        self.update_buy_list()
+        self.__update_buy_list()
         return
 
     def __get_buy_time(self) -> str:
@@ -259,7 +259,7 @@ class Buy(Base):
         return
 
 
-    def update_buy_list(self) -> None:
+    def __update_buy_list(self) -> None:
         """Get all names that are in EXCEL_FILES_DIRECTORY and add them to the Buy_.LIST.
         Note: if a user creates a new buy list in the config.txt file without completing previous trades,
         the bot will add the previous trades to the new buy list in an attempt to finish them.
@@ -293,6 +293,8 @@ class Buy(Base):
         
         self.__init_loop_variables()
         bought_set = set()
+
+        # pprint(self.ta.get_all_kraken_coins_analysis())
 
         while True:
             for symbol in Buy_.LIST:
