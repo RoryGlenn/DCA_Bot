@@ -32,7 +32,7 @@ class TradingView():
     def __get_recommendation(self, symbol_pair: str, interval: str) -> list:
         """Get a recommendation (buy or sell) for the symbol."""
         try:
-            time.sleep(0.5)
+            time.sleep(0.1)
             symbol_data = TA_Handler(symbol=symbol_pair, screener=TVData.SCREENER, exchange=TVData.EXCHANGE, interval=interval)
             return symbol_data.get_analysis().summary[TVData.RECOMMENDATION]
         except Exception as e:

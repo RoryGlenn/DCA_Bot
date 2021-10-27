@@ -321,7 +321,3 @@ class Buy(Base):
             except Exception as e:
                 G.log_file.print_and_log(message="buy_loop:", e=e)
         return
-
-
-# 10-26-21 buy list
-# ['ATOMUSD', 'XTZUSD', 'XMRUSD', 'CRVUSD', 'KAVAUSD', 'TBTCUSD']
