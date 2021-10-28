@@ -14,9 +14,7 @@ import datetime
 import os
 import pandas as pd
 import glob
-import time
 
-# from threading                 import Thread, Lock
 from pprint                    import pprint
 from kraken_files.kraken_enums import *
 from util.globals              import G
@@ -177,15 +175,22 @@ class Buy(Base):
         """Get all the symbol names from the EXCEL_FILES_DIRECTORY
             and create the set of coins we are currently buying."""
         bought_set = set()
+        
+        # if the coin name ends in a 'Z'
+        exception_list = ["CHZ", "XTZ"]
 
         # iterate through all files in EXCEL_FILES_DIRECTORY
         for filename in glob.iglob(EXCEL_FILES_DIRECTORY+"/*"):
             # get the symbol name
-            symbol = filename.split("/")[2].split("\\")[1].replace(".xlsx", "")
+            # symbol = filename.split("/")[2].split("\\")[1].replace(".xlsx", "")
+            symbol = filename.split("/")[3].replace(".xlsx", "")
 
-            if symbol[-4:] == StableCoins.ZUSD:
-                symbol = symbol[:-4]
-            elif symbol[-3:] == StableCoins.USD:
+            if symbol[:-3] not in exception_list:
+                if symbol[-4:] == StableCoins.ZUSD:
+                    symbol = symbol[:-4]
+                elif symbol[-3:] == StableCoins.USD:
+                    symbol = symbol[:-3]
+            else:
                 symbol = symbol[:-3]
 
             bought_set.add(symbol)
@@ -260,7 +265,6 @@ class Buy(Base):
                 self.sell.start(symbol_pair)
         return
 
-
     def __update_buy_list(self) -> None:
         """Get all names that are in EXCEL_FILES_DIRECTORY and add them to the Buy_.LIST.
         Note: if a user creates a new buy list in the config.txt file without completing previous trades,
@@ -272,7 +276,8 @@ class Buy(Base):
         for filename in glob.iglob(EXCEL_FILES_DIRECTORY+"/*"):
             
             # get the symbol name
-            symbol = filename.split("/")[2].split("\\")[1].replace(".xlsx", "")
+            # symbol = filename.split("/")[2].split("\\")[1].replace(".xlsx", "")
+            symbol = filename.split("/")[3].replace(".xlsx", "")
             
             if symbol[:-3] not in exception_list:
                 if symbol[-4:] == StableCoins.ZUSD:
@@ -281,9 +286,6 @@ class Buy(Base):
                     symbol = symbol[:-3]
             else:
                 symbol = symbol[:-3]
-
-            # if symbol not in Buy_.SET:
-                # Buy_.SET.add(symbol)
 
             Buy_.SET.add(symbol)
         return
@@ -312,6 +314,8 @@ class Buy(Base):
         
         self.__init_loop_variables()
         bought_set = set()
+
+        pprint(self.ta.get_all_kraken_coins_analysis())
 
         while True:
             for symbol in Buy_.SET:

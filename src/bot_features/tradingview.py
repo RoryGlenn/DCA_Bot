@@ -1,7 +1,7 @@
 """tradingview.py - pulls data from tradingview.com to see which coins we should buy."""
 
 import os
-import time
+# import time
 
 from tradingview_ta            import TA_Handler, Interval
 from pprint                    import pprint
@@ -21,8 +21,7 @@ class TVData:
         Interval.INTERVAL_4_HOURS,
         Interval.INTERVAL_1_DAY,
         Interval.INTERVAL_1_WEEK,
-        Interval.INTERVAL_1_MONTH
-        ]
+        Interval.INTERVAL_1_MONTH]
 
 
 class TradingView():
@@ -73,5 +72,5 @@ class TradingView():
                 if symbol not in StableCoins.STABLE_COINS_LIST:
                     if self.is_buy(symbol+StableCoins.USD):
                         buy_set.add(symbol+StableCoins.USD)
-                iteration+=1
+                iteration += 1
         return buy_set
