@@ -14,6 +14,7 @@ import datetime
 import os
 import pandas as pd
 import glob
+import sys
 
 from pprint                    import pprint
 from kraken_files.kraken_enums import *
@@ -22,6 +23,10 @@ from bot_features.base         import Base
 from bot_features.dca          import DCA
 from bot_features.sell         import Sell
 from bot_features.tradingview  import TradingView
+
+x_list   = ['XETC', 'XETH', 'XLTC', 'XMLN', 'XREP', 'XXBT', 'XXDG', 'XXLM', 'XXMR', 'XXRP', 'XZEC']
+reg_list = ['ETC',  'ETH',  'LTC',  'MLN',  'REP',  'XBT',  'XDG',  'XLM',  'XMR',  'XRP',  'ZEC' ]
+x_dict   = { x_list[i]: reg_list[i] for i in range(len(x_list)) }
 
 
 class Buy(Base):
@@ -182,8 +187,10 @@ class Buy(Base):
         # iterate through all files in EXCEL_FILES_DIRECTORY
         for filename in glob.iglob(EXCEL_FILES_DIRECTORY+"/*"):
             # get the symbol name
-            # symbol = filename.split("/")[2].split("\\")[1].replace(".xlsx", "")
-            symbol = filename.split("/")[3].replace(".xlsx", "")
+            if sys.platform == "win32":
+                symbol = filename.split("/")[2].split("\\")[1].replace(".xlsx", "")
+            else:
+                symbol = filename.split("/")[3].replace(".xlsx", "")
 
             if symbol[:-3] not in exception_list:
                 if symbol[-4:] == StableCoins.ZUSD:
@@ -276,8 +283,10 @@ class Buy(Base):
         for filename in glob.iglob(EXCEL_FILES_DIRECTORY+"/*"):
             
             # get the symbol name
-            # symbol = filename.split("/")[2].split("\\")[1].replace(".xlsx", "")
-            symbol = filename.split("/")[3].replace(".xlsx", "")
+            if sys.platform == "win32":
+                symbol = filename.split("/")[2].split("\\")[1].replace(".xlsx", "")
+            else:
+                symbol = filename.split("/")[3].replace(".xlsx", "")            
             
             if symbol[:-3] not in exception_list:
                 if symbol[-4:] == StableCoins.ZUSD:
@@ -315,7 +324,10 @@ class Buy(Base):
         self.__init_loop_variables()
         bought_set = set()
 
-        pprint(self.ta.get_all_kraken_coins_analysis())
+        # pprint(self.ta.get_all_kraken_coins_analysis())
+
+        pprint(x_dict)
+
 
         while True:
             for symbol in Buy_.SET:
