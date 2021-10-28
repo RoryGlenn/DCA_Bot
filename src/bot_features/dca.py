@@ -1,14 +1,12 @@
 """dca.py - DCA is a dollar cost averaging technique. 
 This bot uses DCA in order lower the average buy price for a purchased coin."""
 
-
 import os
-from pprint import pprint
-
 import pandas as pd
-from kraken_files.kraken_enums import *
-from util.globals import G
 
+from pprint                    import pprint
+from kraken_files.kraken_enums import *
+from util.globals              import G
 
 class DCA(DCA_):
     def __init__(self, symbol: str, order_min: float, bid_price: float):

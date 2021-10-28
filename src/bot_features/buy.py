@@ -1,22 +1,23 @@
 
-"""buy.py: Buys coin on kraken exchange based on users config file.
+"""
+buy.py - Buys coin on kraken exchange based on users config file.
 
 1. Have a list of coins that you want to buy.
 2. Pull data from trading view based on 3c settings.
 3. Make decision on whether to buy or not.
 4. After base order is filled, create sell limit order at % higher
 5. every time a safety order is filled, cancel current sell limit order and create a new sell limit order
-"""
 
-############## Buy list in DCA bot should be decided from the HULL moving average in trading view.!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+"""
 
 import datetime
 import os
 import pandas as pd
 import glob
+import time
 
+# from threading                 import Thread, Lock
 from pprint                    import pprint
-
 from kraken_files.kraken_enums import *
 from util.globals              import G
 from bot_features.base         import Base
@@ -48,6 +49,7 @@ class Buy(Base):
         self.asset_pairs_dict   = self.get_all_tradable_asset_pairs()[Dicts.RESULT]
         self.__create_excel_directory()
         self.__update_buy_list()
+        self.__set_future_time()
         return
 
     def __get_buy_time(self) -> str:
@@ -280,10 +282,27 @@ class Buy(Base):
             else:
                 symbol = symbol[:-3]
 
-            if symbol not in Buy_.LIST:
-                Buy_.LIST.append(symbol)
+            # if symbol not in Buy_.SET:
+                # Buy_.SET.add(symbol)
+
+            Buy_.SET.add(symbol)
         return
 
+    def __get_future_time(self) -> str:
+        return ( datetime.timedelta(minutes=60) + datetime.datetime.now() ).strftime("%H:%M:%S")
+
+    def __set_future_time(self) -> None:
+        self.future_time = self.__get_future_time()
+        return
+
+    def set_buy_set(self):
+        """Once every hour, run this function. 
+        Add to the buy_list with these coins."""
+
+        if self.future_time < datetime.datetime.now().strftime("%H:%M:%S"):
+            Buy_.SET = self.ta.get_all_kraken_coins_analysis()
+            self.__set_future_time()
+        return
 ##################################################################################################################################
 ### BUY_LOOP
 ##################################################################################################################################
@@ -294,17 +313,16 @@ class Buy(Base):
         self.__init_loop_variables()
         bought_set = set()
 
-        # pprint(self.ta.get_all_kraken_coins_analysis())
-
         while True:
-            for symbol in Buy_.LIST:
+            for symbol in Buy_.SET:
                 self.__update_filled_orders(symbol)
                 self.__update_completed_trades(symbol)
             try:
                 bought_set = self.__update_bought_set()
                 self.wait(message=f"buy_loop: Waiting till {self.__get_buy_time()} to buy", timeout=Buy_.TIME_MINUTES*60)
+                self.set_buy_set()
 
-                for symbol in Buy_.LIST:
+                for symbol in Buy_.SET:
                     try:
                         self.wait(message=f"buy_loop: checking {symbol}", timeout=Nap.LONG)
                         self.__set_pre_buy_variables(symbol)

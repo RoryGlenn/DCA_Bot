@@ -75,7 +75,7 @@ class ConfigParser():
         cfg_dict = ConfigParser().parse_config_file()
 
         for symbol in cfg_dict[ConfigKeys.BUY_LIST].split(","):
-            Buy_.LIST.append(str(symbol).upper())
+            Buy_.SET.add(str(symbol).upper())
 
         # DCA
         DCA_.TARGET_PROFIT_PERCENT          = float(cfg_dict[ConfigKeys.DCA_TARGET_PROFIT_PERCENT])

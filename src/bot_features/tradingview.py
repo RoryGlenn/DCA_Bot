@@ -32,7 +32,7 @@ class TradingView():
     def __get_recommendation(self, symbol_pair: str, interval: str) -> list:
         """Get a recommendation (buy or sell) for the symbol."""
         try:
-            time.sleep(0.1)
+            # time.sleep(0.1)
             symbol_data = TA_Handler(symbol=symbol_pair, screener=TVData.SCREENER, exchange=TVData.EXCHANGE, interval=interval)
             return symbol_data.get_analysis().summary[TVData.RECOMMENDATION]
         except Exception as e:
@@ -49,7 +49,7 @@ class TradingView():
                 return False
         return True
 
-    def get_all_kraken_coins_analysis(self) -> list:
+    def get_all_kraken_coins_analysis(self) -> set:
         """
         For every coin on the kraken exchange, 
         get the analysis to see which one is a buy according to the time intervals.
@@ -58,7 +58,7 @@ class TradingView():
         if not os.path.exists(KRAKEN_COINS):
             return []
 
-        buy_list = list()
+        buy_set = set()
 
         with open(KRAKEN_COINS) as file:
             lines     = file.readlines()
@@ -72,6 +72,6 @@ class TradingView():
 
                 if symbol not in StableCoins.STABLE_COINS_LIST:
                     if self.is_buy(symbol+StableCoins.USD):
-                        buy_list.append(symbol+StableCoins.USD)
+                        buy_set.add(symbol+StableCoins.USD)
                 iteration+=1
-        return buy_list
+        return buy_set

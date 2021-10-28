@@ -18,8 +18,7 @@ class Buy_:
     PRICES = auto()
     TIME_MINUTES = 1
     USD_TO_SPEND = auto()
-    LIST = list()
-    # PRICES = "src/kraken_files/excel_files/average_prices.xlsx"
+    SET = set()
 
 class DCA_:
     TARGET_PROFIT_PERCENT = auto()
