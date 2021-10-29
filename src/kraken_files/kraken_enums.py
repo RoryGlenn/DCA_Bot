@@ -263,7 +263,7 @@ class ConfigKeys:
     KRAKEN_SECRET_KEY = "kraken_secret_key"
 
     # buy
-    BUY_LIST = "buy_list"
+    BUY_SET = "buy_list"
 
     # dca
     DCA_TARGET_PROFIT_PERCENT = "dca_target_profit_percent"

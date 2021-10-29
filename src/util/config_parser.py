@@ -8,7 +8,6 @@ from util.globals              import G
 
 
 class ConfigParser():
-
     def __get_current_time(self) -> str:
         """Returns the current time in hours:minutes:seconds format."""
         return datetime.now().strftime("%H:%M:%S")
@@ -19,7 +18,7 @@ class ConfigParser():
             ConfigKeys.KRAKEN_API_KEY, 
             ConfigKeys.KRAKEN_SECRET_KEY,
             
-            ConfigKeys.BUY_LIST,
+            # ConfigKeys.BUY_SET,
 
             # dca
             ConfigKeys.DCA_TARGET_PROFIT_PERCENT,
@@ -65,8 +64,7 @@ class ConfigParser():
                             removed_set.add(param)
                             break
         except Exception as e:
-            G.log_file.print_and_log(
-                f"[!] {self.__get_current_time()} {e}, {type(e).__name__}, {__file__}, {e.__traceback__.tb_lineno}")
+            G.log_file.print_and_log(e=e)
             sys.exit()
         return parameter_dict
 
@@ -74,8 +72,8 @@ class ConfigParser():
         """Assign the values to our enums"""
         cfg_dict = ConfigParser().parse_config_file()
 
-        for symbol in cfg_dict[ConfigKeys.BUY_LIST].split(","):
-            Buy_.SET.add(str(symbol).upper())
+        # for symbol in cfg_dict[ConfigKeys.BUY_LIST].split(","):
+        #     Buy_.SET.add(str(symbol).upper())
 
         # DCA
         DCA_.TARGET_PROFIT_PERCENT          = float(cfg_dict[ConfigKeys.DCA_TARGET_PROFIT_PERCENT])

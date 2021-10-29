@@ -38,6 +38,7 @@ class Buy(Base):
         self.account_balance:         dict  = { }
         self.kraken_assets_dict:      dict  = { }
         self.trade_history:           dict  = { }
+        self.exception_list:          list  = ["CHZ", "XTZ"]
         self.bid_price:               float = 0.0
         self.quantity_to_buy:         float = 0.0
         self.symbol_pair:             str   = ""
@@ -53,7 +54,7 @@ class Buy(Base):
         self.account_balance    = self.get_parsed_account_balance()
         self.asset_pairs_dict   = self.get_all_tradable_asset_pairs()[Dicts.RESULT]
         self.__create_excel_directory()
-        self.__update_buy_list()
+        self.__update_buy_set()
         self.__set_future_time()
         return
 
@@ -129,8 +130,10 @@ class Buy(Base):
         return float(df[SOColumns.REQ_PRICE].to_list()[0])
 
     def __place_limit_orders(self, symbol: str) -> None:
-        """Place the safety orders that were set inside of the DCA class.
+        """
+        Place the safety orders that were set inside of the DCA class.
         If the limit order was entered successfully, update the excel sheet by removing the order we just placed.
+        
         """
         try:
             num_open_orders    = self.__get_open_orders_on_symbol_pair(symbol)
@@ -178,13 +181,8 @@ class Buy(Base):
             G.log_file.print_and_log(e=e)
         return
 
-    def __update_bought_set(self):
-        """Get all the symbol names from the EXCEL_FILES_DIRECTORY
-            and create the set of coins we are currently buying."""
+    def __get_symbols_from_directory(self) -> set:
         bought_set = set()
-        
-        # if the coin name ends in a 'Z'
-        exception_list = ["CHZ", "XTZ"]
 
         # iterate through all files in EXCEL_FILES_DIRECTORY
         for filename in glob.iglob(EXCEL_FILES_DIRECTORY+"/*"):
@@ -194,16 +192,21 @@ class Buy(Base):
             else:
                 symbol = filename.split("/")[3].replace(".xlsx", "")
 
-            if symbol[:-3] not in exception_list:
+            if symbol[:-3] not in self.exception_list:
                 if symbol[-4:] == StableCoins.ZUSD:
                     symbol = symbol[:-4]
                 elif symbol[-3:] == StableCoins.USD:
                     symbol = symbol[:-3]
             else:
-                symbol = symbol[:-3]
-
+                symbol = symbol[:-3] 
+            
             bought_set.add(symbol)
         return bought_set
+
+    def __update_bought_set(self):
+        """Get all the symbol names from the EXCEL_FILES_DIRECTORY
+            and create the set of coins we are currently buying."""
+        return self.__get_symbols_from_directory()
 
     def __update_completed_trades(self, symbol: str) -> None:
         """
@@ -211,8 +214,7 @@ class Buy(Base):
         remove symbol from bought_list, delete excel_file. 
         
         """
-        symbol_pair = self.get_tradable_asset_pair(symbol)
-        filename    = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
+        filename = EXCEL_FILES_DIRECTORY + "/" + self.get_tradable_asset_pair(symbol) + ".xlsx"
         
         if not os.path.exists(filename):
             return
@@ -282,45 +284,42 @@ class Buy(Base):
                 self.sell.start(symbol_pair)
         return
 
-    def __update_buy_list(self) -> None:
+    def __update_buy_set(self) -> None:
         """Get all names that are in EXCEL_FILES_DIRECTORY and add them to the Buy_.LIST.
         Note: if a user creates a new buy list in the config.txt file without completing previous trades,
         the bot will add the previous trades to the new buy list in an attempt to finish them.
         
         """
-        exception_list = ["CHZ", "XTZ"]
+        # for symbol in self.__get_symbols_from_directory():
+        #     Buy_.SET.add(symbol)
+        # pprint(Buy_.SET)
 
-        for filename in glob.iglob(EXCEL_FILES_DIRECTORY+"/*"):
-            
-            # get the symbol name
-            if sys.platform == "win32":
-                symbol = filename.split("/")[2].split("\\")[1].replace(".xlsx", "")
-            else:
-                symbol = filename.split("/")[3].replace(".xlsx", "")            
-            
-            if symbol[:-3] not in exception_list:
-                if symbol[-4:] == StableCoins.ZUSD:
-                    symbol = symbol[:-4]
-                elif symbol[-3:] == StableCoins.USD:
-                    symbol = symbol[:-3]
-            else:
-                symbol = symbol[:-3]
-
-            Buy_.SET.add(symbol)
+        Buy_.SET = self.__get_symbols_from_directory()
         return
 
     def __get_future_time(self) -> str:
-        return ( datetime.timedelta(minutes=1) + datetime.datetime.now() ).strftime("%H:%M:%S")
+        return ( datetime.timedelta(minutes=15) + datetime.datetime.now() ).strftime("%H:%M:%S")
 
     def __set_future_time(self) -> None:
         self.future_time = self.__get_future_time()
         return
 
-    def set_buy_set(self):
+    def __init_buy_set(self) -> None:
+        """On startup, create the Buy_.SET."""
+        result_set = set()
+
+        for symbol in self.ta.get_all_kraken_coins_analysis():
+            if symbol in reg_list:
+                result_set.add("X" + symbol)
+            else:
+                result_set.add(symbol)
+
+        Buy_.SET = sorted(result_set)
+        return
+
+    def __set_buy_set(self, bought_set: set) -> None:
         """Once every hour, run this function. 
         Add to the buy_list with these coins."""
-        reg_list = ['ETC',  'ETH',  'LTC',  'MLN',  'REP',  'XBT',  'XDG',  'XLM',  'XMR',  'XRP',  'ZEC' ]
-
         result_set = set()
 
         if self.future_time < datetime.datetime.now().strftime("%H:%M:%S"):
@@ -331,22 +330,20 @@ class Buy(Base):
                     result_set.add("X" + symbol)
                 else:
                     result_set.add(symbol)
+
+            Buy_.SET = sorted(result_set.union(bought_set))
             self.__set_future_time()
-        
-        Buy_.SET = result_set
-        
         return
+
 ##################################################################################################################################
 ### BUY_LOOP
 ##################################################################################################################################
 
     def buy_loop(self) -> None:
         """The main function for trading coins."""
-        
         self.__init_loop_variables()
+        self.__init_buy_set()
         bought_set = set()
-
-
 
         while True:
             for symbol in Buy_.SET:
@@ -355,13 +352,14 @@ class Buy(Base):
             try:
                 bought_set = self.__update_bought_set()
                 self.wait(message=f"buy_loop: Waiting till {self.__get_buy_time()} to buy", timeout=Buy_.TIME_MINUTES*60)
-                self.set_buy_set()
+                self.__set_buy_set(bought_set)
 
                 for symbol in Buy_.SET:
                     try:
                         self.wait(message=f"buy_loop: checking {symbol}", timeout=Nap.LONG)
 
-                        if symbol == "XDG" or symbol == "XXDG": # something is wrong with Dogecoin
+                        # something is wrong with Dogecoin
+                        if symbol == "XDG" or symbol == "XXDG": 
                             continue
 
                         self.__set_pre_buy_variables(symbol)
