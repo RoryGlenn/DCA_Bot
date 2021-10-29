@@ -15,6 +15,7 @@ import os
 import pandas as pd
 import glob
 import sys
+import time
 
 from pprint                    import pprint
 from kraken_files.kraken_enums import *
@@ -23,6 +24,7 @@ from bot_features.base         import Base
 from bot_features.dca          import DCA
 from bot_features.sell         import Sell
 from bot_features.tradingview  import TradingView
+
 
 x_list   = ['XETC', 'XETH', 'XLTC', 'XMLN', 'XREP', 'XXBT', 'XXDG', 'XXLM', 'XXMR', 'XXRP', 'XZEC']
 reg_list = ['ETC',  'ETH',  'LTC',  'MLN',  'REP',  'XBT',  'XDG',  'XLM',  'XMR',  'XRP',  'ZEC' ]
@@ -215,10 +217,14 @@ class Buy(Base):
         if not os.path.exists(filename):
             return
         
+        time.sleep(1)
         filled_sell_order_txids = dict()
         self.trade_history      = self.get_trades_history()
         df                      = pd.read_excel(filename, SheetNames.OPEN_SELL_ORDERS)
-        
+
+        if not self.has_result(self.trade_history):
+            return
+
         for trade_txid, dictionary in self.trade_history[Dicts.RESULT][Data.TRADES].items():
             filled_sell_order_txids[dictionary[Data.ORDER_TXID]] = trade_txid
 
@@ -259,10 +265,14 @@ class Buy(Base):
         if not os.path.exists(filename):
             return
         
+        time.sleep(1)
         filled_trades_order_txids = dict()
         self.trade_history        = self.get_trades_history()
         df                        = pd.read_excel(filename, SheetNames.OPEN_BUY_ORDERS)
         
+        if not self.has_result(self.trade_history):
+            return
+
         for trade_txid, dictionary in self.trade_history[Dicts.RESULT][Data.TRADES].items():
             filled_trades_order_txids[dictionary[Data.ORDER_TXID]] = trade_txid
 
@@ -300,7 +310,7 @@ class Buy(Base):
         return
 
     def __get_future_time(self) -> str:
-        return ( datetime.timedelta(minutes=60) + datetime.datetime.now() ).strftime("%H:%M:%S")
+        return ( datetime.timedelta(minutes=1) + datetime.datetime.now() ).strftime("%H:%M:%S")
 
     def __set_future_time(self) -> None:
         self.future_time = self.__get_future_time()
@@ -309,10 +319,22 @@ class Buy(Base):
     def set_buy_set(self):
         """Once every hour, run this function. 
         Add to the buy_list with these coins."""
+        reg_list = ['ETC',  'ETH',  'LTC',  'MLN',  'REP',  'XBT',  'XDG',  'XLM',  'XMR',  'XRP',  'ZEC' ]
+
+        result_set = set()
 
         if self.future_time < datetime.datetime.now().strftime("%H:%M:%S"):
-            Buy_.SET = self.ta.get_all_kraken_coins_analysis()
+            buy_set = self.ta.get_all_kraken_coins_analysis()
+            
+            for symbol in buy_set:
+                if symbol in reg_list:
+                    result_set.add("X" + symbol)
+                else:
+                    result_set.add(symbol)
             self.__set_future_time()
+        
+        Buy_.SET = result_set
+        
         return
 ##################################################################################################################################
 ### BUY_LOOP
@@ -324,9 +346,6 @@ class Buy(Base):
         self.__init_loop_variables()
         bought_set = set()
 
-        # pprint(self.ta.get_all_kraken_coins_analysis())
-
-        pprint(x_dict)
 
 
         while True:
@@ -341,6 +360,10 @@ class Buy(Base):
                 for symbol in Buy_.SET:
                     try:
                         self.wait(message=f"buy_loop: checking {symbol}", timeout=Nap.LONG)
+
+                        if symbol == "XDG" or symbol == "XXDG": # something is wrong with Dogecoin
+                            continue
+
                         self.__set_pre_buy_variables(symbol)
                         
                         # if symbol is in the bought list, we don't care if it is a good time to buy or not, we need to manage it

@@ -248,7 +248,8 @@ class FileMode:
 
 
 class Misc:
-    CLEAR = "cls"
+    CLS = "cls"
+    CLEAR = "clear"
 
 class KrakenFiles:
     WITHDRAWAL_MINIMUMS = "src/kraken_files/csv_files/Withdrawal_Minimums_and_Fees.csv"

@@ -12,17 +12,21 @@ __status__     = "Production"
 
 import os
 import sys
-from datetime import datetime
 
-from bot_features.buy import Buy
+from datetime                  import datetime
+from bot_features.buy          import Buy
+from util.config_parser        import ConfigParser
 from kraken_files.kraken_enums import *
-from util.config_parser import ConfigParser
-from util.globals import G
+from util.globals              import G
 
 
 class General:
     def clear_terminal() -> None:
-        os.system(Misc.CLEAR)
+        if sys.platform == "win32":
+            os.system(Misc.CLS)
+        else:
+            os.system(Misc.CLEAR)
+        return
 
     def get_current_time() -> None:
         """ 
@@ -31,34 +35,31 @@ class General:
         """
         return datetime.now().strftime("%H:%M:%S")
 
-    def windows_sync_time() -> None:
+    def sync_time() -> None:
         """
         Sync windows time in case we get disconnected from Kraken API
 
         """
 
-        G.log_file.print_and_log("Sync windows time on startup")
+        G.log_file.print_and_log("Sync time on startup")
 
-        if sys.platform != "win32":
-            print_and_log(
-                f"Kraken Rake bot is not build for {str(sys.platform)}. Please run on a Windows machine")
-            return
+        if sys.platform == "win32":
+            try:
+                G.log_file.print_and_log("w32tm /resync")
 
-        try:
-            G.log_file.print_and_log("w32tm /resync")
-
-            if os.system("w32tm /resync") != 0:
+                if os.system("w32tm /resync") != 0:
+                    G.log_file.print_and_log(
+                        "Windows time sync failed, configuring settings")
+                    os.system(
+                        "w32tm /config /manualpeerlist:time.nist.gov /syncfromflags:manual /reliable:yes /update")
+                    os.system("Net stop w32time")
+                    os.system("Net start w32time")
+                else:
+                    G.log_file.print_and_log("Windows time sync successful.")
+            except Exception as e:
                 G.log_file.print_and_log(
-                    "Windows time sync failed, configuring settings")
-                os.system(
-                    "w32tm /config /manualpeerlist:time.nist.gov /syncfromflags:manual /reliable:yes /update")
-                os.system("Net stop w32time")
-                os.system("Net start w32time")
-            else:
-                G.log_file.print_and_log("Windows time sync successful.")
-        except Exception as e:
-            G.log_file.print_and_log(
-                message="Failed to sync windows time.", e=e)
+                    message="Failed to sync windows time.", e=e)
+        return
 
     def init_threads() -> None:
         """ 
@@ -77,9 +78,10 @@ def main() -> None:
     General.clear_terminal()
     G.log_file.directory_create()
     G.log_file.file_create()
-    General.windows_sync_time()
+    General.sync_time()
     General.init_threads()
     G.log_file.print_and_log("Exiting main thread")
+    return
 
 
 ###########################################
