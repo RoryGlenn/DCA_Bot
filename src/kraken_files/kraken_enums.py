@@ -13,6 +13,12 @@ BASE_ORDER  = 1
 DECIMAL_MAX = 8
 OPENPYXL    = "openpyxl"
 
+# Base
+KRAKEN_API_KEY    = 'kraken_api_key'
+KRAKEN_SECRET_KEY = 'kraken_secret_key'
+URL_ASSET_PAIRS   = 'https://api.kraken.com/0/public/AssetPairs'
+
+
 class Buy_:
     BUY = auto()
     PRICES = auto()
@@ -306,3 +312,7 @@ class SheetNames:
     SAFETY_ORDERS = "safety_orders"
     OPEN_BUY_ORDERS = "open_buy_orders"
     OPEN_SELL_ORDERS = "open_sell_orders"
+
+
+class KError:
+    IF = ['EOrder:Insufficient funds']

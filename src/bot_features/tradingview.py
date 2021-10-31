@@ -74,3 +74,4 @@ class TradingView():
                         buy_set.add(symbol)
                 iteration += 1
         return buy_set
+

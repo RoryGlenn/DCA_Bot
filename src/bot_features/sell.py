@@ -39,11 +39,13 @@ class Sell(Base):
         return
 
     def __get_quantity_owned(self, symbol: str) -> float:
-        account_balance = self.get_account_balance()[Dicts.RESULT]
-        for sym, qty in account_balance.items():
-            if sym not in StableCoins.STABLE_COINS_LIST:
-                if sym in symbol:
-                    return float(qty)
+        account_balance = self.get_account_balance()
+
+        if self.has_result(account_balance):
+            for sym, qty in account_balance.items():
+                if sym not in StableCoins.STABLE_COINS_LIST:
+                    if sym in symbol:
+                        return float(qty)
         return 0.0
 
     def __get_required_price(self, symbol_pair: str) -> float:

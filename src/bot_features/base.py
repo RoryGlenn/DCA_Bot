@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 """spot.py: Supports base functionality for buying, selling and transfering. Meant to be inherited from for additional classes"""
 
 import ast
@@ -12,9 +10,7 @@ from kraken_files.kraken_api import KrakenAPI
 from kraken_files.kraken_enums import *
 from util.globals import G
 
-KRAKEN_API_KEY    = 'kraken_api_key'
-KRAKEN_SECRET_KEY = 'kraken_secret_key'
-URL_ASSET_PAIRS   = 'https://api.kraken.com/0/public/AssetPairs'
+
 
 class Base(KrakenAPI):
     def __init__(self, parameter_dict: dict) -> None:

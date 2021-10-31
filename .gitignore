@@ -1,13 +1,8 @@
 dist
 build
 logs
-error_logs
-safety_orders
-order_txids
-open_orders
-src/order_txids/txids.xlsx
 __pycache__
-excel_files
+
 
 *.vscode
 *.pyc
@@ -15,4 +10,3 @@ excel_files
 *.json
 *.spec
 *lnk
-*.xlsx

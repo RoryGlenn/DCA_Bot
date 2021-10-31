@@ -35,16 +35,16 @@ class Buy(Base):
     def __init__(self, parameter_dict: dict) -> None:
         super().__init__(parameter_dict)
         
-        self.account_balance:         dict  = { }
-        self.kraken_assets_dict:      dict  = { }
-        self.trade_history:           dict  = { }
-        self.exception_list:          list  = ["CHZ", "XTZ"]
-        self.bid_price:               float = 0.0
-        self.quantity_to_buy:         float = 0.0
-        self.symbol_pair:             str   = ""
-        self.is_buy:                  bool  = False
-        self.dca:                     DCA   = None
-        self.sell:                    Sell  = Sell(parameter_dict)
+        self.account_balance:         dict        = { }
+        self.kraken_assets_dict:      dict        = { }
+        self.trade_history:           dict        = { }
+        self.exception_list:          list        = ["CHZ", "XTZ"]
+        self.bid_price:               float       = 0.0
+        self.quantity_to_buy:         float       = 0.0
+        self.symbol_pair:             str         = ""
+        self.is_buy:                  bool        = False
+        self.dca:                     DCA         = None
+        self.sell:                    Sell        = Sell(parameter_dict)
         self.ta:                      TradingView = TradingView()
         return
 
@@ -54,7 +54,7 @@ class Buy(Base):
         self.account_balance    = self.get_parsed_account_balance()
         self.asset_pairs_dict   = self.get_all_tradable_asset_pairs()[Dicts.RESULT]
         self.__create_excel_directory()
-        self.__update_buy_set()
+        self.__init_buy_set()
         self.__set_future_time()
         return
 
@@ -284,37 +284,39 @@ class Buy(Base):
                 self.sell.start(symbol_pair)
         return
 
-    def __update_buy_set(self) -> None:
-        """Get all names that are in EXCEL_FILES_DIRECTORY and add them to the Buy_.LIST.
-        Note: if a user creates a new buy list in the config.txt file without completing previous trades,
-        the bot will add the previous trades to the new buy list in an attempt to finish them.
+    # def __update_buy_set(self) -> None:
+    #     """Get all names that are in EXCEL_FILES_DIRECTORY and add them to the Buy_.LIST.
+    #     Note: if a user creates a new buy list in the config.txt file without completing previous trades,
+    #     the bot will add the previous trades to the new buy list in an attempt to finish them.
         
-        """
-        # for symbol in self.__get_symbols_from_directory():
-        #     Buy_.SET.add(symbol)
-        # pprint(Buy_.SET)
-
-        Buy_.SET = self.__get_symbols_from_directory()
-        return
+    #     """
+    #     bought_set = self.__get_symbols_from_directory()
+    #     Buy_.SET   = sorted( Buy_.SET.union(bought_set) )
+    #     return
 
     def __get_future_time(self) -> str:
-        return ( datetime.timedelta(minutes=15) + datetime.datetime.now() ).strftime("%H:%M:%S")
+        return ( datetime.timedelta(minutes=60) + datetime.datetime.now() ).strftime("%H:%M:%S")
 
     def __set_future_time(self) -> None:
         self.future_time = self.__get_future_time()
         return
 
     def __init_buy_set(self) -> None:
-        """On startup, create the Buy_.SET."""
-        result_set = set()
+        """
+        On startup, run analysis on all tradable coins through kraken exchange and create set of the buy coins.
+        Combine this set with the list of coins we are still in the middle of a deal with.
+        Set Buy_.SET to these coins.
+        """
+        buy_set = set()
 
         for symbol in self.ta.get_all_kraken_coins_analysis():
             if symbol in reg_list:
-                result_set.add("X" + symbol)
+                buy_set.add("X" + symbol)
             else:
-                result_set.add(symbol)
+                buy_set.add(symbol)
 
-        Buy_.SET = sorted(result_set)
+        bought_set = self.__get_symbols_from_directory()
+        Buy_.SET   = sorted(bought_set.union(buy_set))
         return
 
     def __set_buy_set(self, bought_set: set) -> None:
@@ -334,6 +336,26 @@ class Buy(Base):
             Buy_.SET = sorted(result_set.union(bought_set))
             self.__set_future_time()
         return
+    
+    def __get_account_value(self) -> float:
+        """Get account value by adding all coin quantities together and putting in USD terms."""
+        total   = 0.0
+        account = self.get_account_balance()
+
+        if self.has_result(account):
+            for symbol, quantity in account[Dicts.RESULT].items():
+                quantity = float(quantity)
+
+                if float(quantity) > 0:
+                    if symbol in x_list:
+                        symbol = symbol[1:]
+                    if symbol == StableCoins.ZUSD or symbol == StableCoins.USD or symbol == StableCoins.USDT:
+                        total += quantity
+                    else:
+                        bid_price = self.get_bid_price(symbol+StableCoins.USD)
+                        value = bid_price * quantity
+                        total += value
+        return round(total, 2)
 
 ##################################################################################################################################
 ### BUY_LOOP
@@ -342,8 +364,8 @@ class Buy(Base):
     def buy_loop(self) -> None:
         """The main function for trading coins."""
         self.__init_loop_variables()
-        self.__init_buy_set()
         bought_set = set()
+        print(f"Account value: ${self.__get_account_value()}")
 
         while True:
             for symbol in Buy_.SET:
@@ -359,7 +381,7 @@ class Buy(Base):
                         self.wait(message=f"buy_loop: checking {symbol}", timeout=Nap.LONG)
 
                         # something is wrong with Dogecoin
-                        if symbol == "XDG" or symbol == "XXDG": 
+                        if symbol == "XDG" or symbol == "XXDG":
                             continue
 
                         self.__set_pre_buy_variables(symbol)
