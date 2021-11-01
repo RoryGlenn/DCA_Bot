@@ -41,6 +41,7 @@ class Buy(Base):
         self.exception_list:          list        = ["CHZ", "XTZ"]
         self.bid_price:               float       = 0.0
         self.quantity_to_buy:         float       = 0.0
+        self.order_min:               float       = 0.0
         self.symbol_pair:             str         = ""
         self.is_buy:                  bool        = False
         self.dca:                     DCA         = None
@@ -117,10 +118,10 @@ class Buy(Base):
     def __set_post_buy_variables(self, symbol: str) -> None:
         """Sets variables in order to make an buy order."""
         self.wait(timeout=Nap.LONG)
-        order_min                = self.get_order_min(symbol)
+        self.order_min           = self.get_order_min(symbol)
         self.pair_decimals       = self.get_pair_decimals(self.symbol_pair)
         self.open_orders         = self.get_open_orders()
-        self.dca                 = DCA(self.symbol_pair, order_min, self.bid_price)
+        # self.dca                 = DCA(self.symbol_pair, order_min, self.bid_price)
         self.dca.account_balance = self.get_parsed_account_balance()
         return
 
@@ -129,12 +130,34 @@ class Buy(Base):
         df       = pd.read_excel(filename, SheetNames.SAFETY_ORDERS)
         return float(df[SOColumns.REQ_PRICE].to_list()[0])
 
+    def __place_base_order(self, order_min: float, symbol_pair: str) -> dict:
+        """
+        Place the base order for the coin we want to trade.
+        The base order should be a market order only!
+        
+        """
+        
+        # self.dca = DCA(self.symbol_pair, self.order_min, self.bid_price)
+        return self.market_order(Trade.BUY, order_min, symbol_pair) 
+
+
     def __place_limit_orders(self, symbol: str) -> None:
         """
+        The Base order will be a market order but all the safety orders will be a limit order.
         Place the safety orders that were set inside of the DCA class.
         If the limit order was entered successfully, update the excel sheet by removing the order we just placed.
         
         """
+
+        # for base order ONLY!
+        buy_result = self.__place_base_order(self.order_min, self.symbol_pair)
+
+        print(buy_result)
+
+        if self.has_result(buy_result):
+            bought_price = float(str(buy_result[Dicts.RESULT][Dicts.DESCR]).split(" ")[1])
+            self.dca = DCA(self.symbol_pair, self.order_min, bought_price)
+
         try:
             num_open_orders    = self.__get_open_orders_on_symbol_pair(symbol)
             num_orders_to_make = abs(num_open_orders-DCA_.SAFETY_ORDERS_ACTIVE_MAX)
@@ -146,11 +169,11 @@ class Buy(Base):
 
             for _, safety_order_dict in self.dca.safety_orders.items():
                 for price, quantity in safety_order_dict.items():
-                    price_max_prec   = self.get_pair_decimals(self.symbol_pair)
-                    rounded_price    = self.round_decimals_down(price, price_max_prec)
-                    rounded_quantity = self.round_decimals_down(quantity, self.get_max_volume_precision(symbol))
-                    req_profit_price = self.round_decimals_down(self.__get_required_price(), price_max_prec)
-                    buy_result       = self.limit_order(Trade.BUY, rounded_quantity, self.symbol_pair, rounded_price)
+                    # price_max_prec   = self.get_pair_decimals(self.symbol_pair)
+                    # rounded_price    = self.round_decimals_down(price, price_max_prec)
+                    # rounded_quantity = self.round_decimals_down(quantity, self.get_max_volume_precision(symbol))
+                    # req_profit_price = self.round_decimals_down(self.__get_required_price(), price_max_prec)
+                    # buy_result       = self.limit_order(Trade.BUY, rounded_quantity, self.symbol_pair, rounded_price)
 
                     """ the next sell limit order should always be from the top of the safety orders.
                     For example:
@@ -284,16 +307,6 @@ class Buy(Base):
                 self.sell.start(symbol_pair)
         return
 
-    # def __update_buy_set(self) -> None:
-    #     """Get all names that are in EXCEL_FILES_DIRECTORY and add them to the Buy_.LIST.
-    #     Note: if a user creates a new buy list in the config.txt file without completing previous trades,
-    #     the bot will add the previous trades to the new buy list in an attempt to finish them.
-        
-    #     """
-    #     bought_set = self.__get_symbols_from_directory()
-    #     Buy_.SET   = sorted( Buy_.SET.union(bought_set) )
-    #     return
-
     def __get_future_time(self) -> str:
         return ( datetime.timedelta(minutes=60) + datetime.datetime.now() ).strftime("%H:%M:%S")
 
@@ -357,15 +370,30 @@ class Buy(Base):
                         total += value
         return round(total, 2)
 
+
+    def __get_market_price(self, buy_result: dict) -> float:
+        if self.has_result(buy_result):
+            order_result = self.query_orders_info(buy_result[Dicts.RESULT][Data.TXID][0])
+            if self.has_result(order_result):
+                for txid in order_result[Dicts.RESULT]:
+                    for key, value in order_result[Dicts.RESULT][txid].items():
+                        if key == "price":
+                            return float(value)
+        return 0
+
 ##################################################################################################################################
 ### BUY_LOOP
 ##################################################################################################################################
 
     def buy_loop(self) -> None:
         """The main function for trading coins."""
-        self.__init_loop_variables()
-        bought_set = set()
-        print(f"Account value: ${self.__get_account_value()}")
+        # self.__init_loop_variables()
+        # bought_set = set()
+        # print(f"Account value: ${self.__get_account_value()}")
+        
+        # buy_result   = self.__place_base_order(10, "XLMUSD")
+        # market_price = self.__get_market_price(buy_result)
+        self.dca     = DCA("XLMUSD", 1, 1)
 
         while True:
             for symbol in Buy_.SET:

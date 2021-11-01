@@ -8,6 +8,7 @@ from pprint                    import pprint
 from kraken_files.kraken_enums import *
 from util.globals              import G
 
+
 class DCA(DCA_):
     def __init__(self, symbol: str, order_min: float, bid_price: float):
         self.percentage_deviation_levels:       list         = list()
@@ -17,17 +18,13 @@ class DCA(DCA_):
         self.required_price_levels:             list         = list()
         self.required_change_percentage_levels: list         = list()
         self.symbol:                            str          = symbol
-        self.excel_directory:                   str          = EXCEL_FILES_DIRECTORY
         self.file_path:                         str          = EXCEL_FILES_DIRECTORY + "/" + self.symbol + ".xlsx"
         self.bid_price:                         float        = bid_price
-        self.base_order_quantity_to_buy:        float        = 0.0
-        self.safety_order_quantity_to_buy:      float        = 0.0
         self.order_min:                         float        = order_min
         self.safety_orders:                     dict         = { }
         self.account_balance:                   dict         = { }
         self.trade_history:                     dict         = { }
         self.safety_order_table:                pd.DataFrame = pd.DataFrame()
-        self.base_order_table:                  pd.DataFrame = pd.DataFrame()
         self.__start()
 
     def __start(self) -> None:
@@ -53,7 +50,6 @@ class DCA(DCA_):
         if not self.__has_safety_order_table():
             self.__set_deviation_percentage_levels()
             self.__set_price_levels()
-            self.__reinterpret_order_size()
             self.__set_quantity_levels()
             self.__set_average_price_levels()
             self.__set_required_price_levels()
@@ -69,8 +65,8 @@ class DCA(DCA_):
     def __create_directory(self) -> None:
         """Create a directory for the safety orders."""
         try:
-            if not os.path.exists(self.excel_directory):
-                os.mkdir(self.excel_directory)
+            if not os.path.exists(EXCEL_FILES_DIRECTORY):
+                os.mkdir(EXCEL_FILES_DIRECTORY)
         except Exception as e:
             G.log_file.print_and_log(e=e)
         return
@@ -97,11 +93,8 @@ class DCA(DCA_):
         Step 5: 8% * 2 = 16%. Order 5: 15% + 16% = 31%.
 
         For more info: https://help.3commas.io/en/articles/3108940-main-settings
-        """
-
-        # for base order
-        self.percentage_deviation_levels.append(0)
-
+        """     
+        
         # for first safety order
         self.percentage_deviation_levels.append(round(DCA_.SAFETY_ORDER_PRICE_DEVIATION, DECIMAL_MAX))
 
@@ -124,34 +117,22 @@ class DCA(DCA_):
         Order 1: $33.72431722
         Order n: ..."""
 
-        # base order
-        self.price_levels.append(self.bid_price)
-
         # safety orders
-        for i in range(BASE_ORDER, DCA_.SAFETY_ORDERS_MAX+1):
+        for i in range(DCA_.SAFETY_ORDERS_MAX):
             level = self.percentage_deviation_levels[i] / 100
             price = self.bid_price - (self.bid_price * level)
             self.price_levels.append(price)
         return
 
-    def __reinterpret_order_size(self) -> None:
-        """Converts the usd base_order_size and safety_order_size into the quantity of coin we can buy."""
-        self.base_order_quantity_to_buy   = self.order_min #DCA_.BASE_ORDER_SIZE   / self.bid_price
-        self.safety_order_quantity_to_buy = self.order_min #DCA_.SAFETY_ORDER_SIZE / self.bid_price
-        return
-
     def __set_quantity_levels(self) -> None:
         """Sets the quantity to buy for each safety order number."""
-        prev = self.safety_order_quantity_to_buy
+        prev = self.order_min
         
-        # base order
-        self.quantities.append(self.base_order_quantity_to_buy)
-
         # first safety order
-        self.quantities.append(self.safety_order_quantity_to_buy)
+        self.quantities.append(self.order_min)
 
         # remaining safety orders
-        for _ in range(BASE_ORDER, DCA_.SAFETY_ORDERS_MAX):
+        for _ in range(1, DCA_.SAFETY_ORDERS_MAX):
             self.quantities.append(DCA_.SAFETY_ORDER_VOLUME_SCALE * prev)
             prev = DCA_.SAFETY_ORDER_VOLUME_SCALE * prev
         return
@@ -160,11 +141,8 @@ class DCA(DCA_):
         """Sets the average price level for each safety order number."""
         prev_average = self.price_levels[0]
 
-        # base order
-        self.average_price_levels.append(self.price_levels[0])
-
         # safety orders
-        for i in range(BASE_ORDER, DCA_.SAFETY_ORDERS_MAX+1):
+        for i in range(DCA_.SAFETY_ORDERS_MAX):
             average = (self.price_levels[i] + prev_average) / 2
             self.average_price_levels.append(average)
             prev_average = average
@@ -174,23 +152,17 @@ class DCA(DCA_):
         """Sets the required price for each safety order number."""
         target_profit_decimal = DCA_.TARGET_PROFIT_PERCENT / 100
 
-        # base order
-        base_order_price = self.bid_price + (self.bid_price*target_profit_decimal)
-        self.required_price_levels.append(base_order_price)
-
         # safety orders
-        for i in range(BASE_ORDER, DCA_.SAFETY_ORDERS_MAX+1):
+        for i in range(DCA_.SAFETY_ORDERS_MAX):
             required_price = self.average_price_levels[i] + (self.average_price_levels[i] * target_profit_decimal)
             self.required_price_levels.append(required_price)
         return
 
     def __set_required_change_percentage_levels(self) -> None:
         """Sets the required change percent for each safety order number."""
-        # base order
-        self.required_change_percentage_levels.append(DCA_.TARGET_PROFIT_PERCENT)
-
+        
         # safety orders
-        for i in range(BASE_ORDER, DCA_.SAFETY_ORDERS_MAX+1):
+        for i in range(DCA_.SAFETY_ORDERS_MAX):
             required_change_percentage = (1 - (self.price_levels[i] / self.required_price_levels[i])) * 100
             self.required_change_percentage_levels.append(required_change_percentage)
         return
@@ -202,7 +174,7 @@ class DCA(DCA_):
 
     def __set_safety_order_table(self) -> None:
         """Set the Dataframe with the values calculated in previous functions."""
-        order_numbers = [i for i in range(DCA_.SAFETY_ORDERS_MAX+1)]
+        order_numbers = [i for i in range(DCA_.SAFETY_ORDERS_MAX)]
 
         self.safety_order_table = pd.DataFrame({
                                     SOColumns.SAFETY_ORDER_NO: order_numbers,
@@ -227,7 +199,6 @@ class DCA(DCA_):
             df2 = pd.DataFrame(data={OSOColumns.TXIDS: []})
             df2.to_excel(writer, SheetNames.OPEN_SELL_ORDERS, index=False)
         return
-
 
     def __save_safety_order_table(self) -> None:
         """Writes self.safety_order_table to excel file"""

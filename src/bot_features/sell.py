@@ -82,7 +82,9 @@ class Sell(Base):
         sell_order_result = self.limit_order(Trade.SELL, qty, symbol_pair, required_price)
         
         if self.has_result(sell_order_result):
-            G.log_file.print_and_log(message=f"sell: limit order placed {symbol_pair} {sell_order_result[Dicts.RESULT]}")
+            G.log_file.print_and_log(f"sell: limit order placed {symbol_pair} {sell_order_result[Dicts.RESULT]}")
+        else:
+            G.log_file.print_and_log(f"sell: {symbol_pair} {sell_order_result}")
         return sell_order_result
 
     def __update_open_buy_orders(self, symbol_pair: str) -> None:
@@ -114,16 +116,20 @@ class Sell(Base):
         Triggered everytime a new buy limit order is placed.
             1. cancel all open sell orders for symbol_pair
             2. create a new sell limit order at the next 'Required price' column.
+        
         """
+        
         # cancel previous sell order (if it exists).
         self.__cancel_sell_order(symbol_pair)
         
         # place new sell order.
         sell_order_result = self.__place_sell_limit_order(symbol_pair)
 
-        # update open_buy_orders sheet by removing filled buy orders.
-        self.__update_open_buy_orders(symbol_pair)
+        # if the sell order was placed.
+        if self.has_result(sell_order_result):
+            # update open_buy_orders sheet by removing filled buy orders.
+            self.__update_open_buy_orders(symbol_pair)
 
-        # update open_sell_orders sheet.
-        self.__update_sell_order(symbol_pair, sell_order_result)
+            # update open_sell_orders sheet.
+            self.__update_sell_order(symbol_pair, sell_order_result)
 
