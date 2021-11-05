@@ -1,6 +1,7 @@
 """dca.py - DCA is a dollar cost averaging technique. 
 This bot uses DCA in order lower the average buy price for a purchased coin."""
 
+from decimal import DivisionByZero
 import os
 import pandas as pd
 
@@ -21,10 +22,10 @@ class DCA(DCA_):
         self.file_path:                         str          = EXCEL_FILES_DIRECTORY + "/" + self.symbol + ".xlsx"
         self.bid_price:                         float        = bid_price
         self.order_min:                         float        = order_min
+        self.safety_order_table:                pd.DataFrame = pd.DataFrame()
         self.safety_orders:                     dict         = { }
         self.account_balance:                   dict         = { }
         self.trade_history:                     dict         = { }
-        self.safety_order_table:                pd.DataFrame = pd.DataFrame()
         self.__start()
 
     def __start(self) -> None:
@@ -163,7 +164,10 @@ class DCA(DCA_):
         
         # safety orders
         for i in range(DCA_.SAFETY_ORDERS_MAX):
-            required_change_percentage = (1 - (self.price_levels[i] / self.required_price_levels[i])) * 100
+            try:
+                required_change_percentage = (1 - (self.price_levels[i] / self.required_price_levels[i])) * 100
+            except DivisionByZero:
+                required_change_percentage = (1 - self.price_levels[i]) * 100
             self.required_change_percentage_levels.append(required_change_percentage)
         return
 
@@ -174,7 +178,7 @@ class DCA(DCA_):
 
     def __set_safety_order_table(self) -> None:
         """Set the Dataframe with the values calculated in previous functions."""
-        order_numbers = [i for i in range(DCA_.SAFETY_ORDERS_MAX)]
+        order_numbers = [i for i in range(1, DCA_.SAFETY_ORDERS_MAX+1)]
 
         self.safety_order_table = pd.DataFrame({
                                     SOColumns.SAFETY_ORDER_NO: order_numbers,
@@ -212,7 +216,7 @@ class DCA(DCA_):
         return
 
     def __set_buy_orders(self) -> None:
-        """Read the first line in the .xlsx file into memory, then delete it."""
+        """Read rows in the .xlsx file into memory."""
         safety_order_table = pd.read_excel(self.file_path)
         prices             = safety_order_table[SOColumns.PRICE].tolist()
         quantities         = safety_order_table[SOColumns.QUANTITY].tolist()

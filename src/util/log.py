@@ -42,23 +42,28 @@ class Log():
         except Exception as e:
             print(e)
 
-    def print_and_log(self, message: str, money: bool = False, e=False, end: bool = False) -> None:
-        current_time = self.get_current_time()
-        result = f"{current_time} {message}"
+    def print_and_log(self, message: str = "", money: bool = False, e=False, end: bool = False) -> None:
+        """Print to the console and write to the log file. 
+        If something went wrong, just print the error to console."""
+        try:
+            current_time = self.get_current_time()
+            result = f"{current_time} {message}"
 
-        if money:
-            print(f"[$] {result}")
-            self.write(f"[$] {result}")
-            return
-        if e:
-            print(
-                f"[!] {result} || {e}, {type(e).__name__}, {__file__}, {e.__traceback__.tb_lineno}")
-            self.write(
-                f"[!] {result} || {e}, {type(e).__name__}, {__file__}, {e.__traceback__.tb_lineno}")
-            return
-        if end:
-            print(f"[-] {result}")
-            self.write(f"[-] {result}")
-            return
-        print(f"[*] {result}")
-        self.write(f"[*] {result}")
+            if money:
+                print(f"[$] {result}")
+                self.write(f"[$] {result}")
+                return
+            if e:
+                print(
+                    f"[!] {result} || {e}, {type(e).__name__}, {__file__}, {e.__traceback__.tb_lineno}")
+                self.write(
+                    f"[!] {result} || {e}, {type(e).__name__}, {__file__}, {e.__traceback__.tb_lineno}")
+                return
+            if end:
+                print(f"[-] {result}")
+                self.write(f"[-] {result}")
+                return
+            print(     f"[*] {result}")
+            self.write(f"[*] {result}")
+        except:
+            print(e)

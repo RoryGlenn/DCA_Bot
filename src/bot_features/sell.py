@@ -50,7 +50,6 @@ class Sell(Base):
 
     def __get_required_price(self, symbol_pair: str) -> float:
         filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
-        
         return float(pd.read_excel(filename, SheetNames.OPEN_BUY_ORDERS)[OBOColumns.REQ_PRICE][0])
 
     def __get_max_price_prec(self, symbol_pair: str) -> int:
@@ -109,7 +108,7 @@ class Sell(Base):
         return
 
 ##################################################################
-### Run the entire sell process
+### Run the entire sell process for safety orders
 ##################################################################
     def start(self, symbol_pair: str) -> None:
         """
@@ -133,3 +132,22 @@ class Sell(Base):
             # update open_sell_orders sheet.
             self.__update_sell_order(symbol_pair, sell_order_result)
 
+
+##################################################################
+### Place sell order for base order only!
+##################################################################
+    def place_sell_limit_base_order(self, symbol_pair: str, entry_price: float, quantity: float) -> None:
+        """Create a sell limit order for the base order only!"""
+        
+        self.__cancel_sell_order(symbol_pair)
+        required_price    = entry_price + (entry_price*DCA_.TARGET_PROFIT_PERCENT/100)
+        required_price    = self.round_decimals_down(required_price, self.__get_max_price_prec(symbol_pair))
+        sell_order_result = self.limit_order(Trade.SELL, quantity, symbol_pair, required_price)
+        
+        if self.has_result(sell_order_result):
+            G.log_file.print_and_log(f"sell: limit order placed {symbol_pair} {sell_order_result[Dicts.RESULT]}")
+            self.__update_sell_order(symbol_pair, sell_order_result)   # update open_sell_orders sheet.
+        else:
+            G.log_file.print_and_log(f"sell: {symbol_pair} {sell_order_result}")
+
+        return sell_order_result

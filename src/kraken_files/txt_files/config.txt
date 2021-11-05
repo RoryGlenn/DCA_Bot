@@ -3,7 +3,7 @@ kraken_secret_key                = "gqnoKy0HFy/CxhChWrulMy4XEbmeOaSrZ7hn1D4Vyork
 
 dca_target_profit_percent        = 1
 dca_safety_orders_max            = 7
-dca_safety_orders_active_max     = 5
+dca_safety_orders_active_max     = 2
 dca_safety_order_volume_scale    = 2.5
 dca_safety_order_step_scale      = 1.56
 dca_safety_order_price_deviation = 1.3

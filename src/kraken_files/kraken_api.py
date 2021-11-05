@@ -298,7 +298,7 @@ class KrakenAPI(object):
         account_balance = self.get_account_balance()
         return self.parse_account_balance(account_balance)
 
-    def get_coin_balance(self, symbol) -> float:
+    def get_coin_balance(self, symbol: str) -> float:
         try:
             temp = self.get_account_balance()
             account_balance = self.parse_account_balance(temp)
@@ -306,6 +306,14 @@ class KrakenAPI(object):
                 return account_balance[symbol]
         except Exception as e:
             G.log_file.print_and_log(message="", e=e)
+        return 0.0
+
+
+    def get_available_coin_balance(self, symbol: str) -> float:
+        # count the number of open orders in value?
+        open_orders = self.get_open_orders()
+        from pprint import pprint
+        pprint(open_orders)
         return 0.0
 
 ###################################################################################################

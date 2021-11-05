@@ -72,7 +72,7 @@ class Buy(Base):
     def __get_recommendation(self, symbol_pair: str) -> bool:
         """Get the recommendation from trading view."""
         ta = TradingView()
-        return ta.is_buy(symbol_pair)
+        return ta.is_strong_buy(symbol_pair)
 
     def __set_pre_buy_variables(self, symbol: str) -> None:
         """Sets the buy variables for each symbol."""
@@ -121,8 +121,6 @@ class Buy(Base):
         self.order_min           = self.get_order_min(symbol)
         self.pair_decimals       = self.get_pair_decimals(self.symbol_pair)
         self.open_orders         = self.get_open_orders()
-        # self.dca                 = DCA(self.symbol_pair, order_min, self.bid_price)
-        self.dca.account_balance = self.get_parsed_account_balance()
         return
 
     def __get_required_price(self):
@@ -135,76 +133,97 @@ class Buy(Base):
         Place the base order for the coin we want to trade.
         The base order should be a market order only!
         
-        """
-        
-        # self.dca = DCA(self.symbol_pair, self.order_min, self.bid_price)
+        """        
         return self.market_order(Trade.BUY, order_min, symbol_pair) 
 
+    def __place_safety_orders(self, symbol: str, num_orders_to_make: int) -> None:
+        for _, safety_order_dict in self.dca.safety_orders.items():
+            for price, quantity in safety_order_dict.items():
+                try:
+                    # if self.get_coin_balance(StableCoins.ZUSD) < price*quantity:
+                        # G.log_file.print_and_log("buy_loop: Not enough USD to place safety orders")
+                        # return
+
+                    # self.get_available_coin_balance(StableCoins.ZUSD)
+                    
+                    price_max_prec     = self.get_pair_decimals(self.symbol_pair)
+                    rounded_price      = self.round_decimals_down(price, price_max_prec)
+                    rounded_quantity   = self.round_decimals_down(quantity, self.get_max_volume_precision(symbol))
+                    req_profit_price   = self.round_decimals_down(self.__get_required_price(), price_max_prec)
+                    limit_order_result = self.limit_order(Trade.BUY, rounded_quantity, self.symbol_pair, rounded_price)
+
+                    if self.has_result(limit_order_result):
+                        G.log_file.print_and_log(message=f"buy_loop: limit order placed {self.symbol_pair} {limit_order_result[Dicts.RESULT]}", money=True)
+                        
+                        # keep track of the open order txid
+                        self.save_open_buy_order_txid(limit_order_result, self.symbol_pair, req_profit_price)
+
+                        # once the limit order was entered successfully, delete it from the excel sheet.
+                        self.dca.update_safety_orders()
+                        num_orders_to_make -= 1
+                    else:
+                        if limit_order_result["error"][0] == KError.IF:
+                            G.log_file.print_and_log(f"buy_loop: {self.symbol_pair} Not enough USD to place remaining safety orders.")
+                            return
+
+                        G.log_file.print_and_log(message=f"buy_loop: {limit_order_result}", money=True)
+                except Exception as e:
+                    G.log_file.print_and_log(e=e)
+            
+            if num_orders_to_make <= 0:
+                break
+        return
 
     def __place_limit_orders(self, symbol: str) -> None:
         """
         The Base order will be a market order but all the safety orders will be a limit order.
         Place the safety orders that were set inside of the DCA class.
         If the limit order was entered successfully, update the excel sheet by removing the order we just placed.
+
+        The next sell limit order should always be from the top of the safety orders,
+        
+        For example:
+            Base order = 1,   $100
+            SO1        = 1,   $98.7
+            SO2        = 2.5, $96.5
+
+            Then our first sell order should be 1, for $100 + 0.5%
+            If SO1, is filled, the previous sell order should be cancelled and a new sell order should be placed: Base Order+SO1, required_price1
+            If SO2, is filled, the previous sell order should be cancelled and a new sell order should be placed: Base Order+SO1+SO2, required_price2
         
         """
-
-        # for base order ONLY!
-        buy_result = self.__place_base_order(self.order_min, self.symbol_pair)
-
-        print(buy_result)
-
-        if self.has_result(buy_result):
-            bought_price = float(str(buy_result[Dicts.RESULT][Dicts.DESCR]).split(" ")[1])
-            self.dca = DCA(self.symbol_pair, self.order_min, bought_price)
-
         try:
+            if symbol not in self.__get_symbols_from_directory():
+                # if symbol_pair exists in excel_files directory then the base order has already been placed!
+                base_order_result = self.__place_base_order(self.order_min, self.symbol_pair)
+
+                if self.has_result(base_order_result):
+                    G.log_file.print_and_log(f"buy_loop: Base order filled: {base_order_result[Dicts.RESULT]}")
+                    base_order_qty = float(str(base_order_result[Dicts.RESULT][Dicts.DESCR]['order']).split(" ")[1])
+                    base_price     = self.__get_bought_price(base_order_result)
+                    self.dca       = DCA(self.symbol_pair, base_order_qty, base_price)
+                    self.sell.place_sell_limit_base_order(self.symbol_pair, base_price, base_order_qty) # place sell order for base order
+                else:
+                    G.log_file.print_and_log(f"buy_loop: can't place base order: {base_order_result['error'][0]}")
+                    return
+            else:
+                # symbol is in EXCEL_DIRECTORY therefore, we have bought it before.
+                # load up the .xlsx file and continue to place safety orders
+                self.dca = DCA(self.symbol_pair, -1, -1)
+                
             num_open_orders    = self.__get_open_orders_on_symbol_pair(symbol)
             num_orders_to_make = abs(num_open_orders-DCA_.SAFETY_ORDERS_ACTIVE_MAX)
             
             # if the max active orders are already put in, and are still active, there is nothing left to do.
-            if num_open_orders >= DCA_.SAFETY_ORDERS_ACTIVE_MAX:
-                # Max safety orders are already active.
-                return
-
-            for _, safety_order_dict in self.dca.safety_orders.items():
-                for price, quantity in safety_order_dict.items():
-                    # price_max_prec   = self.get_pair_decimals(self.symbol_pair)
-                    # rounded_price    = self.round_decimals_down(price, price_max_prec)
-                    # rounded_quantity = self.round_decimals_down(quantity, self.get_max_volume_precision(symbol))
-                    # req_profit_price = self.round_decimals_down(self.__get_required_price(), price_max_prec)
-                    # buy_result       = self.limit_order(Trade.BUY, rounded_quantity, self.symbol_pair, rounded_price)
-
-                    """ the next sell limit order should always be from the top of the safety orders.
-                    For example:
-                        Base order = 1,   $100
-                        SO1        = 1,   $98.7
-                        SO2        = 2.5, $96.5
-
-                        Then our first sell order should be 1, for $100 + 0.5%
-                        If SO1, is filled, the previous sell order should be cancelled and a new sell order should be placed: Base Order+SO1, required_price1
-                        If SO2, is filled, the previous sell order should be cancelled and a new sell order should be placed: Base Order+SO1+SO2, required_price2
-                    """
-
-                    if self.has_result(buy_result):
-                        G.log_file.print_and_log(message=f"buy_loop: limit order placed {self.symbol_pair} {buy_result[Dicts.RESULT]}", money=True)
-                        
-                        # keep track of the open order txid
-                        self.save_open_buy_order_txid(buy_result, self.symbol_pair, req_profit_price)
-
-                        """once the limit order was entered successfully, delete it from the excel sheet"""
-                        self.dca.update_safety_orders()
-                        num_orders_to_make -= 1
-                    else:
-                        G.log_file.print_and_log(message=f"buy_loop: {buy_result}", money=True)
-
-                if num_orders_to_make <= 0:
-                    break
+            if num_open_orders < DCA_.SAFETY_ORDERS_ACTIVE_MAX:
+                self.__place_safety_orders(symbol, num_orders_to_make)
         except Exception as e:
+            print(e)
             G.log_file.print_and_log(e=e)
         return
 
     def __get_symbols_from_directory(self) -> set:
+        """Get the symbol from EXCEL_FILES_DIRECTORY."""
         bought_set = set()
 
         # iterate through all files in EXCEL_FILES_DIRECTORY
@@ -223,6 +242,20 @@ class Buy(Base):
             else:
                 symbol = symbol[:-3] 
             
+            bought_set.add(symbol)
+        return bought_set
+
+    def __get_symbol_pairs_from_directory(self) -> set:
+        """Get the symbol pairs from EXCEL_FILES_DIRECTORY."""
+        bought_set = set()
+
+        # iterate through all files in EXCEL_FILES_DIRECTORY
+        for filename in glob.iglob(EXCEL_FILES_DIRECTORY+"/*"):
+            # get the symbol name
+            if sys.platform == "win32":
+                symbol = filename.split("/")[2].split("\\")[1].replace(".xlsx", "")
+            else:
+                symbol = filename.split("/")[3].replace(".xlsx", "")
             bought_set.add(symbol)
         return bought_set
 
@@ -322,7 +355,7 @@ class Buy(Base):
         """
         buy_set = set()
 
-        for symbol in self.ta.get_all_kraken_coins_analysis():
+        for symbol in self.ta.get_all_strong():
             if symbol in reg_list:
                 buy_set.add("X" + symbol)
             else:
@@ -338,7 +371,7 @@ class Buy(Base):
         result_set = set()
 
         if self.future_time < datetime.datetime.now().strftime("%H:%M:%S"):
-            buy_set = self.ta.get_all_kraken_coins_analysis()
+            buy_set = self.ta.get_all_strong()
             
             for symbol in buy_set:
                 if symbol in reg_list:
@@ -370,14 +403,14 @@ class Buy(Base):
                         total += value
         return round(total, 2)
 
-
-    def __get_market_price(self, buy_result: dict) -> float:
+    def __get_bought_price(self, buy_result: dict) -> float:
+        """Parses the buy_result to get the entry_price or bought_price of the base order."""
         if self.has_result(buy_result):
             order_result = self.query_orders_info(buy_result[Dicts.RESULT][Data.TXID][0])
             if self.has_result(order_result):
                 for txid in order_result[Dicts.RESULT]:
                     for key, value in order_result[Dicts.RESULT][txid].items():
-                        if key == "price":
+                        if key == Data.PRICE: 
                             return float(value)
         return 0
 
@@ -387,13 +420,10 @@ class Buy(Base):
 
     def buy_loop(self) -> None:
         """The main function for trading coins."""
-        # self.__init_loop_variables()
-        # bought_set = set()
-        # print(f"Account value: ${self.__get_account_value()}")
-        
-        # buy_result   = self.__place_base_order(10, "XLMUSD")
-        # market_price = self.__get_market_price(buy_result)
-        self.dca     = DCA("XLMUSD", 1, 1)
+        self.__init_loop_variables()
+        bought_set = set()
+        print(f"Account value: ${self.__get_account_value()}")
+        # self.cancel_all_orders()
 
         while True:
             for symbol in Buy_.SET:
