@@ -309,12 +309,12 @@ class KrakenAPI(object):
         return 0.0
 
 
-    def get_available_coin_balance(self, symbol: str) -> float:
-        # count the number of open orders in value?
-        open_orders = self.get_open_orders()
-        from pprint import pprint
-        pprint(open_orders)
-        return 0.0
+    # def get_available_coin_balance(self, symbol: str) -> float:
+    #     # count the number of open orders in value?
+    #     open_orders = self.get_open_orders()
+    #     from pprint import pprint
+    #     pprint(open_orders)
+    #     return 0.0
 
 ###################################################################################################
 ### TIME ###

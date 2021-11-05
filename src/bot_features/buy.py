@@ -140,12 +140,6 @@ class Buy(Base):
         for _, safety_order_dict in self.dca.safety_orders.items():
             for price, quantity in safety_order_dict.items():
                 try:
-                    # if self.get_coin_balance(StableCoins.ZUSD) < price*quantity:
-                        # G.log_file.print_and_log("buy_loop: Not enough USD to place safety orders")
-                        # return
-
-                    # self.get_available_coin_balance(StableCoins.ZUSD)
-                    
                     price_max_prec     = self.get_pair_decimals(self.symbol_pair)
                     rounded_price      = self.round_decimals_down(price, price_max_prec)
                     rounded_quantity   = self.round_decimals_down(quantity, self.get_max_volume_precision(symbol))

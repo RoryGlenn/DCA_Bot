@@ -40,8 +40,8 @@ class Sell(Base):
 
     def __get_quantity_owned(self, symbol: str) -> float:
         account_balance = self.get_account_balance()
-
         if self.has_result(account_balance):
+            account_balance = account_balance[Dicts.RESULT]
             for sym, qty in account_balance.items():
                 if sym not in StableCoins.STABLE_COINS_LIST:
                     if sym in symbol:
@@ -76,8 +76,12 @@ class Sell(Base):
         return
 
     def __place_sell_limit_order(self, symbol_pair: str) -> dict:
-        required_price    = self.round_decimals_down(self.__get_required_price(symbol_pair), self.__get_max_price_prec(symbol_pair)) 
-        qty               = self.round_decimals_down(self.__get_quantity_owned(symbol_pair), self.__get_max_volume_prec(symbol_pair))
+        required_price    = self.round_decimals_down(self.__get_required_price(symbol_pair), self.__get_max_price_prec(symbol_pair))
+
+        max_prec = self.__get_max_volume_prec(symbol_pair)
+        qty_owned = self.__get_quantity_owned(symbol_pair)
+
+        qty               = self.round_decimals_down(qty_owned, max_prec)
         sell_order_result = self.limit_order(Trade.SELL, qty, symbol_pair, required_price)
         
         if self.has_result(sell_order_result):
