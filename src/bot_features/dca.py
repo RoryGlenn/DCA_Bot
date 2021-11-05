@@ -166,7 +166,9 @@ class DCA(DCA_):
         for i in range(DCA_.SAFETY_ORDERS_MAX):
             try:
                 required_change_percentage = (1 - (self.price_levels[i] / self.required_price_levels[i])) * 100
-            except DivisionByZero:
+            except DivisionByZero as e:
+                print("yes yes yes...")
+                pprint(e)
                 required_change_percentage = (1 - self.price_levels[i]) * 100
             self.required_change_percentage_levels.append(required_change_percentage)
         return

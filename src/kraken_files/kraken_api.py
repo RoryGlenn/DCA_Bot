@@ -8,7 +8,7 @@ import urllib.parse
 
 import requests
 from util.globals import G
-
+from pprint import pprint
 from kraken_files.kraken_enums import *
 
 
@@ -309,12 +309,21 @@ class KrakenAPI(object):
         return 0.0
 
 
-    # def get_available_coin_balance(self, symbol: str) -> float:
-    #     # count the number of open orders in value?
-    #     open_orders = self.get_open_orders()
-    #     from pprint import pprint
-    #     pprint(open_orders)
-    #     return 0.0
+    def get_available_usd_balance(self) -> float:
+        """Get available usd balance by subtracting open buy orders from total usd in wallet."""
+        open_orders = self.get_open_orders()
+        buy_total   = 0
+
+        if Dicts.RESULT in open_orders.keys():
+            for txid in open_orders[Dicts.RESULT][Dicts.OPEN]:
+                for key in open_orders[txid].keys():
+                    if key == Dicts.DESCR:
+                        if open_orders[txid][Dicts.DESCR][Data.TYPE] == Data.BUY:
+                            price     = float(open_orders[txid][Dicts.DESCR][Data.PRICE])
+                            qty       = float(open_orders[txid][Dicts.DESCR]['order'].split(" ")[1])
+                            buy_total += price * qty
+                            break
+        return round(buy_total, 3)
 
 ###################################################################################################
 ### TIME ###

@@ -76,18 +76,20 @@ class Sell(Base):
         return
 
     def __place_sell_limit_order(self, symbol_pair: str) -> dict:
-        required_price    = self.round_decimals_down(self.__get_required_price(symbol_pair), self.__get_max_price_prec(symbol_pair))
+        """Place limit order to sell the coin.
+        1. round the price.
+        2. round the quantity"""
+        required_price = self.round_decimals_down(self.__get_required_price(symbol_pair), self.__get_max_price_prec(symbol_pair))
+        max_prec       = self.__get_max_volume_prec(symbol_pair)
+        qty_owned      = self.__get_quantity_owned(symbol_pair)
+        qty_to_sell    = self.round_decimals_down(qty_owned, max_prec)
 
-        max_prec = self.__get_max_volume_prec(symbol_pair)
-        qty_owned = self.__get_quantity_owned(symbol_pair)
-
-        qty               = self.round_decimals_down(qty_owned, max_prec)
-        sell_order_result = self.limit_order(Trade.SELL, qty, symbol_pair, required_price)
+        sell_order_result = self.limit_order(Trade.SELL, qty_to_sell, symbol_pair, required_price)
         
         if self.has_result(sell_order_result):
             G.log_file.print_and_log(f"sell: limit order placed {symbol_pair} {sell_order_result[Dicts.RESULT]}")
         else:
-            G.log_file.print_and_log(f"sell: {symbol_pair} {sell_order_result}")
+            G.log_file.print_and_log(f"sell: {symbol_pair} {sell_order_result[Dicts.ERROR]}")
         return sell_order_result
 
     def __update_open_buy_orders(self, symbol_pair: str) -> None:
@@ -119,7 +121,6 @@ class Sell(Base):
         Triggered everytime a new buy limit order is placed.
             1. cancel all open sell orders for symbol_pair
             2. create a new sell limit order at the next 'Required price' column.
-        
         """
         
         # cancel previous sell order (if it exists).
@@ -152,6 +153,6 @@ class Sell(Base):
             G.log_file.print_and_log(f"sell: limit order placed {symbol_pair} {sell_order_result[Dicts.RESULT]}")
             self.__update_sell_order(symbol_pair, sell_order_result)   # update open_sell_orders sheet.
         else:
-            G.log_file.print_and_log(f"sell: {symbol_pair} {sell_order_result}")
+            G.log_file.print_and_log(f"sell: {symbol_pair} {sell_order_result[Dicts.ERROR]}")
 
         return sell_order_result

@@ -417,7 +417,6 @@ class Buy(Base):
         self.__init_loop_variables()
         bought_set = set()
         print(f"Account value: ${self.__get_account_value()}")
-        # self.cancel_all_orders()
 
         while True:
             for symbol in Buy_.SET:

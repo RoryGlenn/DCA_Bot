@@ -49,6 +49,7 @@ class Dicts:
     LOT_DECIMALS = "lot_decimals"
     ALT_NAME = "altname"
     RESULT = "result"
+    ERROR = "error"
     DECIMALS = "decimals"
     MINIMUM = "Minimum"
     ASSET = "Asset"
