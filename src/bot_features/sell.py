@@ -58,9 +58,6 @@ class Sell(Base):
     def __get_max_volume_prec(self, symbol_pair: str) -> int:
         return self.get_max_volume_precision(symbol_pair[:-4]) if StableCoins.ZUSD in symbol_pair else self.get_max_volume_precision(symbol_pair[:-3])
 
-##################################################################
-### 
-##################################################################
     def __cancel_sell_order(self, symbol_pair: str) -> None:
         """Open the sell_txids.xlsx file, cancel all sell orders by symbol name."""
         filename   = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
@@ -121,8 +118,8 @@ class Sell(Base):
         Triggered everytime a new buy limit order is placed.
             1. cancel all open sell orders for symbol_pair
             2. create a new sell limit order at the next 'Required price' column.
-        """
         
+        """
         # cancel previous sell order (if it exists).
         self.__cancel_sell_order(symbol_pair)
         
@@ -143,8 +140,8 @@ class Sell(Base):
 ##################################################################
     def place_sell_limit_base_order(self, symbol_pair: str, entry_price: float, quantity: float) -> None:
         """Create a sell limit order for the base order only!"""
-        
         self.__cancel_sell_order(symbol_pair)
+        
         required_price    = entry_price + (entry_price*DCA_.TARGET_PROFIT_PERCENT/100)
         required_price    = self.round_decimals_down(required_price, self.__get_max_price_prec(symbol_pair))
         sell_order_result = self.limit_order(Trade.SELL, quantity, symbol_pair, required_price)

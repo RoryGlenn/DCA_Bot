@@ -28,7 +28,6 @@ from bot_features.tradingview  import TradingView
 
 x_list   = ['XETC', 'XETH', 'XLTC', 'XMLN', 'XREP', 'XXBT', 'XXDG', 'XXLM', 'XXMR', 'XXRP', 'XZEC']
 reg_list = ['ETC',  'ETH',  'LTC',  'MLN',  'REP',  'XBT',  'XDG',  'XLM',  'XMR',  'XRP',  'ZEC' ]
-x_dict   = { x_list[i]: reg_list[i] for i in range(len(x_list)) }
 
 
 class Buy(Base):
@@ -38,7 +37,7 @@ class Buy(Base):
         self.account_balance:         dict        = { }
         self.kraken_assets_dict:      dict        = { }
         self.trade_history:           dict        = { }
-        self.exception_list:          list        = ["CHZ", "XTZ"]
+        self.exception_list:          list        = ["XTZ"]
         self.bid_price:               float       = 0.0
         self.quantity_to_buy:         float       = 0.0
         self.order_min:               float       = 0.0
@@ -72,7 +71,7 @@ class Buy(Base):
     def __get_recommendation(self, symbol_pair: str) -> bool:
         """Get the recommendation from trading view."""
         ta = TradingView()
-        return ta.is_strong_buy(symbol_pair)
+        return ta.__is_strong_buy(symbol_pair)
 
     def __set_pre_buy_variables(self, symbol: str) -> None:
         """Sets the buy variables for each symbol."""
@@ -198,7 +197,7 @@ class Buy(Base):
                     self.dca       = DCA(self.symbol_pair, base_order_qty, base_price)
                     self.sell.place_sell_limit_base_order(self.symbol_pair, base_price, base_order_qty) # place sell order for base order
                 else:
-                    G.log_file.print_and_log(f"buy_loop: can't place base order: {base_order_result['error'][0]}")
+                    G.log_file.print_and_log(f"buy_loop: {self.symbol_pair} can't place base order: {base_order_result[Dicts.ERROR]}")
                     return
             else:
                 # symbol is in EXCEL_DIRECTORY therefore, we have bought it before.
@@ -219,10 +218,7 @@ class Buy(Base):
     def __get_symbols_from_directory(self) -> set:
         """Get the symbol from EXCEL_FILES_DIRECTORY."""
         bought_set = set()
-
-        # iterate through all files in EXCEL_FILES_DIRECTORY
         for filename in glob.iglob(EXCEL_FILES_DIRECTORY+"/*"):
-            # get the symbol name
             if sys.platform == "win32":
                 symbol = filename.split("/")[2].split("\\")[1].replace(".xlsx", "")
             else:
@@ -242,10 +238,7 @@ class Buy(Base):
     def __get_symbol_pairs_from_directory(self) -> set:
         """Get the symbol pairs from EXCEL_FILES_DIRECTORY."""
         bought_set = set()
-
-        # iterate through all files in EXCEL_FILES_DIRECTORY
         for filename in glob.iglob(EXCEL_FILES_DIRECTORY+"/*"):
-            # get the symbol name
             if sys.platform == "win32":
                 symbol = filename.split("/")[2].split("\\")[1].replace(".xlsx", "")
             else:
@@ -262,6 +255,13 @@ class Buy(Base):
         """
         If the sell order was filled, cancel all buy orders, 
         remove symbol from bought_list, delete excel_file. 
+        
+        If the sell order has been filled, we have sold the coin for a profit.
+        The things left to do is:
+          1. cancel any remaining buy order
+          2. delete the excel file
+          3. remove symbol from bought_set
+          4. start the process all over again!
         
         """
         filename = EXCEL_FILES_DIRECTORY + "/" + self.get_tradable_asset_pair(symbol) + ".xlsx"
@@ -280,14 +280,6 @@ class Buy(Base):
         for trade_txid, dictionary in self.trade_history[Dicts.RESULT][Data.TRADES].items():
             filled_sell_order_txids[dictionary[Data.ORDER_TXID]] = trade_txid
 
-        """
-        If the sell order has been filled, we have sold the coin for a profit.
-        The things left to do is:
-          1. cancel any remaining buy order
-          2. delete the excel file
-          3. remove symbol from bought_set
-          4. start the process all over again!
-        """
         for sell_order_txid in df[TXIDS].to_list():
             if sell_order_txid in filled_sell_order_txids.keys():
                 # the sell order has filled and we have completed the entire process!!!
@@ -335,7 +327,8 @@ class Buy(Base):
         return
 
     def __get_future_time(self) -> str:
-        return ( datetime.timedelta(minutes=60) + datetime.datetime.now() ).strftime("%H:%M:%S")
+        result = datetime.timedelta(minutes=60) + datetime.datetime.now()
+        return result.strftime("%H:%M:%S")
 
     def __set_future_time(self) -> None:
         self.future_time = self.__get_future_time()
@@ -348,13 +341,13 @@ class Buy(Base):
         Set Buy_.SET to these coins.
         """
         buy_set = set()
-
-        for symbol in self.ta.get_all_strong():
+        for symbol in self.ta.get_buy_long():
             if symbol in reg_list:
                 buy_set.add("X" + symbol)
             else:
                 buy_set.add(symbol)
 
+        print("buy_set:", sorted(buy_set))
         bought_set = self.__get_symbols_from_directory()
         Buy_.SET   = sorted(bought_set.union(buy_set))
         return
@@ -363,11 +356,8 @@ class Buy(Base):
         """Once every hour, run this function. 
         Add to the buy_list with these coins."""
         result_set = set()
-
         if self.future_time < datetime.datetime.now().strftime("%H:%M:%S"):
-            buy_set = self.ta.get_all_strong()
-            
-            for symbol in buy_set:
+            for symbol in self.ta.get_strong_buy():
                 if symbol in reg_list:
                     result_set.add("X" + symbol)
                 else:
@@ -385,7 +375,6 @@ class Buy(Base):
         if self.has_result(account):
             for symbol, quantity in account[Dicts.RESULT].items():
                 quantity = float(quantity)
-
                 if float(quantity) > 0:
                     if symbol in x_list:
                         symbol = symbol[1:]
@@ -404,7 +393,7 @@ class Buy(Base):
             if self.has_result(order_result):
                 for txid in order_result[Dicts.RESULT]:
                     for key, value in order_result[Dicts.RESULT][txid].items():
-                        if key == Data.PRICE: 
+                        if key == Data.PRICE:
                             return float(value)
         return 0
 
@@ -417,6 +406,9 @@ class Buy(Base):
         self.__init_loop_variables()
         bought_set = set()
         print(f"Account value: ${self.__get_account_value()}")
+
+        # print(self.__get_recommendation("DOTUSD"))
+        # dca = DCA("DOTUSD", 0.2, 51.9225)
 
         while True:
             for symbol in Buy_.SET:

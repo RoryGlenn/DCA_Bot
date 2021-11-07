@@ -18,19 +18,15 @@ class ConfigParser():
             ConfigKeys.KRAKEN_API_KEY, 
             ConfigKeys.KRAKEN_SECRET_KEY,
             
-            # ConfigKeys.BUY_SET,
-
             # dca
             ConfigKeys.DCA_TARGET_PROFIT_PERCENT,
-            # ConfigKeys.DCA_TRAILING_DEVIATION,
             ConfigKeys.DCA_BASE_ORDER_SIZE,
             ConfigKeys.DCA_SAFETY_ORDERS_MAX,
             ConfigKeys.DCA_SAFETY_ORDERS_ACTIVE_MAX,
             ConfigKeys.DCA_SAFETY_ORDER_SIZE,
             ConfigKeys.DCA_SAFETY_ORDER_STEP_SCALE,
             ConfigKeys.DCA_SAFETY_ORDER_VOLUME_SCALE,
-            ConfigKeys.DCA_SAFETY_ORDER_PRICE_DEVIATION
-            ]
+            ConfigKeys.DCA_SAFETY_ORDER_PRICE_DEVIATION]
 
     def parse_config_file(self) -> None:
         """
@@ -39,7 +35,6 @@ class ConfigParser():
         Args can be rearranged to the users desire.
 
         """
-
         parameter_dict = dict()
         removed_set    = set()
         parameter_list = self.__get_parameter_list()
@@ -72,15 +67,11 @@ class ConfigParser():
         """Assign the values to our enums"""
         cfg_dict = ConfigParser().parse_config_file()
 
-        # for symbol in cfg_dict[ConfigKeys.BUY_LIST].split(","):
-        #     Buy_.SET.add(str(symbol).upper())
-
         # DCA
-        DCA_.TARGET_PROFIT_PERCENT          = float(cfg_dict[ConfigKeys.DCA_TARGET_PROFIT_PERCENT])
-        # DCA_.TRAILING_DEVIATION             = float(cfg_dict[ConfigKeys.DCA_TRAILING_DEVIATION])
-        DCA_.SAFETY_ORDER_VOLUME_SCALE      = float(cfg_dict[ConfigKeys.DCA_SAFETY_ORDER_VOLUME_SCALE])
-        DCA_.SAFETY_ORDERS_MAX              = int(cfg_dict[ConfigKeys.DCA_SAFETY_ORDERS_MAX])
-        DCA_.SAFETY_ORDERS_ACTIVE_MAX       = int(cfg_dict[ConfigKeys.DCA_SAFETY_ORDERS_ACTIVE_MAX])
-        DCA_.SAFETY_ORDER_STEP_SCALE        = float(cfg_dict[ConfigKeys.DCA_SAFETY_ORDER_STEP_SCALE])
+        DCA_.TARGET_PROFIT_PERCENT          = float(cfg_dict[ConfigKeys.DCA_TARGET_PROFIT_PERCENT]       )
+        DCA_.SAFETY_ORDER_VOLUME_SCALE      = float(cfg_dict[ConfigKeys.DCA_SAFETY_ORDER_VOLUME_SCALE]   )
+        DCA_.SAFETY_ORDERS_MAX              = int  (cfg_dict[ConfigKeys.DCA_SAFETY_ORDERS_MAX]           )
+        DCA_.SAFETY_ORDERS_ACTIVE_MAX       = int  (cfg_dict[ConfigKeys.DCA_SAFETY_ORDERS_ACTIVE_MAX]    )
+        DCA_.SAFETY_ORDER_STEP_SCALE        = float(cfg_dict[ConfigKeys.DCA_SAFETY_ORDER_STEP_SCALE]     )
         DCA_.SAFETY_ORDER_PRICE_DEVIATION   = float(cfg_dict[ConfigKeys.DCA_SAFETY_ORDER_PRICE_DEVIATION])
         return

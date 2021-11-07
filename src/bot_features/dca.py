@@ -1,7 +1,6 @@
 """dca.py - DCA is a dollar cost averaging technique. 
 This bot uses DCA in order lower the average buy price for a purchased coin."""
 
-from decimal import DivisionByZero
 import os
 import pandas as pd
 
@@ -122,7 +121,7 @@ class DCA(DCA_):
         for i in range(DCA_.SAFETY_ORDERS_MAX):
             level = self.percentage_deviation_levels[i] / 100
             price = self.bid_price - (self.bid_price * level)
-            self.price_levels.append(price)
+            self.price_levels.append(price) # ERROR: THIS LINE OF CODE SOMETIMES EVALUATES TO 0...WHY?
         return
 
     def __set_quantity_levels(self) -> None:
@@ -145,7 +144,7 @@ class DCA(DCA_):
         # safety orders
         for i in range(DCA_.SAFETY_ORDERS_MAX):
             average = (self.price_levels[i] + prev_average) / 2
-            self.average_price_levels.append(average)
+            self.average_price_levels.append(average) # ERROR: THIS LINE OF CODE SOMETIMES EVALUATES TO 0...WHY?
             prev_average = average
         return
 
@@ -155,6 +154,7 @@ class DCA(DCA_):
 
         # safety orders
         for i in range(DCA_.SAFETY_ORDERS_MAX):
+            # ERROR: THIS LINE OF CODE SOMETIMES EVALUATES TO 0...WHY?
             required_price = self.average_price_levels[i] + (self.average_price_levels[i] * target_profit_decimal)
             self.required_price_levels.append(required_price)
         return
@@ -166,10 +166,10 @@ class DCA(DCA_):
         for i in range(DCA_.SAFETY_ORDERS_MAX):
             try:
                 required_change_percentage = (1 - (self.price_levels[i] / self.required_price_levels[i])) * 100
-            except DivisionByZero as e:
-                print("yes yes yes...")
-                pprint(e)
+            except ZeroDivisionError as e:
                 required_change_percentage = (1 - self.price_levels[i]) * 100
+            except Exception as e:
+                print(e)
             self.required_change_percentage_levels.append(required_change_percentage)
         return
 
