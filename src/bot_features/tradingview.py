@@ -43,7 +43,7 @@ class TradingView():
             pprint(e)
         return []
 
-    def __is_buy(self, symbol_pair: list) -> bool:
+    def is_buy(self, symbol_pair: list) -> bool:
         """Get recommendations for all intervals in TVData. 
         Buy the coin if all intervals indicate a BUY or STRONG_BUY."""
         
@@ -53,7 +53,7 @@ class TradingView():
                 return False
         return True
 
-    def __is_buy_long(self, symbol_pair: list) -> bool:
+    def is_buy_long(self, symbol_pair: list) -> bool:
         """Get recommendations for all intervals in TVData. 
         Buy the coin if all intervals indicate a BUY or STRONG_BUY."""
         
@@ -64,7 +64,7 @@ class TradingView():
         return True
 
 
-    def __is_strong_buy(self, symbol_pair: list) -> bool:
+    def is_strong_buy(self, symbol_pair: list) -> bool:
         for interval in TVData.SCALP_INTERVALS:
             recomendation = self.__get_recommendation(symbol_pair, interval)
             if recomendation != TVData.STRONG_BUY:
@@ -93,7 +93,7 @@ class TradingView():
                 print(f"{iteration} : {total} {symbol}")
 
                 if symbol not in StableCoins.STABLE_COINS_LIST:
-                    if self.__is_buy(symbol+StableCoins.USD):
+                    if self.is_buy(symbol+StableCoins.USD):
                         buy_set.add(symbol)
                 iteration += 1
         return buy_set
@@ -120,7 +120,7 @@ class TradingView():
                 print(f"{iteration} : {total} {symbol}")
 
                 if symbol not in StableCoins.STABLE_COINS_LIST:
-                    if self.__is_buy_long(symbol+StableCoins.USD):
+                    if self.is_buy_long(symbol+StableCoins.USD):
                         buy_set.add(symbol)
                 iteration += 1
         return buy_set
@@ -149,7 +149,7 @@ class TradingView():
                 print(f"{iteration} : {total} {symbol}")
 
                 if symbol not in StableCoins.STABLE_COINS_LIST:
-                    if self.__is_strong_buy(symbol+StableCoins.USD):
+                    if self.is_strong_buy(symbol+StableCoins.USD):
                         buy_set.add(symbol)
                 iteration += 1
         return buy_set

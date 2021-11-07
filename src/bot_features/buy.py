@@ -12,6 +12,7 @@ buy.py - Buys coin on kraken exchange based on users config file.
 
 import datetime
 import os
+from typing import Dict
 import pandas as pd
 import glob
 import sys
@@ -30,7 +31,7 @@ x_list   = ['XETC', 'XETH', 'XLTC', 'XMLN', 'XREP', 'XXBT', 'XXDG', 'XXLM', 'XXM
 reg_list = ['ETC',  'ETH',  'LTC',  'MLN',  'REP',  'XBT',  'XDG',  'XLM',  'XMR',  'XRP',  'ZEC' ]
 
 
-class Buy(Base):
+class Buy(Base, TradingView):
     def __init__(self, parameter_dict: dict) -> None:
         super().__init__(parameter_dict)
         
@@ -45,7 +46,6 @@ class Buy(Base):
         self.is_buy:                  bool        = False
         self.dca:                     DCA         = None
         self.sell:                    Sell        = Sell(parameter_dict)
-        self.ta:                      TradingView = TradingView()
         return
 
     def __init_loop_variables(self) -> None:
@@ -68,17 +68,12 @@ class Buy(Base):
             os.mkdir(EXCEL_FILES_DIRECTORY)
         return
 
-    def __get_recommendation(self, symbol_pair: str) -> bool:
-        """Get the recommendation from trading view."""
-        ta = TradingView()
-        return ta.__is_strong_buy(symbol_pair)
-
     def __set_pre_buy_variables(self, symbol: str) -> None:
         """Sets the buy variables for each symbol."""
         self.symbol_pair = self.get_tradable_asset_pair(symbol)
         self.bid_price   = self.get_bid_price(self.symbol_pair)
         alt_name         = self.get_alt_name(symbol)
-        self.is_buy      = self.__get_recommendation(alt_name+StableCoins.USD)
+        self.is_buy      = self.is_strong_buy(alt_name+StableCoins.USD)
         return
 
     def save_open_buy_order_txid(self, buy_result: dict, symbol_pair: str, required_price: float) -> None:
@@ -235,17 +230,6 @@ class Buy(Base):
             bought_set.add(symbol)
         return bought_set
 
-    def __get_symbol_pairs_from_directory(self) -> set:
-        """Get the symbol pairs from EXCEL_FILES_DIRECTORY."""
-        bought_set = set()
-        for filename in glob.iglob(EXCEL_FILES_DIRECTORY+"/*"):
-            if sys.platform == "win32":
-                symbol = filename.split("/")[2].split("\\")[1].replace(".xlsx", "")
-            else:
-                symbol = filename.split("/")[3].replace(".xlsx", "")
-            bought_set.add(symbol)
-        return bought_set
-
     def __update_bought_set(self):
         """Get all the symbol names from the EXCEL_FILES_DIRECTORY
             and create the set of coins we are currently buying."""
@@ -341,7 +325,7 @@ class Buy(Base):
         Set Buy_.SET to these coins.
         """
         buy_set = set()
-        for symbol in self.ta.get_buy_long():
+        for symbol in self.get_buy_long():
             if symbol in reg_list:
                 buy_set.add("X" + symbol)
             else:
@@ -357,7 +341,7 @@ class Buy(Base):
         Add to the buy_list with these coins."""
         result_set = set()
         if self.future_time < datetime.datetime.now().strftime("%H:%M:%S"):
-            for symbol in self.ta.get_strong_buy():
+            for symbol in self.get_buy_long():
                 if symbol in reg_list:
                     result_set.add("X" + symbol)
                 else:
@@ -407,9 +391,6 @@ class Buy(Base):
         bought_set = set()
         print(f"Account value: ${self.__get_account_value()}")
 
-        # print(self.__get_recommendation("DOTUSD"))
-        # dca = DCA("DOTUSD", 0.2, 51.9225)
-
         while True:
             for symbol in Buy_.SET:
                 self.__update_filled_orders(symbol)
@@ -424,7 +405,7 @@ class Buy(Base):
                         self.wait(message=f"buy_loop: checking {symbol}", timeout=Nap.LONG)
 
                         # something is wrong with Dogecoin
-                        if symbol == "XDG" or symbol == "XXDG":
+                        if symbol == "XXDG":
                             continue
 
                         self.__set_pre_buy_variables(symbol)
