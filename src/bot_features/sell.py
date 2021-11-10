@@ -33,9 +33,9 @@ class Sell(Base):
         df2 = pd.read_excel(file_name, SheetNames.OPEN_BUY_ORDERS)
 
         with pd.ExcelWriter(file_name, engine=OPENPYXL, mode=FileMode.WRITE_TRUNCATE) as writer:
-            df1.to_excel(writer, SheetNames.SAFETY_ORDERS, index=False)
-            df2.to_excel(writer, SheetNames.OPEN_BUY_ORDERS,   index=False)
-            df3.to_excel(writer, SheetNames.OPEN_SELL_ORDERS,   index=False)
+            df1.to_excel(writer, SheetNames.SAFETY_ORDERS,    index=False)
+            df2.to_excel(writer, SheetNames.OPEN_BUY_ORDERS,  index=False)
+            df3.to_excel(writer, SheetNames.OPEN_SELL_ORDERS, index=False)
         return
 
     def __get_quantity_owned(self, symbol: str) -> float:
@@ -71,6 +71,15 @@ class Sell(Base):
             df = df[ df[TXIDS] == txid]
             self.__save_to_open_sell_orders(filename, df)
         return
+    
+    def __get_profit_potential(self, symbol_pair: str) -> float:
+        """Get the profit potential from the open_sell_orders tab."""
+        filename   = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
+        profit_list = pd.read_excel(filename, SheetNames.OPEN_SELL_ORDERS)["Profit $"].to_list()
+        
+        if len(profit_list) > 0:
+            return float(profit_list[0])
+        return 0.0
 
     def __place_sell_limit_order(self, symbol_pair: str) -> dict:
         """Place limit order to sell the coin.
@@ -84,7 +93,8 @@ class Sell(Base):
         sell_order_result = self.limit_order(Trade.SELL, qty_to_sell, symbol_pair, required_price)
         
         if self.has_result(sell_order_result):
-            G.log_file.print_and_log(f"sell: limit order placed {symbol_pair} {sell_order_result[Dicts.RESULT]}")
+            # profit_potential = entry_price * qty_to_sell * DCA_.TARGET_PROFIT_PERCENT/100
+            G.log_file.print_and_log(f"sell: limit order placed {symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: ...")
         else:
             G.log_file.print_and_log(f"sell: {symbol_pair} {sell_order_result[Dicts.ERROR]}")
         return sell_order_result
@@ -147,7 +157,8 @@ class Sell(Base):
         sell_order_result = self.limit_order(Trade.SELL, quantity, symbol_pair, required_price)
         
         if self.has_result(sell_order_result):
-            G.log_file.print_and_log(f"sell: limit order placed {symbol_pair} {sell_order_result[Dicts.RESULT]}")
+            profit_potential = entry_price * quantity * DCA_.TARGET_PROFIT_PERCENT/100
+            G.log_file.print_and_log(f"sell: limit order placed {symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: {profit_potential}")
             self.__update_sell_order(symbol_pair, sell_order_result)   # update open_sell_orders sheet.
         else:
             G.log_file.print_and_log(f"sell: {symbol_pair} {sell_order_result[Dicts.ERROR]}")

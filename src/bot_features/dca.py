@@ -162,9 +162,6 @@ class DCA(DCA_):
         # safety orders
         for i in range(DCA_.SAFETY_ORDERS_MAX):
             required_price = self.average_price_levels[i] + (self.average_price_levels[i] * target_profit_decimal)
-
-            if required_price == 0:
-                raise Exception("required_price must not be 0")
             self.required_price_levels.append(required_price)
         return
 
@@ -216,11 +213,11 @@ class DCA(DCA_):
             self.safety_order_table.to_excel(writer, SheetNames.SAFETY_ORDERS, index=False)
             
             # create the open_orders sheet
-            df1 = pd.DataFrame(data={OBOColumns.TXIDS: [], OBOColumns.REQ_PRICE: []})
+            df1 = pd.DataFrame(data={OBOColumns.TXIDS: [], OBOColumns.REQ_PRICE: [], OBOColumns.PROFIT: []})
             df1.to_excel(writer, SheetNames.OPEN_BUY_ORDERS, index=False)
 
             # create the sell_orders sheet
-            df2 = pd.DataFrame(data={OSOColumns.TXIDS: []})
+            df2 = pd.DataFrame(data={OSOColumns.TXIDS: [], OSOColumns.PROFIT: []})
             df2.to_excel(writer, SheetNames.OPEN_SELL_ORDERS, index=False)
         return
 

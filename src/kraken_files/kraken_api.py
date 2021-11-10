@@ -320,7 +320,7 @@ class KrakenAPI(object):
                     if key == Dicts.DESCR:
                         if open_orders[txid][Dicts.DESCR][Data.TYPE] == Data.BUY:
                             price     = float(open_orders[txid][Dicts.DESCR][Data.PRICE])
-                            qty       = float(open_orders[txid][Dicts.DESCR]['order'].split(" ")[1])
+                            qty       = float(open_orders[txid][Dicts.DESCR][Dicts.ORDER].split(" ")[1])
                             buy_total += price * qty
                             break
         return round(buy_total, 3)

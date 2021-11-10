@@ -45,6 +45,7 @@ class ExportReport:
 
 class Dicts:
     ORDER_MIN = "ordermin"
+    ORDER = "order"
     PAIR_DECIMALS = "pair_decimals"
     LOT_DECIMALS = "lot_decimals"
     ALT_NAME = "altname"
@@ -306,9 +307,11 @@ class SOColumns:
 class OBOColumns:
     TXIDS = "txids"
     REQ_PRICE = "required_price"
+    PROFIT = "Profit $"
 
 class OSOColumns:
     TXIDS = "txids"
+    PROFIT = "Profit $"
 
 class SheetNames:
     SAFETY_ORDERS = "safety_orders"

@@ -198,11 +198,8 @@ class Buy(Base, TradingView):
                 if self.has_result(base_order_result):
                     G.log_file.print_and_log(f"buy_loop: Base order filled: {base_order_result[Dicts.RESULT]}")
                     
-                    base_order_qty = float(str(base_order_result[Dicts.RESULT][Dicts.DESCR]['order']).split(" ")[1])
+                    base_order_qty = float(str(base_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]).split(" ")[1])
                     base_price     = self.__get_bought_price(base_order_result)
-                    
-                    print("base_order_qty:", base_order_qty)
-                    print("base_price:",     base_price)
                     
                     self.dca       = DCA(self.symbol_pair, base_order_qty, base_price)
                     self.sell.place_sell_limit_base_order(self.symbol_pair, base_price, base_order_qty) # place sell order for base order
