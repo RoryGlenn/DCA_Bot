@@ -70,10 +70,15 @@ class Buy(Base, TradingView):
 
     def __set_pre_buy_variables(self, symbol: str) -> None:
         """Sets the buy variables for each symbol."""
-        self.symbol_pair = self.get_tradable_asset_pair(symbol)
-        self.bid_price   = self.get_bid_price(self.symbol_pair)
-        alt_name         = self.get_alt_name(symbol)
-        self.is_buy      = self.is_strong_buy(alt_name+StableCoins.USD)
+        try:
+            self.wait(message=f"buy_loop: checking {symbol}", timeout=Nap.LONG)
+
+            self.symbol_pair = self.get_tradable_asset_pair(symbol)
+            self.bid_price   = self.get_bid_price(self.symbol_pair)
+            alt_name         = self.get_alt_name(symbol)
+            self.is_buy      = self.is_strong_buy(alt_name+StableCoins.USD)
+        except Exception as e:
+            G.log_file.print_and_log(e=e)
         return
 
     def save_open_buy_order_txid(self, buy_result: dict, symbol_pair: str, required_price: float) -> None:
@@ -81,6 +86,7 @@ class Buy(Base, TradingView):
         Once a limit order is placed successfully, update the order orders file
         by appending the new txid to the end of the file.
         Note: This function is called only in __place_limit_orders().
+
         """
         filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
 
@@ -100,7 +106,7 @@ class Buy(Base, TradingView):
 
     def __get_open_orders_on_symbol_pair(self, symbol: str) -> str:
         """Returns the number of open orders for self.symbol_pair."""
-        count = 0
+        count           = 0
         alt_symbol_pair = self.get_alt_name(symbol) + StableCoins.USD
 
         if self.has_result(self.open_orders):
@@ -111,10 +117,13 @@ class Buy(Base, TradingView):
 
     def __set_post_buy_variables(self, symbol: str) -> None:
         """Sets variables in order to make an buy order."""
-        self.wait(timeout=Nap.LONG)
-        self.order_min           = self.get_order_min(symbol)
-        self.pair_decimals       = self.get_pair_decimals(self.symbol_pair)
-        self.open_orders         = self.get_open_orders()
+        try:
+            self.wait(timeout=Nap.LONG)
+            self.order_min           = self.get_order_min(symbol)
+            self.pair_decimals       = self.get_pair_decimals(self.symbol_pair)
+            self.open_orders         = self.get_open_orders()
+        except Exception as e:
+            G.log_file.print_and_log(e=e)
         return
 
     def __get_required_price(self):
@@ -150,7 +159,7 @@ class Buy(Base, TradingView):
                         self.dca.update_safety_orders()
                         num_orders_to_make -= 1
                     else:
-                        if limit_order_result["error"][0] == KError.IF:
+                        if limit_order_result[Dicts.ERROR][0] == KError.INSUFFICIENT_FUNDS:
                             G.log_file.print_and_log(f"buy_loop: {self.symbol_pair} Not enough USD to place remaining safety orders.")
                             return
 
@@ -187,8 +196,13 @@ class Buy(Base, TradingView):
 
                 if self.has_result(base_order_result):
                     G.log_file.print_and_log(f"buy_loop: Base order filled: {base_order_result[Dicts.RESULT]}")
+                    
                     base_order_qty = float(str(base_order_result[Dicts.RESULT][Dicts.DESCR]['order']).split(" ")[1])
                     base_price     = self.__get_bought_price(base_order_result)
+                    
+                    print("base_order_qty:", base_order_qty)
+                    print("base_price:",     base_price)
+                    
                     self.dca       = DCA(self.symbol_pair, base_order_qty, base_price)
                     self.sell.place_sell_limit_base_order(self.symbol_pair, base_price, base_order_qty) # place sell order for base order
                 else:
@@ -206,31 +220,33 @@ class Buy(Base, TradingView):
             if num_open_orders < DCA_.SAFETY_ORDERS_ACTIVE_MAX:
                 self.__place_safety_orders(symbol, num_orders_to_make)
         except Exception as e:
-            print(e)
             G.log_file.print_and_log(e=e)
         return
 
     def __get_symbols_from_directory(self) -> set:
         """Get the symbol from EXCEL_FILES_DIRECTORY."""
         bought_set = set()
-        for filename in glob.iglob(EXCEL_FILES_DIRECTORY+"/*"):
-            if sys.platform == "win32":
-                symbol = filename.split("/")[2].split("\\")[1].replace(".xlsx", "")
-            else:
-                symbol = filename.split("/")[3].replace(".xlsx", "")
+        try:
+            for filename in glob.iglob(EXCEL_FILES_DIRECTORY+"/*"):
+                if sys.platform == "win32":
+                    symbol = filename.split("/")[2].split("\\")[1].replace(".xlsx", "")
+                else:
+                    symbol = filename.split("/")[3].replace(".xlsx", "")
 
-            if symbol[:-3] not in self.exception_list:
-                if symbol[-4:] == StableCoins.ZUSD:
-                    symbol = symbol[:-4]
-                elif symbol[-3:] == StableCoins.USD:
-                    symbol = symbol[:-3]
-            else:
-                symbol = symbol[:-3] 
-            
-            bought_set.add(symbol)
+                if symbol[:-3] not in self.exception_list:
+                    if symbol[-4:] == StableCoins.ZUSD:
+                        symbol = symbol[:-4]
+                    elif symbol[-3:] == StableCoins.USD:
+                        symbol = symbol[:-3]
+                else:
+                    symbol = symbol[:-3] 
+                
+                bought_set.add(symbol)
+        except Exception as e:
+            G.log_file.print_and_log(e=e)
         return bought_set
 
-    def __update_bought_set(self):
+    def __update_bought_set(self) -> set:
         """Get all the symbol names from the EXCEL_FILES_DIRECTORY
             and create the set of coins we are currently buying."""
         return self.__get_symbols_from_directory()
@@ -248,31 +264,34 @@ class Buy(Base, TradingView):
           4. start the process all over again!
         
         """
-        filename = EXCEL_FILES_DIRECTORY + "/" + self.get_tradable_asset_pair(symbol) + ".xlsx"
-        
-        if not os.path.exists(filename):
-            return
-        
-        time.sleep(1)
-        filled_sell_order_txids = dict()
-        self.trade_history      = self.get_trades_history()
-        df                      = pd.read_excel(filename, SheetNames.OPEN_SELL_ORDERS)
+        try:
+            filename = EXCEL_FILES_DIRECTORY + "/" + self.get_tradable_asset_pair(symbol) + ".xlsx"
+            
+            if not os.path.exists(filename):
+                return
+            
+            time.sleep(1)
+            filled_sell_order_txids = dict()
+            self.trade_history      = self.get_trades_history()
+            df                      = pd.read_excel(filename, SheetNames.OPEN_SELL_ORDERS)
 
-        if not self.has_result(self.trade_history):
-            return
+            if not self.has_result(self.trade_history):
+                return
 
-        for trade_txid, dictionary in self.trade_history[Dicts.RESULT][Data.TRADES].items():
-            filled_sell_order_txids[dictionary[Data.ORDER_TXID]] = trade_txid
+            for trade_txid, dictionary in self.trade_history[Dicts.RESULT][Data.TRADES].items():
+                filled_sell_order_txids[dictionary[Data.ORDER_TXID]] = trade_txid
 
-        for sell_order_txid in df[TXIDS].to_list():
-            if sell_order_txid in filled_sell_order_txids.keys():
-                # the sell order has filled and we have completed the entire process!!!
-                open_buy_orders = pd.read_excel(filename, SheetNames.OPEN_BUY_ORDERS)
+            for sell_order_txid in df[TXIDS].to_list():
+                if sell_order_txid in filled_sell_order_txids.keys():
+                    # the sell order has filled and we have completed the entire process!!!
+                    open_buy_orders = pd.read_excel(filename, SheetNames.OPEN_BUY_ORDERS)
 
-                for txid in open_buy_orders[TXIDS].to_list():
-                    self.cancel_order(txid)
-                    if os.path.exists(filename):
-                        os.remove(filename)
+                    for txid in open_buy_orders[TXIDS].to_list():
+                        self.cancel_order(txid)
+                        if os.path.exists(filename):
+                            os.remove(filename)
+        except Exception as e:
+            G.log_file.print_and_log(e=e)
         return
 
     def __update_filled_orders(self, symbol: str) -> None:
@@ -287,27 +306,30 @@ class Buy(Base, TradingView):
         Note: Function is called only once inside of the buy loop.
         
         """
-        symbol_pair = self.get_tradable_asset_pair(symbol)
-        filename    = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
-        
-        if not os.path.exists(filename):
-            return
-        
-        time.sleep(1)
-        filled_trades_order_txids = dict()
-        self.trade_history        = self.get_trades_history()
-        df                        = pd.read_excel(filename, SheetNames.OPEN_BUY_ORDERS)
-        
-        if not self.has_result(self.trade_history):
-            return
+        try:
+            symbol_pair = self.get_tradable_asset_pair(symbol)
+            filename    = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
+            
+            if not os.path.exists(filename):
+                return
+            
+            time.sleep(1)
+            filled_trades_order_txids = dict()
+            self.trade_history        = self.get_trades_history()
+            df                        = pd.read_excel(filename, SheetNames.OPEN_BUY_ORDERS)
+            
+            if not self.has_result(self.trade_history):
+                return
 
-        for trade_txid, dictionary in self.trade_history[Dicts.RESULT][Data.TRADES].items():
-            filled_trades_order_txids[dictionary[Data.ORDER_TXID]] = trade_txid
+            for trade_txid, dictionary in self.trade_history[Dicts.RESULT][Data.TRADES].items():
+                filled_trades_order_txids[dictionary[Data.ORDER_TXID]] = trade_txid
 
-        for open_order_txid in df[TXIDS].to_list():
-            if open_order_txid in filled_trades_order_txids.keys():
-                # if the txid is in the trade history, the order was filled.
-                self.sell.start(symbol_pair)
+            for open_order_txid in df[TXIDS].to_list():
+                if open_order_txid in filled_trades_order_txids.keys():
+                    # if the txid is in the trade history, the order was filled.
+                    self.sell.start(symbol_pair)
+        except Exception as e:
+            G.log_file.print_and_log(e=e)
         return
 
     def __get_future_time(self) -> str:
@@ -340,15 +362,18 @@ class Buy(Base, TradingView):
         """Once every hour, run this function. 
         Add to the buy_list with these coins."""
         result_set = set()
-        if self.future_time < datetime.datetime.now().strftime("%H:%M:%S"):
-            for symbol in self.get_buy_long():
-                if symbol in reg_list:
-                    result_set.add("X" + symbol)
-                else:
-                    result_set.add(symbol)
+        try:
+            if self.future_time < datetime.datetime.now().strftime("%H:%M:%S"):
+                for symbol in self.get_buy_long():
+                    if symbol in reg_list:
+                        result_set.add("X" + symbol)
+                    else:
+                        result_set.add(symbol)
 
-            Buy_.SET = sorted(result_set.union(bought_set))
-            self.__set_future_time()
+                Buy_.SET = sorted(result_set.union(bought_set))
+                self.__set_future_time()
+        except Exception as e:
+            G.log_file.print_and_log(e=e)
         return
     
     def __get_account_value(self) -> float:
@@ -372,14 +397,25 @@ class Buy(Base, TradingView):
 
     def __get_bought_price(self, buy_result: dict) -> float:
         """Parses the buy_result to get the entry_price or bought_price of the base order."""
+        bought_price = 0
+        order_result = None
+        
         if self.has_result(buy_result):
+            time.sleep(5)
             order_result = self.query_orders_info(buy_result[Dicts.RESULT][Data.TXID][0])
+            # pprint(order_result)
             if self.has_result(order_result):
                 for txid in order_result[Dicts.RESULT]:
                     for key, value in order_result[Dicts.RESULT][txid].items():
                         if key == Data.PRICE:
-                            return float(value)
-        return 0
+                            bought_price = float(value)
+                            break
+        if bought_price == 0:
+            # something went wrong
+            # pprint(buy_result) # {'error': [], 'result': {'txid': ['OY2H7D-LPG7B-NHZLP4'], 'descr': {'order': 'buy 0.00010000 TBTCUSD @ market'}}}
+            # print()
+            pprint(order_result)
+        return bought_price
 
 ##################################################################################################################################
 ### BUY_LOOP
@@ -390,20 +426,17 @@ class Buy(Base, TradingView):
         self.__init_loop_variables()
         bought_set = set()
         print(f"Account value: ${self.__get_account_value()}")
-
+        
         while True:
             for symbol in Buy_.SET:
                 self.__update_filled_orders(symbol)
                 self.__update_completed_trades(symbol)
-            try:
+
                 bought_set = self.__update_bought_set()
                 self.wait(message=f"buy_loop: Waiting till {self.__get_buy_time()} to buy", timeout=Buy_.TIME_MINUTES*60)
                 self.__set_buy_set(bought_set)
 
                 for symbol in Buy_.SET:
-                    try:
-                        self.wait(message=f"buy_loop: checking {symbol}", timeout=Nap.LONG)
-
                         # something is wrong with Dogecoin
                         if symbol == "XXDG":
                             continue
@@ -416,9 +449,7 @@ class Buy(Base, TradingView):
 
                         self.__set_post_buy_variables(symbol)
                         self.__place_limit_orders(symbol)
-                    except Exception as e:
-                        G.log_file.print_and_log(message="buy_loop:", e=e)
-                        continue
-            except Exception as e:
-                G.log_file.print_and_log(message="buy_loop:", e=e)
+                    # except Exception as e:
+                        # G.log_file.print_and_log(message="buy_loop:", e=e)
+                        # continue
         return

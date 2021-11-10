@@ -1,7 +1,7 @@
 kraken_api_key                   = "F8EO+DaWBwFVAPd8HwolBBz8EIQgQYRx35l1KeCVl8u+044nUUFZgsNh"
 kraken_secret_key                = "gqnoKy0HFy/CxhChWrulMy4XEbmeOaSrZ7hn1D4VyorkwtaM2QVHpL1vwflf3Uj+NGYpl3EGbvd4y+nxTG7Ntg=="
 
-dca_target_profit_percent        = 0.5
+dca_target_profit_percent        = 1
 dca_safety_orders_max            = 7
 dca_safety_orders_active_max     = 7
 dca_safety_order_volume_scale    = 2.5

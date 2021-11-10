@@ -316,5 +316,5 @@ class SheetNames:
 
 
 class KError:
-    IF = 'EOrder:Insufficient funds'
+    INSUFFICIENT_FUNDS = 'EOrder:Insufficient funds'
           

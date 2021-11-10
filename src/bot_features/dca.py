@@ -11,12 +11,12 @@ from util.globals              import G
 
 class DCA(DCA_):
     def __init__(self, symbol: str, order_min: float, bid_price: float):
-        self.percentage_deviation_levels:       list         = list()
-        self.price_levels:                      list         = list()
-        self.quantities:                        list         = list()
-        self.average_price_levels:              list         = list()
-        self.required_price_levels:             list         = list()
-        self.required_change_percentage_levels: list         = list()
+        self.percentage_deviation_levels:       list         = [ ]
+        self.price_levels:                      list         = [ ]
+        self.quantities:                        list         = [ ]
+        self.average_price_levels:              list         = [ ]
+        self.required_price_levels:             list         = [ ]
+        self.required_change_percentage_levels: list         = [ ]
         self.symbol:                            str          = symbol
         self.file_path:                         str          = EXCEL_FILES_DIRECTORY + "/" + self.symbol + ".xlsx"
         self.bid_price:                         float        = bid_price
@@ -121,7 +121,14 @@ class DCA(DCA_):
         for i in range(DCA_.SAFETY_ORDERS_MAX):
             level = self.percentage_deviation_levels[i] / 100
             price = self.bid_price - (self.bid_price * level)
-            self.price_levels.append(price) # ERROR: THIS LINE OF CODE SOMETIMES EVALUATES TO 0...WHY?
+
+            if level == 0 or price == 0 or self.bid_price == 0 or self.percentage_deviation_levels[i] == 0:
+                print(level)
+                print(price)
+                print(self.bid_price)
+                print(self.percentage_deviation_levels[i])
+                raise Exception("level, price, self.bid_price, self.percentage_deviation_levels[i] must not be 0")
+            self.price_levels.append(price)
         return
 
     def __set_quantity_levels(self) -> None:
@@ -144,7 +151,10 @@ class DCA(DCA_):
         # safety orders
         for i in range(DCA_.SAFETY_ORDERS_MAX):
             average = (self.price_levels[i] + prev_average) / 2
-            self.average_price_levels.append(average) # ERROR: THIS LINE OF CODE SOMETIMES EVALUATES TO 0...WHY?
+
+            if average == 0:
+                raise Exception("average must not be 0")
+            self.average_price_levels.append(average)
             prev_average = average
         return
 
@@ -154,8 +164,10 @@ class DCA(DCA_):
 
         # safety orders
         for i in range(DCA_.SAFETY_ORDERS_MAX):
-            # ERROR: THIS LINE OF CODE SOMETIMES EVALUATES TO 0...WHY?
             required_price = self.average_price_levels[i] + (self.average_price_levels[i] * target_profit_decimal)
+
+            if required_price == 0:
+                raise Exception("required_price must not be 0")
             self.required_price_levels.append(required_price)
         return
 
