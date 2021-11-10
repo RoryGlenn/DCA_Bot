@@ -17,6 +17,9 @@ class DCA(DCA_):
         self.average_price_levels:              list         = [ ]
         self.required_price_levels:             list         = [ ]
         self.required_change_percentage_levels: list         = [ ]
+        
+        self.profit_levels:                     list         = [ ]
+        
         self.symbol:                            str          = symbol
         self.file_path:                         str          = EXCEL_FILES_DIRECTORY + "/" + self.symbol + ".xlsx"
         self.bid_price:                         float        = bid_price
@@ -54,6 +57,7 @@ class DCA(DCA_):
             self.__set_average_price_levels()
             self.__set_required_price_levels()
             self.__set_required_change_percentage_levels()
+            self.__set_profit_levels()
             self.__set_safety_order_table()
             self.__create_excel_file()
         else:
@@ -121,13 +125,6 @@ class DCA(DCA_):
         for i in range(DCA_.SAFETY_ORDERS_MAX):
             level = self.percentage_deviation_levels[i] / 100
             price = self.bid_price - (self.bid_price * level)
-
-            if level == 0 or price == 0 or self.bid_price == 0 or self.percentage_deviation_levels[i] == 0:
-                print(level)
-                print(price)
-                print(self.bid_price)
-                print(self.percentage_deviation_levels[i])
-                raise Exception("level, price, self.bid_price, self.percentage_deviation_levels[i] must not be 0")
             self.price_levels.append(price)
         return
 
@@ -173,16 +170,24 @@ class DCA(DCA_):
 
     def __set_required_change_percentage_levels(self) -> None:
         """Sets the required change percent for each safety order number."""
-        
-        # safety orders
         for i in range(DCA_.SAFETY_ORDERS_MAX):
-            try:
-                required_change_percentage = (1 - (self.price_levels[i] / self.required_price_levels[i])) * 100
-            except ZeroDivisionError as e:
-                required_change_percentage = (1 - self.price_levels[i]) * 100
-            except Exception as e:
-                print(e)
+            required_change_percentage = (1 - (self.price_levels[i] / self.required_price_levels[i])) * 100
             self.required_change_percentage_levels.append(required_change_percentage)
+        return
+    
+    def __set_profit_levels(self) -> None:
+        """The more safety orders that are filled, the larger the profit will be.
+        Each profit level is based on the previous profit level except for the base order."""
+        
+        # base_order_usd_value  = self.bid_price * self.order_min
+        # base_order_profit     = base_order_usd_value * (DCA_.TARGET_PROFIT_PERCENT/100)
+        prev = self.order_min
+        
+        for i in range(DCA_.SAFETY_ORDERS_MAX):
+            usd_value  = self.price_levels[i] * (self.quantities[i] + prev)
+            usd_profit = (DCA_.TARGET_PROFIT_PERCENT/100) * usd_value
+            self.profit_levels.append(usd_profit)
+            prev += self.quantities[i]
         return
 
     def __load_safety_order_table(self) -> None:
@@ -201,7 +206,8 @@ class DCA(DCA_):
                                     SOColumns.PRICE:           self.price_levels,
                                     SOColumns.AVG_PRICE:       self.average_price_levels,
                                     SOColumns.REQ_PRICE:       self.required_price_levels,
-                                    SOColumns.REQ_CHANGE_PERC: self.required_change_percentage_levels})
+                                    SOColumns.REQ_CHANGE_PERC: self.required_change_percentage_levels,
+                                    SOColumns.PROFIT:          self.profit_levels})
         return
 
     def __create_excel_file(self) -> None:

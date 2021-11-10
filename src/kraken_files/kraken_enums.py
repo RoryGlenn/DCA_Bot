@@ -301,6 +301,7 @@ class SOColumns:
     AVG_PRICE = "Average Price $"
     REQ_PRICE = "Required price"
     REQ_CHANGE_PERC = "Required Change %"
+    PROFIT = "Profit $"
 
 class OBOColumns:
     TXIDS = "txids"

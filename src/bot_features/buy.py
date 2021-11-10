@@ -56,6 +56,7 @@ class Buy(Base, TradingView):
         self.__create_excel_directory()
         self.__init_buy_set()
         self.__set_future_time()
+        print(f"Account value: ${self.__get_account_value()}")
         return
 
     def __get_buy_time(self) -> str:
@@ -403,7 +404,6 @@ class Buy(Base, TradingView):
         if self.has_result(buy_result):
             time.sleep(5)
             order_result = self.query_orders_info(buy_result[Dicts.RESULT][Data.TXID][0])
-            # pprint(order_result)
             if self.has_result(order_result):
                 for txid in order_result[Dicts.RESULT]:
                     for key, value in order_result[Dicts.RESULT][txid].items():
@@ -412,9 +412,9 @@ class Buy(Base, TradingView):
                             break
         if bought_price == 0:
             # something went wrong
-            # pprint(buy_result) # {'error': [], 'result': {'txid': ['OY2H7D-LPG7B-NHZLP4'], 'descr': {'order': 'buy 0.00010000 TBTCUSD @ market'}}}
-            # print()
             pprint(order_result)
+            print("Error: bought_price is zero")
+            sys.exit()
         return bought_price
 
 ##################################################################################################################################
@@ -425,31 +425,19 @@ class Buy(Base, TradingView):
         """The main function for trading coins."""
         self.__init_loop_variables()
         bought_set = set()
-        print(f"Account value: ${self.__get_account_value()}")
         
         while True:
+            bought_set = self.__update_bought_set()
+            self.wait(message=f"buy_loop: Waiting till {self.__get_buy_time()} to buy", timeout=Buy_.TIME_MINUTES*60)
+            self.__set_buy_set(bought_set)
+
             for symbol in Buy_.SET:
                 self.__update_filled_orders(symbol)
                 self.__update_completed_trades(symbol)
-
-                bought_set = self.__update_bought_set()
-                self.wait(message=f"buy_loop: Waiting till {self.__get_buy_time()} to buy", timeout=Buy_.TIME_MINUTES*60)
-                self.__set_buy_set(bought_set)
-
-                for symbol in Buy_.SET:
-                        # something is wrong with Dogecoin
-                        if symbol == "XXDG":
-                            continue
-
-                        self.__set_pre_buy_variables(symbol)
-                        
-                        # if symbol is in the bought list, we don't care if it is a good time to buy or not, we need to manage it
-                        if not self.is_buy and symbol not in bought_set:
-                            continue
-
-                        self.__set_post_buy_variables(symbol)
-                        self.__place_limit_orders(symbol)
-                    # except Exception as e:
-                        # G.log_file.print_and_log(message="buy_loop:", e=e)
-                        # continue
+                self.__set_pre_buy_variables(symbol)
+                
+                # if symbol is in the bought list, we don't care if it is a good time to buy or not, we need to manage it
+                if not self.is_buy and symbol not in bought_set: continue
+                self.__set_post_buy_variables(symbol)
+                self.__place_limit_orders(symbol)
         return

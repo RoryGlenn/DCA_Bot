@@ -22,6 +22,10 @@ from util.globals              import G
 
 class General:
     def clear_terminal() -> None:
+        """
+        Clear the console.
+        
+        """
         if sys.platform == "win32":
             os.system(Misc.CLS)
         else:
@@ -30,14 +34,14 @@ class General:
 
     def get_current_time() -> None:
         """ 
-        Gets the current time in hours, minutes, seconds
+        Gets the current time in hours, minutes, seconds.
 
         """
         return datetime.now().strftime("%H:%M:%S")
 
     def sync_time() -> None:
         """
-        Sync windows time in case we get disconnected from Kraken API
+        Sync windows time in case we get disconnected from Kraken API.
 
         """
 
