@@ -12,7 +12,6 @@ buy.py - Buys coin on kraken exchange based on users config file.
 
 import datetime
 import os
-from typing import Dict
 import pandas as pd
 import glob
 import sys
@@ -82,27 +81,32 @@ class Buy(Base, TradingView):
             G.log_file.print_and_log(e=e)
         return
 
-    def save_open_buy_order_txid(self, buy_result: dict, symbol_pair: str, required_price: float) -> None:
+    def save_open_buy_order_txid(self, buy_result: dict, symbol_pair: str, required_price: float, profit_potential: float) -> None:
         """
-        Once a limit order is placed successfully, update the order orders file
-        by appending the new txid to the end of the file.
-        Note: This function is called only in __place_limit_orders().
+        Once a limit order is placed successfully, update the open_buy_orders sheet
+        by appending txid, required_price to the end of the txid, required price column respectively. 
 
         """
+        if not self.has_result(buy_result):
+            return
+        
         filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
+        txid     = buy_result[Dicts.RESULT][Data.TXID][0]
 
         if os.path.exists(filename):
-            df_sa = pd.read_excel(filename, SheetNames.SAFETY_ORDERS)
-            df_oo = pd.read_excel(filename, SheetNames.OPEN_BUY_ORDERS)
-            df_so = pd.read_excel(filename, SheetNames.OPEN_SELL_ORDERS)
+            df_so = pd.read_excel(filename, SheetNames.SAFETY_ORDERS)
+            df_obo = pd.read_excel(filename, SheetNames.OPEN_BUY_ORDERS)
+            df_oso = pd.read_excel(filename, SheetNames.OPEN_SELL_ORDERS)
 
-            df_oo.loc[len(df_oo),   OBOColumns.TXIDS]     = buy_result[Dicts.RESULT][Data.TXID][0]
-            df_oo.loc[len(df_oo)-1, OBOColumns.REQ_PRICE] = required_price
+            # append to the end of the columns
+            df_obo.loc[len(df_obo),   OBOColumns.TXIDS]     = txid
+            df_obo.loc[len(df_obo)-1, OBOColumns.REQ_PRICE] = required_price
+            df_obo.loc[len(df_obo)-2, OBOColumns.PROFIT]    = profit_potential
 
             with pd.ExcelWriter(filename, engine=OPENPYXL, mode=FileMode.WRITE_TRUNCATE) as writer:
-                df_sa.to_excel(writer, SheetNames.SAFETY_ORDERS,    index=False)
-                df_oo.to_excel(writer, SheetNames.OPEN_BUY_ORDERS,  index=False)
-                df_so.to_excel(writer, SheetNames.OPEN_SELL_ORDERS, index=False)
+                df_so.to_excel(writer, SheetNames.SAFETY_ORDERS,    index=False)
+                df_obo.to_excel(writer, SheetNames.OPEN_BUY_ORDERS,  index=False)
+                df_oso.to_excel(writer, SheetNames.OPEN_SELL_ORDERS, index=False)
         return
 
     def __get_open_orders_on_symbol_pair(self, symbol: str) -> str:
@@ -137,39 +141,45 @@ class Buy(Base, TradingView):
         Place the base order for the coin we want to trade.
         The base order should be a market order only!
         
-        """        
-        return self.market_order(Trade.BUY, order_min, symbol_pair) 
+        """
+        return self.market_order(Trade.BUY, order_min, symbol_pair)
+    
+    def __get_profit_potential(self, symbol_pair: str) -> float:
+        filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
+        if os.path.exists(filename):
+            df_so = pd.read_excel(filename, SheetNames.SAFETY_ORDERS)
+            return float(df_so[SOColumns.PROFIT][0])
+        return -1
 
     def __place_safety_orders(self, symbol: str, num_orders_to_make: int) -> None:
-        for _, safety_order_dict in self.dca.safety_orders.items():
-            for price, quantity in safety_order_dict.items():
-                try:
-                    price_max_prec     = self.get_pair_decimals(self.symbol_pair)
-                    rounded_price      = self.round_decimals_down(price, price_max_prec)
-                    rounded_quantity   = self.round_decimals_down(quantity, self.get_max_volume_precision(symbol))
-                    req_profit_price   = self.round_decimals_down(self.__get_required_price(), price_max_prec)
-                    limit_order_result = self.limit_order(Trade.BUY, rounded_quantity, self.symbol_pair, rounded_price)
+        for price, quantity in self.dca.safety_orders.items():
+            try:
+                price_max_prec     = self.get_pair_decimals(self.symbol_pair)
+                rounded_price      = self.round_decimals_down(price, price_max_prec)
+                rounded_quantity   = self.round_decimals_down(quantity, self.get_max_volume_precision(symbol))
+                req_profit_price   = self.round_decimals_down(self.__get_required_price(), price_max_prec)
+                limit_order_result = self.limit_order(Trade.BUY, rounded_quantity, self.symbol_pair, rounded_price)
 
-                    if self.has_result(limit_order_result):
-                        G.log_file.print_and_log(message=f"buy_loop: limit order placed {self.symbol_pair} {limit_order_result[Dicts.RESULT]}", money=True)
-                        
-                        # keep track of the open order txid
-                        self.save_open_buy_order_txid(limit_order_result, self.symbol_pair, req_profit_price)
+                if self.has_result(limit_order_result):
+                    G.log_file.print_and_log(message=f"buy_loop: limit order placed {self.symbol_pair} {limit_order_result[Dicts.RESULT]}", money=True)
+                    
+                    # keep track of the open order txid
+                    self.save_open_buy_order_txid(limit_order_result, self.symbol_pair, req_profit_price, self.__get_profit_potential(self.symbol_pair))
 
-                        # once the limit order was entered successfully, delete it from the excel sheet.
-                        self.dca.update_safety_orders()
-                        num_orders_to_make -= 1
-                    else:
-                        if limit_order_result[Dicts.ERROR][0] == KError.INSUFFICIENT_FUNDS:
-                            G.log_file.print_and_log(f"buy_loop: {self.symbol_pair} Not enough USD to place remaining safety orders.")
-                            return
+                    # once the limit order was entered successfully, delete it from the excel sheet.
+                    self.dca.update_safety_orders()
+                    # num_orders_to_make -= 1
+                else:
+                    if limit_order_result[Dicts.ERROR][0] == KError.INSUFFICIENT_FUNDS:
+                        G.log_file.print_and_log(f"buy_loop: {self.symbol_pair} Not enough USD to place remaining safety orders.")
+                        return
 
-                        G.log_file.print_and_log(message=f"buy_loop: {limit_order_result}", money=True)
-                except Exception as e:
-                    G.log_file.print_and_log(e=e)
-            
-            if num_orders_to_make <= 0:
-                break
+                    G.log_file.print_and_log(message=f"buy_loop: {limit_order_result}", money=True)
+            except Exception as e:
+                G.log_file.print_and_log(e=e)
+        
+        # if num_orders_to_make <= 0:
+        #     break
         return
 
     def __place_limit_orders(self, symbol: str) -> None:
@@ -192,7 +202,7 @@ class Buy(Base, TradingView):
         """
         try:
             if symbol not in self.__get_symbols_from_directory():
-                # if symbol_pair exists in excel_files directory then the base order has already been placed!
+                # If symbol_pair exists in excel_files directory then the base order has already been placed!
                 base_order_result = self.__place_base_order(self.order_min, self.symbol_pair)
 
                 if self.has_result(base_order_result):
@@ -202,14 +212,14 @@ class Buy(Base, TradingView):
                     base_price     = self.__get_bought_price(base_order_result)
                     
                     self.dca       = DCA(self.symbol_pair, base_order_qty, base_price)
-                    self.sell.place_sell_limit_base_order(self.symbol_pair, base_price, base_order_qty) # place sell order for base order
+                    self.sell.place_sell_limit_base_order(self.symbol_pair, base_price, base_order_qty)
                 else:
                     G.log_file.print_and_log(f"buy_loop: {self.symbol_pair} can't place base order: {base_order_result[Dicts.ERROR]}")
                     return
             else:
-                # symbol is in EXCEL_DIRECTORY therefore, we have bought it before.
-                # load up the .xlsx file and continue to place safety orders
-                self.dca = DCA(self.symbol_pair, -1, -1)
+                # Symbol is in EXCEL_DIRECTORY therefore, we have bought it before.
+                # Load up the .xlsx file and continue to place safety orders
+                self.dca = DCA(self.symbol_pair, 0, 0)
                 
             num_open_orders    = self.__get_open_orders_on_symbol_pair(symbol)
             num_orders_to_make = abs(num_open_orders-DCA_.SAFETY_ORDERS_ACTIVE_MAX)
@@ -369,6 +379,7 @@ class Buy(Base, TradingView):
                         result_set.add(symbol)
 
                 Buy_.SET = sorted(result_set.union(bought_set))
+                print(Buy_.SET)
                 self.__set_future_time()
         except Exception as e:
             G.log_file.print_and_log(e=e)
@@ -407,11 +418,6 @@ class Buy(Base, TradingView):
                         if key == Data.PRICE:
                             bought_price = float(value)
                             break
-        if bought_price == 0:
-            # something went wrong
-            pprint(order_result)
-            print("Error: bought_price is zero")
-            sys.exit()
         return bought_price
 
 ##################################################################################################################################
@@ -422,7 +428,7 @@ class Buy(Base, TradingView):
         """The main function for trading coins."""
         self.__init_loop_variables()
         bought_set = set()
-        
+                
         while True:
             bought_set = self.__update_bought_set()
             self.wait(message=f"buy_loop: Waiting till {self.__get_buy_time()} to buy", timeout=Buy_.TIME_MINUTES*60)

@@ -2,6 +2,7 @@
 """sell.py: Sells coin on kraken exchange based on users config file."""
 
 import pandas as pd
+import os
 
 from pprint                    import pprint
 from kraken_files.kraken_enums import *
@@ -12,12 +13,16 @@ from bot_features.base         import Base
 class Sell(Base):
     def __init__(self, parameter_dict: dict) -> None:
         super().__init__(parameter_dict)
-        self.asset_pairs_dict: dict = self.get_all_tradable_asset_pairs()[Dicts.RESULT]
+        self.asset_pairs_dict:  dict = self.get_all_tradable_asset_pairs()[Dicts.RESULT]
         self.sell_order_placed: bool = False
 
     def __save_to_open_buy_orders(self, symbol_pair: str, df2: pd.DataFrame) -> None:
         """Write the DataFrame to an excel file."""
         filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
+        
+        if not os.path.exists(filename):
+            raise Exception(f"__save_to_open_buy_orders: {filename} does not exist!")         
+        
         df1 = pd.read_excel(filename, SheetNames.SAFETY_ORDERS)
         df3 = pd.read_excel(filename, SheetNames.OPEN_SELL_ORDERS)
 
@@ -39,6 +44,7 @@ class Sell(Base):
         return
 
     def __get_quantity_owned(self, symbol: str) -> float:
+        """Gets the quantity of a coin owned."""
         account_balance = self.get_account_balance()
         if self.has_result(account_balance):
             account_balance = account_balance[Dicts.RESULT]
@@ -49,7 +55,10 @@ class Sell(Base):
         return 0.0
 
     def __get_required_price(self, symbol_pair: str) -> float:
+        """Get cell value from required_price column."""
         filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
+        if not os.path.exists(filename):
+            raise Exception(f"__get_required_price: {filename} does not exist!") 
         return float(pd.read_excel(filename, SheetNames.OPEN_BUY_ORDERS)[OBOColumns.REQ_PRICE][0])
 
     def __get_max_price_prec(self, symbol_pair: str) -> int:
@@ -58,9 +67,16 @@ class Sell(Base):
     def __get_max_volume_prec(self, symbol_pair: str) -> int:
         return self.get_max_volume_precision(symbol_pair[:-4]) if StableCoins.ZUSD in symbol_pair else self.get_max_volume_precision(symbol_pair[:-3])
 
-    def __cancel_sell_order(self, symbol_pair: str) -> None:
-        """Open the sell_txids.xlsx file, cancel all sell orders by symbol name."""
-        filename   = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
+    def __cancel_open_sell_order(self, symbol_pair: str) -> None:
+        """
+        Open the sell_txids.xlsx file, cancel all sell orders by symbol name.
+        
+        """
+        filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
+
+        if not os.path.exists(filename):
+            raise Exception(f"__cancel_open_sell_order: {filename} does not exist!")        
+        
         txids_list = pd.read_excel(filename, SheetNames.OPEN_SELL_ORDERS)[TXIDS].to_list()
 
         # on first sell order, there will be no txid inside of the sell_order sheet,
@@ -72,29 +88,38 @@ class Sell(Base):
             self.__save_to_open_sell_orders(filename, df)
         return
     
-    def __get_profit_potential(self, symbol_pair: str) -> float:
-        """Get the profit potential from the open_sell_orders tab."""
-        filename   = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
-        profit_list = pd.read_excel(filename, SheetNames.OPEN_SELL_ORDERS)["Profit $"].to_list()
+    def __get_profit_from_sheet(self, symbol_pair: str, sheet_name: str) -> float:
+        """
+        Get the profit potential from the open_sell_orders tab.
+        
+        """
+        filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
+        
+        if not os.path.exists(filename):
+            raise Exception(f"__get_profit_from_sheet: {filename} does not exist!")        
+        
+        profit_list = pd.read_excel(filename, sheet_name)[OBOColumns.PROFIT].to_list()
         
         if len(profit_list) > 0:
             return float(profit_list[0])
-        return 0.0
+        
+        raise Exception(f"__get_profit_from_sheet: No profit cell in {sheet_name} sheet")
+
 
     def __place_sell_limit_order(self, symbol_pair: str) -> dict:
-        """Place limit order to sell the coin.
-        1. round the price.
-        2. round the quantity"""
-        required_price = self.round_decimals_down(self.__get_required_price(symbol_pair), self.__get_max_price_prec(symbol_pair))
-        max_prec       = self.__get_max_volume_prec(symbol_pair)
-        qty_owned      = self.__get_quantity_owned(symbol_pair)
-        qty_to_sell    = self.round_decimals_down(qty_owned, max_prec)
-
+        """
+        Place limit order to sell the coin.
+        
+        """
+        required_price    = self.round_decimals_down(self.__get_required_price(symbol_pair), self.__get_max_price_prec(symbol_pair))
+        max_prec          = self.__get_max_volume_prec(symbol_pair)
+        qty_owned         = self.__get_quantity_owned(symbol_pair)
+        qty_to_sell       = self.round_decimals_down(qty_owned, max_prec)
         sell_order_result = self.limit_order(Trade.SELL, qty_to_sell, symbol_pair, required_price)
         
         if self.has_result(sell_order_result):
-            # profit_potential = entry_price * qty_to_sell * DCA_.TARGET_PROFIT_PERCENT/100
-            G.log_file.print_and_log(f"sell: limit order placed {symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: ...")
+            profit_potential = self.__get_profit_from_sheet(symbol_pair, SheetNames.OPEN_SELL_ORDERS)
+            G.log_file.print_and_log(f"sell: limit order placed {symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: {profit_potential}")
         else:
             G.log_file.print_and_log(f"sell: {symbol_pair} {sell_order_result[Dicts.ERROR]}")
         return sell_order_result
@@ -105,52 +130,38 @@ class Sell(Base):
         to place the next sell limit order."""
 
         filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
-        df       = pd.read_excel(filename, SheetNames.OPEN_BUY_ORDERS)
+        
+        if not os.path.exists(filename):
+            raise Exception(f"__update_open_buy_orders: {filename} does not exist!")
+        
+        df = pd.read_excel(filename, SheetNames.OPEN_BUY_ORDERS)
         df.drop(0, inplace=True)
         self.__save_to_open_buy_orders(symbol_pair, df)
         return
 
-    def __update_sell_order(self, symbol_pair: str, order_result: dict) -> None:
+    def __update_open_sell_orders_sheet(self, symbol_pair: str, order_result: dict, profit_potential: float) -> None:
         """log the sell order in sell_orders/txids.xlsx."""
         filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
         
-        if self.has_result(order_result):
-            df = pd.read_excel(filename, SheetNames.OPEN_SELL_ORDERS)
-            df.loc[len(df.index), OSOColumns.TXIDS] = order_result[Dicts.RESULT][Data.TXID][0]
-            self.__save_to_open_sell_orders(filename, df)
+        if not os.path.exists(filename):
+            raise Exception(f"__update_open_sell_orders_sheet: {filename} does not exist!")
+        
+        if not self.has_result(order_result):
+            raise Exception(f"__update_open_sell_orders_sheet: {order_result}")
+        
+        df = pd.read_excel(filename, SheetNames.OPEN_SELL_ORDERS)
+        df.loc[len(df.index), OSOColumns.TXIDS]    = order_result[Dicts.RESULT][Data.TXID][0]
+        df.loc[len(df.index)-1, OSOColumns.PROFIT] = profit_potential
+        
+        self.__save_to_open_sell_orders(filename, df)
         return
-
-##################################################################
-### Run the entire sell process for safety orders
-##################################################################
-    def start(self, symbol_pair: str) -> None:
-        """
-        Triggered everytime a new buy limit order is placed.
-            1. cancel all open sell orders for symbol_pair
-            2. create a new sell limit order at the next 'Required price' column.
-        
-        """
-        # cancel previous sell order (if it exists).
-        self.__cancel_sell_order(symbol_pair)
-        
-        # place new sell order.
-        sell_order_result = self.__place_sell_limit_order(symbol_pair)
-
-        # if the sell order was placed.
-        if self.has_result(sell_order_result):
-            # update open_buy_orders sheet by removing filled buy orders.
-            self.__update_open_buy_orders(symbol_pair)
-
-            # update open_sell_orders sheet.
-            self.__update_sell_order(symbol_pair, sell_order_result)
-
 
 ##################################################################
 ### Place sell order for base order only!
 ##################################################################
-    def place_sell_limit_base_order(self, symbol_pair: str, entry_price: float, quantity: float) -> None:
+    def place_sell_limit_base_order(self, symbol_pair: str, entry_price: float, quantity: float) -> dict:
         """Create a sell limit order for the base order only!"""
-        self.__cancel_sell_order(symbol_pair)
+        self.__cancel_open_sell_order(symbol_pair)
         
         required_price    = entry_price + (entry_price*DCA_.TARGET_PROFIT_PERCENT/100)
         required_price    = self.round_decimals_down(required_price, self.__get_max_price_prec(symbol_pair))
@@ -159,8 +170,32 @@ class Sell(Base):
         if self.has_result(sell_order_result):
             profit_potential = entry_price * quantity * DCA_.TARGET_PROFIT_PERCENT/100
             G.log_file.print_and_log(f"sell: limit order placed {symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: {profit_potential}")
-            self.__update_sell_order(symbol_pair, sell_order_result)   # update open_sell_orders sheet.
+            self.__update_open_sell_orders_sheet(symbol_pair, sell_order_result, profit_potential)
         else:
-            G.log_file.print_and_log(f"sell: {symbol_pair} {sell_order_result[Dicts.ERROR]}")
+            G.log_file.print_and_log(f"place_sell_limit_base_order: {symbol_pair} {sell_order_result[Dicts.ERROR]}")
 
         return sell_order_result
+    
+##################################################################
+### Run the entire sell process for safety orders
+##################################################################
+    def start(self, symbol_pair: str) -> None:
+        """
+        Triggered everytime a new buy limit order is placed.
+            1. cancel previous sell order (if it exists).
+            2. place new sell order.
+            3. update open_buy_orders sheet by removing filled buy orders.
+            4. update open_sell_orders sheet.
+        
+        """
+        profit_potential = self.__get_profit_from_sheet(symbol_pair, SheetNames.OPEN_BUY_ORDERS)
+        self.__cancel_open_sell_order(symbol_pair)
+        sell_order_result = self.__place_sell_limit_order(symbol_pair)
+
+        if not self.has_result(sell_order_result):
+            raise Exception(f"sell.start: {sell_order_result}")
+            
+        self.__update_open_buy_orders(symbol_pair)
+        self.__update_open_sell_orders_sheet(symbol_pair, sell_order_result, profit_potential)
+        
+        return

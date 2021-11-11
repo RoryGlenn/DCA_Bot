@@ -47,22 +47,21 @@ class General:
 
         G.log_file.print_and_log("Sync time on startup")
 
-        if sys.platform == "win32":
-            try:
+        try:
+            if sys.platform == "win32":
                 G.log_file.print_and_log("w32tm /resync")
 
-                if os.system("w32tm /resync") != 0:
-                    G.log_file.print_and_log(
-                        "Windows time sync failed, configuring settings")
-                    os.system(
-                        "w32tm /config /manualpeerlist:time.nist.gov /syncfromflags:manual /reliable:yes /update")
+                if os.system("w32tm /resync") == 0:
+                    G.log_file.print_and_log("Windows time sync successful.")
+                else:
+                    G.log_file.print_and_log("Windows time sync failed, configuring settings")
+                    os.system("w32tm /config /manualpeerlist:time.nist.gov /syncfromflags:manual /reliable:yes /update")
                     os.system("Net stop w32time")
                     os.system("Net start w32time")
-                else:
-                    G.log_file.print_and_log("Windows time sync successful.")
-            except Exception as e:
-                G.log_file.print_and_log(
-                    message="Failed to sync windows time.", e=e)
+            elif sys.platform == "linux" or sys.platform == "linux2":
+                """https://www.vmware.com/support/vcm/doc/help/vcm-57/Content/ProvisioningHW/ProvHW_GS_Task_Provision_UNIX_ntp.htm"""
+        except Exception as e:
+            G.log_file.print_and_log(message="Failed to sync time.", e=e)
         return
 
     def init_threads() -> None:

@@ -17,9 +17,7 @@ class DCA(DCA_):
         self.average_price_levels:              list         = [ ]
         self.required_price_levels:             list         = [ ]
         self.required_change_percentage_levels: list         = [ ]
-        
         self.profit_levels:                     list         = [ ]
-        
         self.symbol:                            str          = symbol
         self.file_path:                         str          = EXCEL_FILES_DIRECTORY + "/" + self.symbol + ".xlsx"
         self.bid_price:                         float        = bid_price
@@ -148,9 +146,6 @@ class DCA(DCA_):
         # safety orders
         for i in range(DCA_.SAFETY_ORDERS_MAX):
             average = (self.price_levels[i] + prev_average) / 2
-
-            if average == 0:
-                raise Exception("average must not be 0")
             self.average_price_levels.append(average)
             prev_average = average
         return
@@ -176,8 +171,6 @@ class DCA(DCA_):
         """The more safety orders that are filled, the larger the profit will be.
         Each profit level is based on the previous profit level except for the base order."""
         
-        # base_order_usd_value  = self.bid_price * self.order_min
-        # base_order_profit     = base_order_usd_value * (DCA_.TARGET_PROFIT_PERCENT/100)
         prev = self.order_min
         
         for i in range(DCA_.SAFETY_ORDERS_MAX):
@@ -195,16 +188,16 @@ class DCA(DCA_):
     def __set_safety_order_table(self) -> None:
         """Set the Dataframe with the values calculated in previous functions."""
         order_numbers = [i for i in range(1, DCA_.SAFETY_ORDERS_MAX+1)]
-
+ 
         self.safety_order_table = pd.DataFrame({
-                                    SOColumns.SAFETY_ORDER_NO: order_numbers,
-                                    SOColumns.DEVIATION:       self.percentage_deviation_levels,
-                                    SOColumns.QUANTITY:        self.quantities,
-                                    SOColumns.PRICE:           self.price_levels,
-                                    SOColumns.AVG_PRICE:       self.average_price_levels,
-                                    SOColumns.REQ_PRICE:       self.required_price_levels,
-                                    SOColumns.REQ_CHANGE_PERC: self.required_change_percentage_levels,
-                                    SOColumns.PROFIT:          self.profit_levels})
+            SOColumns.SAFETY_ORDER_NO: order_numbers,
+            SOColumns.DEVIATION:       self.percentage_deviation_levels,
+            SOColumns.QUANTITY:        self.quantities,
+            SOColumns.PRICE:           self.price_levels,
+            SOColumns.AVG_PRICE:       self.average_price_levels,
+            SOColumns.REQ_PRICE:       self.required_price_levels,
+            SOColumns.REQ_CHANGE_PERC: self.required_change_percentage_levels,
+            SOColumns.PROFIT:          self.profit_levels})
         return
 
     def __create_excel_file(self) -> None:
@@ -237,13 +230,13 @@ class DCA(DCA_):
         safety_order_table = pd.read_excel(self.file_path)
         prices             = safety_order_table[SOColumns.PRICE].tolist()
         quantities         = safety_order_table[SOColumns.QUANTITY].tolist()
+        iterations         = DCA_.SAFETY_ORDERS_ACTIVE_MAX
 
         if len(prices) < DCA_.SAFETY_ORDERS_ACTIVE_MAX:
-            for i in range(len(prices)):
-                self.safety_orders[i] = {prices[i]: quantities[i]}
-        else:
-            for i in range(DCA_.SAFETY_ORDERS_ACTIVE_MAX):
-                self.safety_orders[i] = {prices[i]: quantities[i]}
+            iterations = len(prices)
+
+        for i in range(iterations):
+            self.safety_orders[prices[i]] = quantities[i]
         return
 
     def __remove_rows(self) -> None:
