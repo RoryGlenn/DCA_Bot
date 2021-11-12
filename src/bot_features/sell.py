@@ -119,7 +119,7 @@ class Sell(Base):
         
         if self.has_result(sell_order_result):
             profit_potential = self.__get_profit_from_sheet(symbol_pair, SheetNames.OPEN_SELL_ORDERS)
-            G.log_file.print_and_log(f"sell: limit order placed {symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: {profit_potential}")
+            G.log_file.print_and_log(f"sell: limit order placed {symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: ${profit_potential}")
         else:
             G.log_file.print_and_log(f"sell: {symbol_pair} {sell_order_result[Dicts.ERROR]}")
         return sell_order_result
@@ -169,7 +169,7 @@ class Sell(Base):
         
         if self.has_result(sell_order_result):
             profit_potential = entry_price * quantity * DCA_.TARGET_PROFIT_PERCENT/100
-            G.log_file.print_and_log(f"sell: limit order placed {symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: {profit_potential}")
+            G.log_file.print_and_log(f"sell: limit order placed {symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: ${profit_potential}")
             self.__update_open_sell_orders_sheet(symbol_pair, sell_order_result, profit_potential)
         else:
             G.log_file.print_and_log(f"place_sell_limit_base_order: {symbol_pair} {sell_order_result[Dicts.ERROR]}")

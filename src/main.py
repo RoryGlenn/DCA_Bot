@@ -64,15 +64,13 @@ class General:
             G.log_file.print_and_log(message="Failed to sync time.", e=e)
         return
 
-    def init_threads() -> None:
+    def init() -> None:
         """ 
         Initialize threads for buying, selling, tipping and distribution. 
 
         """
-
         cfg_dict    = ConfigParser().parse_config_file()
         ConfigParser().assign_enum_values()
-        
         buy = Buy(cfg_dict)
         buy.buy_loop()
         return
@@ -82,7 +80,7 @@ def main() -> None:
     G.log_file.directory_create()
     G.log_file.file_create()
     General.sync_time()
-    General.init_threads()
+    General.init()
     G.log_file.print_and_log("Exiting main thread")
     return
 

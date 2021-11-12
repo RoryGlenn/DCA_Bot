@@ -5,10 +5,10 @@ import hmac
 import math
 import time
 import urllib.parse
-
 import requests
-from util.globals import G
-from pprint import pprint
+
+from util.globals              import G
+from pprint                    import pprint
 from kraken_files.kraken_enums import *
 
 

@@ -33,7 +33,6 @@ reg_list = ['ETC',  'ETH',  'LTC',  'MLN',  'REP',  'XBT',  'XDG',  'XLM',  'XMR
 class Buy(Base, TradingView):
     def __init__(self, parameter_dict: dict) -> None:
         super().__init__(parameter_dict)
-        
         self.account_balance:         dict        = { }
         self.kraken_assets_dict:      dict        = { }
         self.trade_history:           dict        = { }
@@ -202,7 +201,7 @@ class Buy(Base, TradingView):
                 base_order_result = self.__place_base_order(self.order_min, self.symbol_pair)
 
                 if self.has_result(base_order_result):
-                    G.log_file.print_and_log(f"buy_loop: Base order filled: {base_order_result[Dicts.RESULT]}")
+                    G.log_file.print_and_log(f"buy_loop: Base order filled: {base_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}")
                     
                     base_order_qty = float(str(base_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]).split(" ")[1])
                     base_price     = self.__get_bought_price(base_order_result)
@@ -288,11 +287,15 @@ class Buy(Base, TradingView):
                 if sell_order_txid in filled_sell_order_txids.keys():
                     # the sell order has filled and we have completed the entire process!!!
                     open_buy_orders = pd.read_excel(filename, SheetNames.OPEN_BUY_ORDERS)
-
+                    profit          = df[OBOColumns.PROFIT].to_list()[0]
+                    
                     for txid in open_buy_orders[TXIDS].to_list():
                         self.cancel_order(txid)
-                        if os.path.exists(filename):
-                            os.remove(filename)
+                        
+                    if os.path.exists(filename):
+                        os.remove(filename)
+
+                    print(f"{symbol} trade complete, profit: {profit}")
         except Exception as e:
             G.log_file.print_and_log(e=e)
         return
