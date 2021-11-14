@@ -7,19 +7,21 @@ import pandas as pd
 from pprint                    import pprint
 from kraken_files.kraken_enums import *
 from util.globals              import G
+from my_sql.sql                import SQL
 
 
 class DCA(DCA_):
-    def __init__(self, symbol: str, order_min: float, bid_price: float):
+    def __init__(self, symbol_pair: str, order_min: float, bid_price: float):
         self.percentage_deviation_levels:       list         = [ ]
         self.price_levels:                      list         = [ ]
         self.quantities:                        list         = [ ]
+        self.total_quantities:                  list         = [ ]
         self.average_price_levels:              list         = [ ]
         self.required_price_levels:             list         = [ ]
         self.required_change_percentage_levels: list         = [ ]
         self.profit_levels:                     list         = [ ]
-        self.symbol:                            str          = symbol
-        self.file_path:                         str          = EXCEL_FILES_DIRECTORY + "/" + self.symbol + ".xlsx"
+        self.symbol_pair:                       str          = symbol_pair
+        self.file_path:                         str          = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
         self.bid_price:                         float        = bid_price
         self.order_min:                         float        = order_min
         self.safety_order_table:                pd.DataFrame = pd.DataFrame()
@@ -52,6 +54,7 @@ class DCA(DCA_):
             self.__set_deviation_percentage_levels()
             self.__set_price_levels()
             self.__set_quantity_levels()
+            self.__set_total_quantity_levels()
             self.__set_average_price_levels()
             self.__set_required_price_levels()
             self.__set_required_change_percentage_levels()
@@ -139,6 +142,16 @@ class DCA(DCA_):
             prev = DCA_.SAFETY_ORDER_VOLUME_SCALE * prev
         return
     
+    def __set_total_quantity_levels(self) -> None:
+        """Sets the total quantity bought at each level."""
+        prev = self.order_min
+        for i in range(DCA_.SAFETY_ORDERS_MAX):
+            sum = prev + self.quantities[i]
+            self.total_quantities.append(sum)
+            prev = self.quantities[i]
+        return
+    
+    
     def __set_average_price_levels(self) -> None:
         """Sets the average price level for each safety order number."""
         prev_average = self.price_levels[0]
@@ -188,16 +201,23 @@ class DCA(DCA_):
     def __set_safety_order_table(self) -> None:
         """Set the Dataframe with the values calculated in previous functions."""
         order_numbers = [i for i in range(1, DCA_.SAFETY_ORDERS_MAX+1)]
- 
+
         self.safety_order_table = pd.DataFrame({
             SOColumns.SAFETY_ORDER_NO: order_numbers,
             SOColumns.DEVIATION:       self.percentage_deviation_levels,
             SOColumns.QUANTITY:        self.quantities,
+            SOColumns.TOTAL_QUANTITY:  self.total_quantities,
             SOColumns.PRICE:           self.price_levels,
             SOColumns.AVG_PRICE:       self.average_price_levels,
             SOColumns.REQ_PRICE:       self.required_price_levels,
             SOColumns.REQ_CHANGE_PERC: self.required_change_percentage_levels,
             SOColumns.PROFIT:          self.profit_levels})
+        
+        sql = SQL()
+        sql.create_db_connection()
+        for i in range(DCA_.SAFETY_ORDERS_MAX):
+            sql.execute_update(f"""INSERT INTO safety_orders {sql.so_columns} VALUES ('{self.symbol_pair}', {order_numbers[i]}, {self.percentage_deviation_levels[i]}, {self.quantities[i]}, {self.total_quantities[i]}, {self.price_levels[i]}, {self.average_price_levels[i]}, {self.required_price_levels[i]}, {self.required_change_percentage_levels[i]}, {self.profit_levels[i]}, false, so_key)""")
+        sql.close_db_connection()
         return
 
     def __create_excel_file(self) -> None:

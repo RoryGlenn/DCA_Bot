@@ -1,6 +1,7 @@
 
 """sell.py: Sells coin on kraken exchange based on users config file."""
 
+from mysql.connector.cursor import MySQLCursor, MySQLCursorBuffered
 import pandas as pd
 import os
 
@@ -8,7 +9,7 @@ from pprint                    import pprint
 from kraken_files.kraken_enums import *
 from util.globals              import G
 from bot_features.base         import Base
-
+from my_sql.sql                import SQL
 
 class Sell(Base):
     def __init__(self, parameter_dict: dict) -> None:
@@ -27,9 +28,9 @@ class Sell(Base):
         df3 = pd.read_excel(filename, SheetNames.OPEN_SELL_ORDERS)
 
         with pd.ExcelWriter(filename, engine=OPENPYXL, mode=FileMode.WRITE_TRUNCATE) as writer:
-            df1.to_excel(writer, SheetNames.SAFETY_ORDERS,   index=False)
-            df2.to_excel(writer, SheetNames.OPEN_BUY_ORDERS, index=False)
-            df3.to_excel(writer, SheetNames.OPEN_SELL_ORDERS,index=False)
+            df1.to_excel(writer, SheetNames.SAFETY_ORDERS,    index=False)
+            df2.to_excel(writer, SheetNames.OPEN_BUY_ORDERS,  index=False)
+            df3.to_excel(writer, SheetNames.OPEN_SELL_ORDERS, index=False)
         return
 
     def __save_to_open_sell_orders(self, file_name: str, df3: pd.DataFrame) -> None:
@@ -124,7 +125,7 @@ class Sell(Base):
             G.log_file.print_and_log(f"sell: {symbol_pair} {sell_order_result[Dicts.ERROR]}")
         return sell_order_result
 
-    def __update_open_buy_orders(self, symbol_pair: str) -> None:
+    def __update_open_buy_orders(self, symbol_pair: str, filled_buy_order_txid: str) -> None:
         """If the first open_buy_order has been filled and the sell order has been placed successfully,
         we need to remove the first row in the open_buy_orders sheet as it is no longer open and needed 
         to place the next sell limit order."""
@@ -137,6 +138,16 @@ class Sell(Base):
         df = pd.read_excel(filename, SheetNames.OPEN_BUY_ORDERS)
         df.drop(0, inplace=True)
         self.__save_to_open_buy_orders(symbol_pair, df)
+
+
+        # mark filled as true
+        # get the txid of which order was filled, then use that as the key to mark as filled        
+        sql = SQL()
+        sql.create_db_connection()
+        result_set: MySQLCursorBuffered = sql.execute_query(f"SELECT * FROM open_buy_orders WHERE txid='{filled_buy_order_txid}'")
+        for x in result_set:
+            sql.execute_update("UPDATE open_buy_orders SET filled=true WHERE filled=false")
+        sql.close_db_connection()
         return
 
     def __update_open_sell_orders_sheet(self, symbol_pair: str, order_result: dict, profit_potential: float) -> None:
@@ -155,7 +166,12 @@ class Sell(Base):
         
         self.__save_to_open_sell_orders(filename, df)
         return
-
+    
+    def __get_sell_order_txid(self, sell_order_result) -> str:
+        if not self.has_result(sell_order_result):
+            raise Exception(f"sell.__get_sell_order_txid: {sell_order_result}")        
+        return sell_order_result[Dicts.RESULT][Data.TXID][0]
+        
 ##################################################################
 ### Place sell order for base order only!
 ##################################################################
@@ -179,7 +195,7 @@ class Sell(Base):
 ##################################################################
 ### Run the entire sell process for safety orders
 ##################################################################
-    def start(self, symbol_pair: str) -> None:
+    def start(self, symbol_pair: str, filled_buy_order_txid: str) -> None:
         """
         Triggered everytime a new buy limit order is placed.
             1. cancel previous sell order (if it exists).
@@ -191,11 +207,16 @@ class Sell(Base):
         profit_potential = self.__get_profit_from_sheet(symbol_pair, SheetNames.OPEN_BUY_ORDERS)
         self.__cancel_open_sell_order(symbol_pair)
         sell_order_result = self.__place_sell_limit_order(symbol_pair)
+        sell_order_txid   = self.__get_sell_order_txid(sell_order_result)
+        
+        # insert sell order into sql
+        sql = SQL()
+        sql.create_db_connection()
+        sql.execute_update(f"INSERT INTO open_sell_orders (symbol_pair, txid, profit, filled, oso_key) VALUES \
+                               ('{symbol_pair}', {sell_order_txid}, {profit_potential}, false, oso_key)")
+        sql.close_db_connection()
 
-        if not self.has_result(sell_order_result):
-            raise Exception(f"sell.start: {sell_order_result}")
-            
-        self.__update_open_buy_orders(symbol_pair)
+        self.__update_open_buy_orders(symbol_pair, filled_buy_order_txid)
         self.__update_open_sell_orders_sheet(symbol_pair, sell_order_result, profit_potential)
         
         return

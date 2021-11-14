@@ -24,7 +24,7 @@ from bot_features.base         import Base
 from bot_features.dca          import DCA
 from bot_features.sell         import Sell
 from bot_features.tradingview  import TradingView
-
+from my_sql.sql                import SQL
 
 x_list   = ['XETC', 'XETH', 'XLTC', 'XMLN', 'XREP', 'XXBT', 'XXDG', 'XXLM', 'XXMR', 'XXRP', 'XZEC']
 reg_list = ['ETC',  'ETH',  'LTC',  'MLN',  'REP',  'XBT',  'XDG',  'XLM',  'XMR',  'XRP',  'ZEC' ]
@@ -44,6 +44,7 @@ class Buy(Base, TradingView):
         self.is_buy:                  bool        = False
         self.dca:                     DCA         = None
         self.sell:                    Sell        = Sell(parameter_dict)
+        self.sql:                     SQL         = SQL()
         return
 
     def __init_loop_variables(self) -> None:
@@ -51,9 +52,11 @@ class Buy(Base, TradingView):
         self.kraken_assets_dict = self.get_asset_info()[Dicts.RESULT]
         self.account_balance    = self.get_parsed_account_balance()
         self.asset_pairs_dict   = self.get_all_tradable_asset_pairs()[Dicts.RESULT]
+        
         self.__create_excel_directory()
         self.__init_buy_set()
         self.__set_future_time()
+        
         print(f"Account value: ${self.__get_account_value()}")
         return
 
@@ -294,6 +297,9 @@ class Buy(Base, TradingView):
                         
                     if os.path.exists(filename):
                         os.remove(filename)
+                        
+                    
+                    self.sql.execute_update()
 
                     print(f"{symbol} trade complete, profit: {profit}")
         except Exception as e:
@@ -333,7 +339,7 @@ class Buy(Base, TradingView):
             for open_order_txid in df[TXIDS].to_list():
                 if open_order_txid in filled_trades_order_txids.keys():
                     # if the txid is in the trade history, the order was filled.
-                    self.sell.start(symbol_pair)
+                    self.sell.start(symbol_pair, open_order_txid)
         except Exception as e:
             G.log_file.print_and_log(e=e)
         return
@@ -408,7 +414,7 @@ class Buy(Base, TradingView):
         order_result = None
         
         if self.has_result(buy_result):
-            time.sleep(5)
+            time.sleep(3)
             order_result = self.query_orders_info(buy_result[Dicts.RESULT][Data.TXID][0])
             if self.has_result(order_result):
                 for txid in order_result[Dicts.RESULT]:
@@ -427,6 +433,21 @@ class Buy(Base, TradingView):
         self.__init_loop_variables()
         bought_set = set()
 
+        # self.sql.create_db_connection()
+        # try:
+        #     query = f"SELECT * FROM safety_orders WHERE so_key=1"
+        #     result_set = self.sql.execute_query(query)
+            
+        #     for x in result_set:
+        #         print(x)
+            
+        #     query = f"INSERT INTO open_buy_orders {self.sql.obo_columns} VALUES ('OXTUSD', 'ODME-ODNF-HDUF-PDWX', 23.22, 0.34, true, 1)"
+        #     self.sql.execute_update(query)
+        #     self.sql.connection.commit()
+        # except Exception as e:
+        #     print(e)
+        # self.sql.close_db_connection()
+        
         while True:
             bought_set = self.__update_bought_set()
             self.wait(message=f"buy_loop: Waiting till {self.__get_buy_time()} to buy", timeout=Buy_.TIME_MINUTES*60)
@@ -442,3 +463,12 @@ class Buy(Base, TradingView):
                 self.__set_post_buy_variables(symbol)
                 self.__place_limit_orders(symbol)
         return
+    
+    
+# 
+# 'QTUMUSD', '2', '3.328', '1.25', '1.75', '16.7108', '16.8861', '17.055', '2.01784', '0.375993', '0', '79'
+# 'QTUMUSD', '3', '6.49168', '3.125', '4.375', '16.1639', '16.525', '16.6903', '3.15351', '0.868812', '0', '80'
+# 'QTUMUSD', '4', '11.427', '7.8125', '10.9375', '15.3108', '15.9179', '16.0771', '4.7663', '2.01911', '0', '81'
+# 'QTUMUSD', '5', '19.1262', '19.5312', '27.3438', '13.9799', '14.9489', '15.0984', '7.40794', '4.57406', '0', '82'
+# 'QTUMUSD', '6', '31.1368', '48.8281', '68.3594', '11.9038', '13.4263', '13.5606', '12.2181', '9.70715', '0', '83'
+# 'QTUMUSD', '7', '49.8734', '122.07', '170.898', '8.66493', '11.0456', '11.1561', '22.33', '17.6433', '0', '84'

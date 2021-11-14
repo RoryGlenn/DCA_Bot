@@ -298,6 +298,7 @@ class SOColumns:
     SAFETY_ORDER_NO = "Safety Order No."
     DEVIATION = "Deviation, %"
     QUANTITY = "Quantity"
+    TOTAL_QUANTITY = "Total Quantity"
     PRICE = "Price $"
     AVG_PRICE = "Average Price $"
     REQ_PRICE = "Required price"
