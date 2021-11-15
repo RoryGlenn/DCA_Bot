@@ -12,6 +12,7 @@ buy.py - Buys coin on kraken exchange based on users config file.
 
 import datetime
 import os
+from mysql.connector.cursor import MySQLCursor, MySQLCursorBuffered
 import pandas as pd
 import glob
 import sys
@@ -137,6 +138,10 @@ class Buy(Base, TradingView):
         filename = EXCEL_FILES_DIRECTORY + "/" + self.symbol_pair + ".xlsx"
         df       = pd.read_excel(filename, SheetNames.SAFETY_ORDERS)
         return float(df[SOColumns.REQ_PRICE].to_list()[0])
+        # self.sql.create_db_connection()
+        # result_set = self.sql.execute_query("SELECT required_price FROM safety_orders WHERE order_place=false LIMIT 1")
+        # self.sql.close_db_connection()
+        # return result_set.fetchone()[0]
 
     def __place_base_order(self, order_min: float, symbol_pair: str) -> dict:
         """
@@ -151,6 +156,11 @@ class Buy(Base, TradingView):
         if os.path.exists(filename):
             df_so = pd.read_excel(filename, SheetNames.SAFETY_ORDERS)
             return float(df_so[SOColumns.PROFIT][0])
+        
+        # self.sql.create_db_connection()
+        # result_set = self.sql.execute_query("SELECT profit FROM safety_orders WHERE order_place=false LIMIT 1")
+        # self.sql.close_db_connection()
+        # return result_set.fetchone()[0]        
         return -1
 
     def __place_safety_orders(self, symbol: str) -> None:
@@ -170,6 +180,9 @@ class Buy(Base, TradingView):
 
                     # once the limit order was entered successfully, delete it from the excel sheet.
                     self.dca.update_safety_orders()
+                    
+                    
+                    # 
                 else:
                     if limit_order_result[Dicts.ERROR][0] == KError.INSUFFICIENT_FUNDS:
                         G.log_file.print_and_log(f"buy_loop: {self.symbol_pair} Not enough USD to place remaining safety orders.")
@@ -208,8 +221,10 @@ class Buy(Base, TradingView):
                     
                     base_order_qty = float(str(base_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]).split(" ")[1])
                     base_price     = self.__get_bought_price(base_order_result)
-                    
+
                     self.dca       = DCA(self.symbol_pair, base_order_qty, base_price)
+                    
+                    # upon placing the base_order, pass in the txid into dca to write to db
                     self.sell.place_sell_limit_base_order(self.symbol_pair, base_price, base_order_qty)
                 else:
                     G.log_file.print_and_log(f"buy_loop: {self.symbol_pair} can't place base order: {base_order_result[Dicts.ERROR]}")
@@ -430,24 +445,35 @@ class Buy(Base, TradingView):
 
     def buy_loop(self) -> None:
         """The main function for trading coins."""
-        self.__init_loop_variables()
-        bought_set = set()
+        # self.__init_loop_variables()
+        # bought_set = set()
 
-        # self.sql.create_db_connection()
-        # try:
-        #     query = f"SELECT * FROM safety_orders WHERE so_key=1"
-        #     result_set = self.sql.execute_query(query)
-            
-        #     for x in result_set:
-        #         print(x)
-            
-        #     query = f"INSERT INTO open_buy_orders {self.sql.obo_columns} VALUES ('OXTUSD', 'ODME-ODNF-HDUF-PDWX', 23.22, 0.34, true, 1)"
-        #     self.sql.execute_update(query)
-        #     self.sql.connection.commit()
-        # except Exception as e:
-        #     print(e)
-        # self.sql.close_db_connection()
+
+        """
+        For each safety order that is placed, store the TXID into a list and into the database.
+        the TXID will be the way our tables reference each other (Foreign key)!!!
         
+        After storing the TXID in the safety_orders table, have the open_buy_orders table reference this txid.
+        
+        The open_buy_orders table references the safety_orders txid
+        The open_sell_orders table refernces the safety_orders txid and the open_buy_orders txid?
+
+        """
+        # CHANGE ALL SAFETY ORDERS TO PLACED
+        
+        self.sql.create_db_connection()
+        result_set: MySQLCursorBuffered = self.sql.execute_query("SELECT required_price FROM safety_orders WHERE order_placed=false LIMIT 1")
+        self.sql.close_db_connection()
+        print(type(result_set.fetchone()[0]))
+        
+        for x in result_set:
+            print(x[0])
+        
+        self.sql.create_db_connection()
+        txid = 0
+        result_set: MySQLCursorBuffered = self.sql.execute_update(f"UPDATE safety_orders SET order_placed=true where txid={txid}")
+        self.sql.close_db_connection()
+                
         while True:
             bought_set = self.__update_bought_set()
             self.wait(message=f"buy_loop: Waiting till {self.__get_buy_time()} to buy", timeout=Buy_.TIME_MINUTES*60)
@@ -464,11 +490,3 @@ class Buy(Base, TradingView):
                 self.__place_limit_orders(symbol)
         return
     
-    
-# 
-# 'QTUMUSD', '2', '3.328', '1.25', '1.75', '16.7108', '16.8861', '17.055', '2.01784', '0.375993', '0', '79'
-# 'QTUMUSD', '3', '6.49168', '3.125', '4.375', '16.1639', '16.525', '16.6903', '3.15351', '0.868812', '0', '80'
-# 'QTUMUSD', '4', '11.427', '7.8125', '10.9375', '15.3108', '15.9179', '16.0771', '4.7663', '2.01911', '0', '81'
-# 'QTUMUSD', '5', '19.1262', '19.5312', '27.3438', '13.9799', '14.9489', '15.0984', '7.40794', '4.57406', '0', '82'
-# 'QTUMUSD', '6', '31.1368', '48.8281', '68.3594', '11.9038', '13.4263', '13.5606', '12.2181', '9.70715', '0', '83'
-# 'QTUMUSD', '7', '49.8734', '122.07', '170.898', '8.66493', '11.0456', '11.1561', '22.33', '17.6433', '0', '84'

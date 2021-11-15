@@ -139,15 +139,15 @@ class Sell(Base):
         df.drop(0, inplace=True)
         self.__save_to_open_buy_orders(symbol_pair, df)
 
-
         # mark filled as true
         # get the txid of which order was filled, then use that as the key to mark as filled        
-        sql = SQL()
-        sql.create_db_connection()
-        result_set: MySQLCursorBuffered = sql.execute_query(f"SELECT * FROM open_buy_orders WHERE txid='{filled_buy_order_txid}'")
-        for x in result_set:
-            sql.execute_update("UPDATE open_buy_orders SET filled=true WHERE filled=false")
-        sql.close_db_connection()
+        # sql = SQL()
+        # sql.create_db_connection()
+        # result_set: MySQLCursorBuffered = sql.execute_query(f"SELECT * FROM open_buy_orders WHERE txid='{filled_buy_order_txid}'")
+        
+        # for x in result_set:
+        #     sql.execute_update("INSERT INTO open_buy_orders SET filled=true WHERE filled=false")
+        # sql.close_db_connection()
         return
 
     def __update_open_sell_orders_sheet(self, symbol_pair: str, order_result: dict, profit_potential: float) -> None:
@@ -175,7 +175,7 @@ class Sell(Base):
 ##################################################################
 ### Place sell order for base order only!
 ##################################################################
-    def place_sell_limit_base_order(self, symbol_pair: str, entry_price: float, quantity: float) -> dict:
+    def place_sell_limit_base_order(self, symbol_pair: str, entry_price: float, quantity: float, txid: str) -> dict:
         """Create a sell limit order for the base order only!"""
         self.__cancel_open_sell_order(symbol_pair)
         
@@ -187,6 +187,15 @@ class Sell(Base):
             profit_potential = entry_price * quantity * DCA_.TARGET_PROFIT_PERCENT/100
             G.log_file.print_and_log(f"sell: limit order placed {symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: ${profit_potential}")
             self.__update_open_sell_orders_sheet(symbol_pair, sell_order_result, profit_potential)
+            
+            sell_order_txid = sell_order_result[Dicts.RESULT][Data.TXID][0]
+            
+            sql = SQL()
+            sql.create_db_connection()
+            query = f"INSERT INTO open_sell_orders {sql.oso_columns} VALUES ('{symbol_pair}', {profit_potential}, false, '{sell_order_txid}')"
+            sql.execute_query(query)
+            sql.close_db_connection()
+        
         else:
             G.log_file.print_and_log(f"place_sell_limit_base_order: {symbol_pair} {sell_order_result[Dicts.ERROR]}")
 

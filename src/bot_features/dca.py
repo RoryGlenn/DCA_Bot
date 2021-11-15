@@ -216,7 +216,11 @@ class DCA(DCA_):
         sql = SQL()
         sql.create_db_connection()
         for i in range(DCA_.SAFETY_ORDERS_MAX):
-            sql.execute_update(f"""INSERT INTO safety_orders {sql.so_columns} VALUES ('{self.symbol_pair}', {order_numbers[i]}, {self.percentage_deviation_levels[i]}, {self.quantities[i]}, {self.total_quantities[i]}, {self.price_levels[i]}, {self.average_price_levels[i]}, {self.required_price_levels[i]}, {self.required_change_percentage_levels[i]}, {self.profit_levels[i]}, false, so_key)""")
+            sql.execute_update(f"""INSERT INTO safety_orders {sql.so_columns} VALUES 
+                               ('{self.symbol_pair}',          {order_numbers[i]},              {self.percentage_deviation_levels[i]},
+                               {self.quantities[i]},           {self.total_quantities[i]},      {self.price_levels[i]},
+                               {self.average_price_levels[i]}, {self.required_price_levels[i]}, {self.required_change_percentage_levels[i]},
+                               {self.profit_levels[i]},        false,                           so_key)""")
         sql.close_db_connection()
         return
 
