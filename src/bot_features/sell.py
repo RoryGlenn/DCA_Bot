@@ -175,7 +175,7 @@ class Sell(Base):
 ##################################################################
 ### Place sell order for base order only!
 ##################################################################
-    def place_sell_limit_base_order(self, symbol_pair: str, entry_price: float, quantity: float, txid: str) -> dict:
+    def place_sell_limit_base_order(self, symbol_pair: str, entry_price: float, quantity: float) -> dict:
         """Create a sell limit order for the base order only!"""
         self.__cancel_open_sell_order(symbol_pair)
         
@@ -192,10 +192,9 @@ class Sell(Base):
             
             sql = SQL()
             sql.create_db_connection()
-            query = f"INSERT INTO open_sell_orders {sql.oso_columns} VALUES ('{symbol_pair}', {profit_potential}, false, '{sell_order_txid}')"
-            sql.execute_query(query)
+            query = f"INSERT INTO open_sell_orders {sql.oso_columns} VALUES ('{symbol_pair}', {profit_potential}, false, false, '{sell_order_txid}')"
+            sql.update(query)
             sql.close_db_connection()
-        
         else:
             G.log_file.print_and_log(f"place_sell_limit_base_order: {symbol_pair} {sell_order_result[Dicts.ERROR]}")
 
@@ -206,26 +205,44 @@ class Sell(Base):
 ##################################################################
     def start(self, symbol_pair: str, filled_buy_order_txid: str) -> None:
         """
-        Triggered everytime a new buy limit order is placed.
-            1. cancel previous sell order (if it exists).
-            2. place new sell order.
-            3. update open_buy_orders sheet by removing filled buy orders.
-            4. update open_sell_orders sheet.
-        
+        Everytime an open_buy_order is filled we need to
+            1. Set filled=true in open_buy_orders table
+            2. Cancel the open_sell_order on 'symbol_pair'
+            3. Place a new sell order
+            4. insert new sell order into open_sell_order table
+
         """
-        profit_potential = self.__get_profit_from_sheet(symbol_pair, SheetNames.OPEN_BUY_ORDERS)
+        sql = SQL()
+        
+        sql.create_db_connection()
+        # 1. change filled=true in open_buy_orders table
+        sql.update(f"UPDATE open_buy_orders SET filled=true WHERE \
+            symbol_pair='{symbol_pair}' AND obo_txid='{filled_buy_order_txid}' AND filled=false LIMIT 1")
+        sql.close_db_connection()
+        
+        # get profit from open_buy_orders table
+        sql.create_db_connection()
+        result_set = sql.query(f"SELECT profit FROM open_buy_orders WHERE obo_txid='{filled_buy_order_txid}'")
+        sql.close_db_connection()
+        
+        # 2. cancel open_sell_order
         self.__cancel_open_sell_order(symbol_pair)
+
+
+        # 3. change cancelled sell order to true in open_sell_orders
+        sql.create_db_connection()
+        sql.update(f"UPDATE open_sell_orders SET cancelled=true WHERE symbol_pair='{symbol_pair}' AND filled=false LIMIT 1")
+        sql.close_db_connection()
+        
         sell_order_result = self.__place_sell_limit_order(symbol_pair)
         sell_order_txid   = self.__get_sell_order_txid(sell_order_result)
         
         # insert sell order into sql
-        sql = SQL()
-        sql.create_db_connection()
-        sql.execute_update(f"INSERT INTO open_sell_orders (symbol_pair, txid, profit, filled, oso_key) VALUES \
-                               ('{symbol_pair}', {sell_order_txid}, {profit_potential}, false, oso_key)")
+        profit_potential = result_set.fetchone()[0]
+        sql.update(f"INSERT INTO open_sell_orders {sql.oso_columns} VALUES \
+                               ('{symbol_pair}', {sell_order_txid}, {profit_potential}, false, false, '{sell_order_txid}')")
         sql.close_db_connection()
 
         self.__update_open_buy_orders(symbol_pair, filled_buy_order_txid)
         self.__update_open_sell_orders_sheet(symbol_pair, sell_order_result, profit_potential)
-        
         return

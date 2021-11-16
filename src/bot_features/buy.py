@@ -135,13 +135,10 @@ class Buy(Base, TradingView):
         return
 
     def __get_required_price(self):
-        filename = EXCEL_FILES_DIRECTORY + "/" + self.symbol_pair + ".xlsx"
-        df       = pd.read_excel(filename, SheetNames.SAFETY_ORDERS)
-        return float(df[SOColumns.REQ_PRICE].to_list()[0])
-        # self.sql.create_db_connection()
-        # result_set = self.sql.execute_query("SELECT required_price FROM safety_orders WHERE order_place=false LIMIT 1")
-        # self.sql.close_db_connection()
-        # return result_set.fetchone()[0]
+        self.sql.create_db_connection()
+        result_set = self.sql.query(f"SELECT required_price FROM safety_orders WHERE symbol_pair='{self.symbol_pair}' AND order_placed=false LIMIT 1")
+        self.sql.close_db_connection()
+        return result_set.fetchone()[0]
 
     def __place_base_order(self, order_min: float, symbol_pair: str) -> dict:
         """
@@ -152,42 +149,55 @@ class Buy(Base, TradingView):
         return self.market_order(Trade.BUY, order_min, symbol_pair)
     
     def __get_profit_potential(self, symbol_pair: str) -> float:
-        filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
-        if os.path.exists(filename):
-            df_so = pd.read_excel(filename, SheetNames.SAFETY_ORDERS)
-            return float(df_so[SOColumns.PROFIT][0])
-        
-        # self.sql.create_db_connection()
-        # result_set = self.sql.execute_query("SELECT profit FROM safety_orders WHERE order_place=false LIMIT 1")
-        # self.sql.close_db_connection()
-        # return result_set.fetchone()[0]        
-        return -1
+        self.sql.create_db_connection()
+        result_set = self.sql.query(f"SELECT profit FROM safety_orders WHERE symbol_pair='{symbol_pair}' AND order_placed=false LIMIT 1")
+        self.sql.close_db_connection()
+        return result_set.fetchone()[0]
 
     def __place_safety_orders(self, symbol: str) -> None:
+        """Place safety orders."""
+        sql = SQL()
+        
         for price, quantity in self.dca.safety_orders.items():
             try:
                 price_max_prec     = self.get_pair_decimals(self.symbol_pair)
                 rounded_price      = self.round_decimals_down(price, price_max_prec)
                 rounded_quantity   = self.round_decimals_down(quantity, self.get_max_volume_precision(symbol))
-                req_profit_price   = self.round_decimals_down(self.__get_required_price(), price_max_prec)
+                req_price          = self.round_decimals_down(self.__get_required_price(), price_max_prec)
                 limit_order_result = self.limit_order(Trade.BUY, rounded_quantity, self.symbol_pair, rounded_price)
 
                 if self.has_result(limit_order_result):
-                    G.log_file.print_and_log(message=f"buy_loop: limit order placed {self.symbol_pair} {limit_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}", money=True)
+                    G.log_file.print_and_log(message=f"buy_loop: safety order placed {self.symbol_pair} {limit_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}", money=True)
+                    
+                    try:
+                        obo_txid         = limit_order_result[Dicts.RESULT][Data.TXID][0]
+                        profit_potential = self.__get_profit_potential(self.symbol_pair) 
+                    except Exception as e:
+                        print()
+                        print(e)
+                        print("yeah this shit happened again")
+                        print()
                     
                     # keep track of the open order txid
-                    self.save_open_buy_order_txid(limit_order_result, self.symbol_pair, req_profit_price, self.__get_profit_potential(self.symbol_pair))
+                    self.save_open_buy_order_txid(limit_order_result, self.symbol_pair, req_price, profit_potential)
 
                     # once the limit order was entered successfully, delete it from the excel sheet.
                     self.dca.update_safety_orders()
                     
+                    # change order_placed to true in safety_orders table
+                    sql.create_db_connection()
+                    sql.update("UPDATE safety_orders SET order_placed=true WHERE order_placed=false LIMIT 1")
+                    sql.close_db_connection()
                     
-                    # 
+                    # store open_buy_order row
+                    sql.create_db_connection()
+                    sql.update(f"INSERT INTO open_buy_orders {sql.obo_columns} VALUES ('{self.symbol_pair}', {req_price}, {profit_potential}, false, '{obo_txid}')")
+                    sql.close_db_connection()
                 else:
                     if limit_order_result[Dicts.ERROR][0] == KError.INSUFFICIENT_FUNDS:
                         G.log_file.print_and_log(f"buy_loop: {self.symbol_pair} Not enough USD to place remaining safety orders.")
                         return
-
+                    
                     G.log_file.print_and_log(message=f"buy_loop: {limit_order_result}", money=True)
             except Exception as e:
                 G.log_file.print_and_log(e=e)
@@ -211,9 +221,11 @@ class Buy(Base, TradingView):
             If SO2, is filled, the previous sell order should be cancelled and a new sell order should be placed: Base Order+SO1+SO2, required_price2
         
         """
+        sql = SQL()
+        
         try:
-            if symbol not in self.__get_symbols_from_directory():
-                # If symbol_pair exists in excel_files directory then the base order has already been placed!
+            if self.symbol_pair not in sql.get_bought_symbols():
+                # If symbol_pair exists in database then the base order has already been placed!
                 base_order_result = self.__place_base_order(self.order_min, self.symbol_pair)
 
                 if self.has_result(base_order_result):
@@ -221,7 +233,6 @@ class Buy(Base, TradingView):
                     
                     base_order_qty = float(str(base_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]).split(" ")[1])
                     base_price     = self.__get_bought_price(base_order_result)
-
                     self.dca       = DCA(self.symbol_pair, base_order_qty, base_price)
                     
                     # upon placing the base_order, pass in the txid into dca to write to db
@@ -233,8 +244,8 @@ class Buy(Base, TradingView):
                 # Symbol is in EXCEL_DIRECTORY therefore, we have bought it before.
                 # Load up the .xlsx file and continue to place safety orders
                 self.dca = DCA(self.symbol_pair, 0, 0)
-                
-            num_open_orders = self.__get_open_orders_on_symbol_pair(symbol)
+
+            num_open_orders = self.__get_open_orders_on_symbol_pair(symbol) # change this to pull from open_buy_order table
             
             # if the max active orders are already put in, and are still active, there is nothing left to do.
             if num_open_orders < DCA_.SAFETY_ORDERS_ACTIVE_MAX:
@@ -269,7 +280,14 @@ class Buy(Base, TradingView):
     def __update_bought_set(self) -> set:
         """Get all the symbol names from the EXCEL_FILES_DIRECTORY
             and create the set of coins we are currently buying."""
-        return self.__get_symbols_from_directory()
+        bought_set = set()
+        sql        = SQL()
+        sql.create_db_connection()
+        result_set = sql.query("SELECT symbol_pair FROM safety_orders")
+        sql.close_db_connection()
+        for symbol in result_set.fetchall():
+            bought_set.add(symbol[0])
+        return bought_set
 
     def __update_completed_trades(self, symbol: str) -> None:
         """
@@ -285,43 +303,67 @@ class Buy(Base, TradingView):
         
         """
         try:
-            filename = EXCEL_FILES_DIRECTORY + "/" + self.get_tradable_asset_pair(symbol) + ".xlsx"
+            symbol_pair           = self.get_tradable_asset_pair(symbol)
+            bought_set            = set()
+            open_sell_order_txids = set()
+            sql                   = SQL()
             
-            if not os.path.exists(filename):
+            sql.create_db_connection()
+            rs = sql.query(f"SELECT symbol_pair FROM safety_orders WHERE symbol_pair='{symbol_pair}'")
+            sql.close_db_connection()
+            
+            for symbol in rs.fetchall():
+                bought_set.add(symbol[0])
+            
+            if symbol_pair not in bought_set:
                 return
             
             time.sleep(1)
             filled_sell_order_txids = dict()
             self.trade_history      = self.get_trades_history()
-            df                      = pd.read_excel(filename, SheetNames.OPEN_SELL_ORDERS)
 
             if not self.has_result(self.trade_history):
                 return
 
+            sql.create_db_connection()
+            result_set = sql.query(f"SELECT oso_txid FROM open_sell_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
+            sql.close_db_connection()
+            
+            for txid in result_set.fetchall():
+                open_sell_order_txids.add(txid[0])
+
             for trade_txid, dictionary in self.trade_history[Dicts.RESULT][Data.TRADES].items():
                 filled_sell_order_txids[dictionary[Data.ORDER_TXID]] = trade_txid
 
-            for sell_order_txid in df[TXIDS].to_list():
-                if sell_order_txid in filled_sell_order_txids.keys():
+            for sell_order_txid in open_sell_order_txids:
+                if sell_order_txid[0] in filled_sell_order_txids.keys():
                     # the sell order has filled and we have completed the entire process!!!
-                    open_buy_orders = pd.read_excel(filename, SheetNames.OPEN_BUY_ORDERS)
-                    profit          = df[OBOColumns.PROFIT].to_list()[0]
+                    sql.create_db_connection()
+                    result_set = sql.query(f"SELECT profit FROM open_sell_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
+                    sql.close_db_connection()                    
+                    profit = result_set.fetchall()
                     
-                    for txid in open_buy_orders[TXIDS].to_list():
-                        self.cancel_order(txid)
-                        
-                    if os.path.exists(filename):
-                        os.remove(filename)
-                        
+                    sql.create_db_connection()
+                    result_set = sql.query(f"SELECT obo_txid FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
+                    sql.close_db_connection()
+                    open_buy_orders = result_set.fetchall()
                     
-                    self.sql.execute_update()
-
-                    print(f"{symbol} trade complete, profit: {profit}")
+                    for txid in open_buy_orders:
+                        self.cancel_order(txid[0])
+                        
+                    # remove rows associated with symbol_pair from all tables
+                    sql.create_db_connection()
+                    result_set = sql.query(f"DELETE FROM safety_orders    WHERE symbol_pair='{symbol_pair}'")
+                    result_set = sql.query(f"DELETE FROM open_buy_orders  WHERE symbol_pair='{symbol_pair}'")
+                    result_set = sql.query(f"DELETE FROM open_sell_orders WHERE symbol_pair='{symbol_pair}'")
+                    sql.close_db_connection()
+                    
+                    print(f"{symbol_pair} trade complete, profit: {profit[0]}")
         except Exception as e:
             G.log_file.print_and_log(e=e)
         return
 
-    def __update_filled_orders(self, symbol: str) -> None:
+    def __update_open_buy_orders(self, symbol: str) -> None:
         """
         Updates the open_buy_orders sheet if a buy limit order has been filled.
         Accomplishes this by checking to see if the txid exists in the trade history list.
@@ -335,26 +377,46 @@ class Buy(Base, TradingView):
         """
         try:
             symbol_pair = self.get_tradable_asset_pair(symbol)
-            filename    = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
+            txid_set    = set()
+            bought_set  = set()
+            sql         = SQL()
             
-            if not os.path.exists(filename):
+            sql.create_db_connection()
+            rs = sql.query(f"SELECT symbol_pair FROM safety_orders WHERE symbol_pair='{symbol_pair}' LIMIT 1")
+            sql.close_db_connection()
+            
+            for symbol in rs.fetchone():
+                bought_set.add(symbol[0])
+            
+            if symbol_pair not in bought_set:
                 return
             
             time.sleep(1)
             filled_trades_order_txids = dict()
             self.trade_history        = self.get_trades_history()
-            df                        = pd.read_excel(filename, SheetNames.OPEN_BUY_ORDERS)
             
             if not self.has_result(self.trade_history):
                 return
+            
+            sql.create_db_connection()
+            rs = sql.query(f"SELECT obo_txid FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
+            sql.close_db_connection()
+            
+            for txid in rs.fetchall():
+                txid_set.add(txid[0])
 
             for trade_txid, dictionary in self.trade_history[Dicts.RESULT][Data.TRADES].items():
                 filled_trades_order_txids[dictionary[Data.ORDER_TXID]] = trade_txid
-
-            for open_order_txid in df[TXIDS].to_list():
-                if open_order_txid in filled_trades_order_txids.keys():
-                    # if the txid is in the trade history, the order was filled.
-                    self.sell.start(symbol_pair, open_order_txid)
+            
+            for obo_txid in txid_set:
+                if obo_txid in filled_trades_order_txids.keys():
+                    # if the txid is in the trade history, the order open_buy_order was filled.
+                    
+                    # Everytime an open_buy_order is filled we need to
+                        # 1. Set filled=true in open_buy_orders table
+                        # 2. Cancel the open_sell_order on 'symbol_pair'
+                        # 3. Place a new sell order
+                    self.sell.start(symbol_pair, obo_txid)
         except Exception as e:
             G.log_file.print_and_log(e=e)
         return
@@ -381,8 +443,10 @@ class Buy(Base, TradingView):
                 buy_set.add(symbol)
 
         print("buy_set:", sorted(buy_set))
-        bought_set = self.__get_symbols_from_directory()
-        Buy_.SET   = sorted(bought_set.union(buy_set))
+        
+        sql = SQL()
+        bought_set = sql.get_bought_symbols()
+        Buy_.SET   = set(sorted(bought_set.union(buy_set)))
         return
 
     def __set_buy_set(self, bought_set: set) -> None:
@@ -397,7 +461,7 @@ class Buy(Base, TradingView):
                     else:
                         result_set.add(symbol)
 
-                Buy_.SET = sorted(result_set.union(bought_set))
+                Buy_.SET = set(sorted(result_set.union(bought_set)))
                 print(Buy_.SET)
                 self.__set_future_time()
         except Exception as e:
@@ -429,7 +493,7 @@ class Buy(Base, TradingView):
         order_result = None
         
         if self.has_result(buy_result):
-            time.sleep(3)
+            time.sleep(2)
             order_result = self.query_orders_info(buy_result[Dicts.RESULT][Data.TXID][0])
             if self.has_result(order_result):
                 for txid in order_result[Dicts.RESULT]:
@@ -445,42 +509,23 @@ class Buy(Base, TradingView):
 
     def buy_loop(self) -> None:
         """The main function for trading coins."""
-        # self.__init_loop_variables()
-        # bought_set = set()
+        self.__init_loop_variables()
+        bought_set = set()
 
-
-        """
-        For each safety order that is placed, store the TXID into a list and into the database.
-        the TXID will be the way our tables reference each other (Foreign key)!!!
+        # sql        = SQL()
+        # sql.create_db_connection()
+        # sql.drop_all_tables()
+        # sql.create_tables()
+        # sql.close_db_connection()
+        # self.cancel_all_orders()
         
-        After storing the TXID in the safety_orders table, have the open_buy_orders table reference this txid.
-        
-        The open_buy_orders table references the safety_orders txid
-        The open_sell_orders table refernces the safety_orders txid and the open_buy_orders txid?
-
-        """
-        # CHANGE ALL SAFETY ORDERS TO PLACED
-        
-        self.sql.create_db_connection()
-        result_set: MySQLCursorBuffered = self.sql.execute_query("SELECT required_price FROM safety_orders WHERE order_placed=false LIMIT 1")
-        self.sql.close_db_connection()
-        print(type(result_set.fetchone()[0]))
-        
-        for x in result_set:
-            print(x[0])
-        
-        self.sql.create_db_connection()
-        txid = 0
-        result_set: MySQLCursorBuffered = self.sql.execute_update(f"UPDATE safety_orders SET order_placed=true where txid={txid}")
-        self.sql.close_db_connection()
-                
         while True:
             bought_set = self.__update_bought_set()
             self.wait(message=f"buy_loop: Waiting till {self.__get_buy_time()} to buy", timeout=Buy_.TIME_MINUTES*60)
             self.__set_buy_set(bought_set)
 
             for symbol in Buy_.SET:
-                self.__update_filled_orders(symbol)
+                self.__update_open_buy_orders(symbol)
                 self.__update_completed_trades(symbol)
                 self.__set_pre_buy_variables(symbol)
                 
