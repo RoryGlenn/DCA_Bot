@@ -3,6 +3,10 @@ from mysql.connector.cursor          import MySQLCursorBuffered
 from mysql.connector.cursor_cext     import CMySQLCursor
 from mysql.connector.connection_cext import CMySQLConnection
 
+from kraken_files.kraken_enums import StableCoins
+
+from my_sql.safety_order_table import SOT 
+
 class SQL():
     def __init__(self, host_name: str = "localhost", user_name: str = "root", user_password: str = "12345", db_name: str = "dca") -> None:
         self.host_name:     str              = host_name
@@ -67,6 +71,7 @@ class SQL():
         safety_orders = """
             CREATE TABLE safety_orders (
                 symbol_pair         VARCHAR(20) NOT NULL,
+                symbol              VARCHAR(10) NOT NULL,
                 safety_order_no     INT         NOT NULL,
                 deviation           FLOAT       NOT NULL,
                 quantity            FLOAT       NOT NULL,
@@ -84,6 +89,7 @@ class SQL():
         open_buy_orders = """
             CREATE TABLE open_buy_orders (
                 symbol_pair    VARCHAR(20) NOT NULL,
+                symbol         VARCHAR(10) NOT NULL,
                 required_price FLOAT       NOT NULL,
                 profit         FLOAT       NOT NULL,
                 filled         BOOLEAN     NOT NULL,
@@ -93,6 +99,7 @@ class SQL():
         open_sell_orders = """
             CREATE TABLE open_sell_orders (
                 symbol_pair VARCHAR(20) NOT NULL,
+                symbol      VARCHAR(10) NOT NULL,
                 profit      FLOAT       NOT NULL,
                 cancelled   BOOLEAN     NOT NULL,
                 filled      BOOLEAN     NOT NULL,
@@ -121,23 +128,22 @@ class SQL():
 
     def get_symbols(self) -> set:
         bought_set = set()
+        exception_list = ["XTZ"]
+        
         self.create_db_connection()
         result_set = self.query("SELECT symbol_pair FROM safety_orders")
         self.close_db_connection()
         
-        
-        for symbol_pair in result_set.fetchall():
-            
-            
-    #             if symbol[:-3] not in self.exception_list:
-    #                 if symbol[-4:] == StableCoins.ZUSD:
-    #                     symbol = symbol[:-4]
-    #                 elif symbol[-3:] == StableCoins.USD:
-    #                     symbol = symbol[:-3]
-    #             else:
-    #                 symbol = symbol[:-3]             
-            
-            bought_set.add(symbol_pair[0])
+        for symbol in result_set.fetchall():
+            symbol = symbol[0]
+            if symbol[:-3] not in exception_list:
+                if symbol[-4:] == StableCoins.ZUSD:
+                    symbol = symbol[:-4]
+                elif symbol[-3:] == StableCoins.USD:
+                    symbol = symbol[:-3]
+            else:
+                symbol = symbol[:-3]
+            bought_set.add(symbol)
         return bought_set
     
     
@@ -151,9 +157,3 @@ class SQL():
     def has_safety_order_table(self):
         return
     
-    def load_safety_order_table(self) -> None:
-        # AFTER PULLING SAFETY_ORDERS_TABLE FROM DATABASE, CONVERT TO DATAFRAME!
-        # self.safety_order_table = pd.read_excel(self.file_path, SheetNames.SAFETY_ORDERS)
-        return
-    
-        

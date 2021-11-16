@@ -21,7 +21,6 @@ class DCA(DCA_):
         self.required_change_percentage_levels: list         = [ ]
         self.profit_levels:                     list         = [ ]
         self.symbol_pair:                       str          = symbol_pair
-        # self.file_path:                         str          = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
         self.bid_price:                         float        = bid_price
         self.order_min:                         float        = order_min
         self.safety_order_table:                pd.DataFrame = pd.DataFrame()
@@ -59,16 +58,23 @@ class DCA(DCA_):
             self.__set_required_change_percentage_levels()
             self.__set_profit_levels()
             self.__set_safety_order_table()
-            self.__create_excel_file()
-        else:
-            """if the safety order table exists for the symbol"""
-            self.__load_safety_order_table()
+            
         self.__set_buy_orders()
         return
 
     def __has_safety_order_table(self) -> bool:
-        """Returns True if the safety order excel file exists."""
-        return os.path.exists(self.file_path)
+        """Returns True if safety orders exists."""
+        sql = SQL()
+        sql.create_db_connection()
+        result_set = sql.query(f"SELECT * FROM safety_orders WHERE symbol_pair='{self.symbol_pair}'")
+        sql.close_db_connection()
+
+        if result_set.fetchone() is None:
+            return False
+        
+        if len(result_set.fetchall()) <= 0:
+            return False
+        return True
 
     def __set_deviation_percentage_levels(self) -> None:
         """
@@ -184,10 +190,13 @@ class DCA(DCA_):
 
     def __load_safety_order_table(self) -> None:
         """Uses a DataFrame to load the .xlsx file associated with the symbol into memory."""
-        
         # AFTER PULLING SAFETY_ORDERS_TABLE FROM DATABASE, CONVERT TO DATAFRAME!
-        
-        self.safety_order_table = pd.read_excel(self.file_path, SheetNames.SAFETY_ORDERS)
+        # self.safety_order_table = pd.read_excel(self.file_path, SheetNames.SAFETY_ORDERS)
+        sql = SQL()
+        sql.create_db_connection()
+        query_result = sql.query(f"SELECT * FROM safety_orders WHERE symbol_pair='{self.symbol_pair}'")
+        sql.close_db_connection()
+        self.safety_order_table = pd.read_table()
         return
 
     def __set_safety_order_table(self) -> None:
@@ -243,10 +252,18 @@ class DCA(DCA_):
 
     def __set_buy_orders(self) -> None:
         """Read rows in the .xlsx file into memory."""
-        safety_order_table = pd.read_excel(self.file_path)
-        prices             = safety_order_table[SOColumns.PRICE].tolist()
-        quantities         = safety_order_table[SOColumns.QUANTITY].tolist()
-        iterations         = DCA_.SAFETY_ORDERS_ACTIVE_MAX
+        sql = SQL()
+        sql.create_db_connection()
+        result_set1 = sql.query(f"SELECT price FROM safety_orders WHERE symbol_pair='{self.symbol_pair}'")
+        sql.close_db_connection()        
+        
+        sql.create_db_connection()
+        result_set2 = sql.query(f"SELECT quantity FROM safety_orders WHERE symbol_pair='{self.symbol_pair}'")
+        sql.close_db_connection()
+
+        quantities = [q[0] for q in result_set2.fetchall()]
+        prices     = [p[0] for p in result_set1.fetchall()]
+        iterations = DCA_.SAFETY_ORDERS_ACTIVE_MAX
 
         if len(prices) < DCA_.SAFETY_ORDERS_ACTIVE_MAX:
             iterations = len(prices)
