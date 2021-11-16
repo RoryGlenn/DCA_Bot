@@ -21,7 +21,7 @@ class DCA(DCA_):
         self.required_change_percentage_levels: list         = [ ]
         self.profit_levels:                     list         = [ ]
         self.symbol_pair:                       str          = symbol_pair
-        self.file_path:                         str          = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
+        # self.file_path:                         str          = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
         self.bid_price:                         float        = bid_price
         self.order_min:                         float        = order_min
         self.safety_order_table:                pd.DataFrame = pd.DataFrame()
@@ -43,7 +43,6 @@ class DCA(DCA_):
         3. If the sheet doesn't exist, the bot has not traded the coin and we should create a new one if the bot trades it.
         
         """
-        self.__create_directory()
 
         """
         Need a way to sell the amount of coin from all the previous orders.
@@ -65,15 +64,6 @@ class DCA(DCA_):
             """if the safety order table exists for the symbol"""
             self.__load_safety_order_table()
         self.__set_buy_orders()
-        return
-
-    def __create_directory(self) -> None:
-        """Create a directory for the safety orders."""
-        try:
-            if not os.path.exists(EXCEL_FILES_DIRECTORY):
-                os.mkdir(EXCEL_FILES_DIRECTORY)
-        except Exception as e:
-            G.log_file.print_and_log(e=e)
         return
 
     def __has_safety_order_table(self) -> bool:
@@ -151,7 +141,6 @@ class DCA(DCA_):
             prev = self.quantities[i]
         return
     
-    
     def __set_average_price_levels(self) -> None:
         """Sets the average price level for each safety order number."""
         prev_average = self.price_levels[0]
@@ -195,6 +184,9 @@ class DCA(DCA_):
 
     def __load_safety_order_table(self) -> None:
         """Uses a DataFrame to load the .xlsx file associated with the symbol into memory."""
+        
+        # AFTER PULLING SAFETY_ORDERS_TABLE FROM DATABASE, CONVERT TO DATAFRAME!
+        
         self.safety_order_table = pd.read_excel(self.file_path, SheetNames.SAFETY_ORDERS)
         return
 

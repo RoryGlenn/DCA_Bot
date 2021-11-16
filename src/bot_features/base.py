@@ -159,7 +159,6 @@ class Base(KrakenAPI):
         for _, row in df.iterrows():
             if row[Dicts.ASSET] == symbol:
                 return row[Dicts.MINIMUM]
-                
 
         """
         If we couldn't find the first symbol, search again without the first character

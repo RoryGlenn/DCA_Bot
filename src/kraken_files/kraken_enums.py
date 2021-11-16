@@ -1,6 +1,6 @@
 from enum import auto
 
-EXCEL_FILES_DIRECTORY  = "src/kraken_files/excel_files"
+# EXCEL_FILES_DIRECTORY  = "src/kraken_files/excel_files"
 
 KRAKEN_COINS = "src/kraken_files/txt_files/kraken_coins.txt"
 

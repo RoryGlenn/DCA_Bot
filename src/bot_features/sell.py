@@ -17,21 +17,21 @@ class Sell(Base):
         self.asset_pairs_dict:  dict = self.get_all_tradable_asset_pairs()[Dicts.RESULT]
         self.sell_order_placed: bool = False
 
-    def __save_to_open_buy_orders(self, symbol_pair: str, df2: pd.DataFrame) -> None:
-        """Write the DataFrame to an excel file."""
-        filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
+    # def __save_to_open_buy_orders(self, symbol_pair: str, df2: pd.DataFrame) -> None:
+    #     """Write the DataFrame to an excel file."""
+    #     filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
         
-        if not os.path.exists(filename):
-            raise Exception(f"__save_to_open_buy_orders: {filename} does not exist!")         
+    #     if not os.path.exists(filename):
+    #         raise Exception(f"__save_to_open_buy_orders: {filename} does not exist!")         
         
-        df1 = pd.read_excel(filename, SheetNames.SAFETY_ORDERS)
-        df3 = pd.read_excel(filename, SheetNames.OPEN_SELL_ORDERS)
+    #     df1 = pd.read_excel(filename, SheetNames.SAFETY_ORDERS)
+    #     df3 = pd.read_excel(filename, SheetNames.OPEN_SELL_ORDERS)
 
-        with pd.ExcelWriter(filename, engine=OPENPYXL, mode=FileMode.WRITE_TRUNCATE) as writer:
-            df1.to_excel(writer, SheetNames.SAFETY_ORDERS,    index=False)
-            df2.to_excel(writer, SheetNames.OPEN_BUY_ORDERS,  index=False)
-            df3.to_excel(writer, SheetNames.OPEN_SELL_ORDERS, index=False)
-        return
+    #     with pd.ExcelWriter(filename, engine=OPENPYXL, mode=FileMode.WRITE_TRUNCATE) as writer:
+    #         df1.to_excel(writer, SheetNames.SAFETY_ORDERS,    index=False)
+    #         df2.to_excel(writer, SheetNames.OPEN_BUY_ORDERS,  index=False)
+    #         df3.to_excel(writer, SheetNames.OPEN_SELL_ORDERS, index=False)
+    #     return
 
     def __save_to_open_sell_orders(self, file_name: str, df3: pd.DataFrame) -> None:
         """Write the DataFrame to an excel file."""
@@ -55,12 +55,12 @@ class Sell(Base):
                         return float(qty)
         return 0.0
 
-    def __get_required_price(self, symbol_pair: str) -> float:
-        """Get cell value from required_price column."""
-        filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
-        if not os.path.exists(filename):
-            raise Exception(f"__get_required_price: {filename} does not exist!") 
-        return float(pd.read_excel(filename, SheetNames.OPEN_BUY_ORDERS)[OBOColumns.REQ_PRICE][0])
+    # def __get_required_price(self, symbol_pair: str) -> float:
+    #     """Get cell value from required_price column."""
+    #     filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
+    #     if not os.path.exists(filename):
+    #         raise Exception(f"__get_required_price: {filename} does not exist!") 
+    #     return float(pd.read_excel(filename, SheetNames.OPEN_BUY_ORDERS)[OBOColumns.REQ_PRICE][0])
 
     def __get_max_price_prec(self, symbol_pair: str) -> int:
         return self.get_max_price_precision(symbol_pair[:-4]) if StableCoins.ZUSD in symbol_pair else self.get_max_price_precision(symbol_pair[:-3])
@@ -73,7 +73,7 @@ class Sell(Base):
         Open the sell_txids.xlsx file, cancel all sell orders by symbol name.
         
         """
-        filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
+        # filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
 
         if not os.path.exists(filename):
             raise Exception(f"__cancel_open_sell_order: {filename} does not exist!")        
@@ -89,22 +89,22 @@ class Sell(Base):
             self.__save_to_open_sell_orders(filename, df)
         return
     
-    def __get_profit_from_sheet(self, symbol_pair: str, sheet_name: str) -> float:
-        """
-        Get the profit potential from the open_sell_orders tab.
+    # def __get_profit_from_sheet(self, symbol_pair: str, sheet_name: str) -> float:
+    #     """
+    #     Get the profit potential from the open_sell_orders tab.
         
-        """
-        filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
+    #     """
+    #     filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
         
-        if not os.path.exists(filename):
-            raise Exception(f"__get_profit_from_sheet: {filename} does not exist!")        
+    #     if not os.path.exists(filename):
+    #         raise Exception(f"__get_profit_from_sheet: {filename} does not exist!")        
         
-        profit_list = pd.read_excel(filename, sheet_name)[OBOColumns.PROFIT].to_list()
+    #     profit_list = pd.read_excel(filename, sheet_name)[OBOColumns.PROFIT].to_list()
         
-        if len(profit_list) > 0:
-            return float(profit_list[0])
+    #     if len(profit_list) > 0:
+    #         return float(profit_list[0])
         
-        raise Exception(f"__get_profit_from_sheet: No profit cell in {sheet_name} sheet")
+    #     raise Exception(f"__get_profit_from_sheet: No profit cell in {sheet_name} sheet")
 
 
     def __place_sell_limit_order(self, symbol_pair: str) -> dict:
@@ -119,7 +119,7 @@ class Sell(Base):
         sell_order_result = self.limit_order(Trade.SELL, qty_to_sell, symbol_pair, required_price)
         
         if self.has_result(sell_order_result):
-            profit_potential = self.__get_profit_from_sheet(symbol_pair, SheetNames.OPEN_SELL_ORDERS)
+            # profit_potential = self.__get_profit_from_sheet(symbol_pair, SheetNames.OPEN_SELL_ORDERS)
             G.log_file.print_and_log(f"sell: limit order placed {symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: ${profit_potential}")
         else:
             G.log_file.print_and_log(f"sell: {symbol_pair} {sell_order_result[Dicts.ERROR]}")
@@ -130,42 +130,42 @@ class Sell(Base):
         we need to remove the first row in the open_buy_orders sheet as it is no longer open and needed 
         to place the next sell limit order."""
 
-        filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
+        # filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
         
-        if not os.path.exists(filename):
-            raise Exception(f"__update_open_buy_orders: {filename} does not exist!")
+        # if not os.path.exists(filename):
+        #     raise Exception(f"__update_open_buy_orders: {filename} does not exist!")
         
-        df = pd.read_excel(filename, SheetNames.OPEN_BUY_ORDERS)
-        df.drop(0, inplace=True)
-        self.__save_to_open_buy_orders(symbol_pair, df)
+        # df = pd.read_excel(filename, SheetNames.OPEN_BUY_ORDERS)
+        # df.drop(0, inplace=True)
+        # self.__save_to_open_buy_orders(symbol_pair, df)
 
         # mark filled as true
         # get the txid of which order was filled, then use that as the key to mark as filled        
-        # sql = SQL()
-        # sql.create_db_connection()
-        # result_set: MySQLCursorBuffered = sql.execute_query(f"SELECT * FROM open_buy_orders WHERE txid='{filled_buy_order_txid}'")
+        sql = SQL()
+        sql.create_db_connection()
+        result_set: MySQLCursorBuffered = sql.execute_query(f"SELECT * FROM open_buy_orders WHERE txid='{filled_buy_order_txid}'")
         
-        # for x in result_set:
-        #     sql.execute_update("INSERT INTO open_buy_orders SET filled=true WHERE filled=false")
-        # sql.close_db_connection()
+        for x in result_set:
+            sql.execute_update("INSERT INTO open_buy_orders SET filled=true WHERE filled=false")
+        sql.close_db_connection()
         return
 
-    def __update_open_sell_orders_sheet(self, symbol_pair: str, order_result: dict, profit_potential: float) -> None:
-        """log the sell order in sell_orders/txids.xlsx."""
-        filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
+    # def __update_open_sell_orders_sheet(self, symbol_pair: str, order_result: dict, profit_potential: float) -> None:
+    #     """log the sell order in sell_orders/txids.xlsx."""
+    #     filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
         
-        if not os.path.exists(filename):
-            raise Exception(f"__update_open_sell_orders_sheet: {filename} does not exist!")
+    #     if not os.path.exists(filename):
+    #         raise Exception(f"__update_open_sell_orders_sheet: {filename} does not exist!")
         
-        if not self.has_result(order_result):
-            raise Exception(f"__update_open_sell_orders_sheet: {order_result}")
+    #     if not self.has_result(order_result):
+    #         raise Exception(f"__update_open_sell_orders_sheet: {order_result}")
         
-        df = pd.read_excel(filename, SheetNames.OPEN_SELL_ORDERS)
-        df.loc[len(df.index), OSOColumns.TXIDS]    = order_result[Dicts.RESULT][Data.TXID][0]
-        df.loc[len(df.index)-1, OSOColumns.PROFIT] = profit_potential
+    #     df = pd.read_excel(filename, SheetNames.OPEN_SELL_ORDERS)
+    #     df.loc[len(df.index), OSOColumns.TXIDS]    = order_result[Dicts.RESULT][Data.TXID][0]
+    #     df.loc[len(df.index)-1, OSOColumns.PROFIT] = profit_potential
         
-        self.__save_to_open_sell_orders(filename, df)
-        return
+    #     self.__save_to_open_sell_orders(filename, df)
+    #     return
     
     def __get_sell_order_txid(self, sell_order_result) -> str:
         if not self.has_result(sell_order_result):
@@ -186,7 +186,7 @@ class Sell(Base):
         if self.has_result(sell_order_result):
             profit_potential = entry_price * quantity * DCA_.TARGET_PROFIT_PERCENT/100
             G.log_file.print_and_log(f"sell: limit order placed {symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: ${profit_potential}")
-            self.__update_open_sell_orders_sheet(symbol_pair, sell_order_result, profit_potential)
+            # self.__update_open_sell_orders_sheet(symbol_pair, sell_order_result, profit_potential)
             
             sell_order_txid = sell_order_result[Dicts.RESULT][Data.TXID][0]
             
@@ -243,6 +243,6 @@ class Sell(Base):
                                ('{symbol_pair}', {sell_order_txid}, {profit_potential}, false, false, '{sell_order_txid}')")
         sql.close_db_connection()
 
-        self.__update_open_buy_orders(symbol_pair, filled_buy_order_txid)
-        self.__update_open_sell_orders_sheet(symbol_pair, sell_order_result, profit_potential)
+        # self.__update_open_buy_orders(symbol_pair, filled_buy_order_txid)
+        # self.__update_open_sell_orders_sheet(symbol_pair, sell_order_result, profit_potential)
         return

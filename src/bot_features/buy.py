@@ -65,11 +65,11 @@ class Buy(Base, TradingView):
         """Returns the next time to buy as specified in the config file."""
         return ( datetime.timedelta(minutes=Buy_.TIME_MINUTES) + datetime.datetime.now() ).strftime("%H:%M:%S")
 
-    def __create_excel_directory(self) -> None:
-        """Create the excel_files directory."""
-        if not os.path.exists(EXCEL_FILES_DIRECTORY):
-            os.mkdir(EXCEL_FILES_DIRECTORY)
-        return
+    # def __create_excel_directory(self) -> None:
+    #     """Create the excel_files directory."""
+    #     if not os.path.exists(EXCEL_FILES_DIRECTORY):
+    #         os.mkdir(EXCEL_FILES_DIRECTORY)
+    #     return
 
     def __set_pre_buy_variables(self, symbol: str) -> None:
         """Sets the buy variables for each symbol."""
@@ -84,33 +84,33 @@ class Buy(Base, TradingView):
             G.log_file.print_and_log(e=e)
         return
 
-    def save_open_buy_order_txid(self, buy_result: dict, symbol_pair: str, required_price: float, profit_potential: float) -> None:
-        """
-        Once a limit order is placed successfully, update the open_buy_orders sheet
-        by appending txid, required_price to the end of the txid, required price column respectively. 
+    # def save_open_buy_order_txid(self, buy_result: dict, symbol_pair: str, required_price: float, profit_potential: float) -> None:
+    #     """
+    #     Once a limit order is placed successfully, update the open_buy_orders sheet
+    #     by appending txid, required_price to the end of the txid, required price column respectively. 
 
-        """
-        if not self.has_result(buy_result):
-            return
+    #     """
+    #     if not self.has_result(buy_result):
+    #         return
         
-        filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
-        txid     = buy_result[Dicts.RESULT][Data.TXID][0]
+    #     filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
+    #     txid     = buy_result[Dicts.RESULT][Data.TXID][0]
 
-        if os.path.exists(filename):
-            df_so = pd.read_excel(filename,  SheetNames.SAFETY_ORDERS)
-            df_obo = pd.read_excel(filename, SheetNames.OPEN_BUY_ORDERS)
-            df_oso = pd.read_excel(filename, SheetNames.OPEN_SELL_ORDERS)
+    #     if os.path.exists(filename):
+    #         df_so = pd.read_excel(filename,  SheetNames.SAFETY_ORDERS)
+    #         df_obo = pd.read_excel(filename, SheetNames.OPEN_BUY_ORDERS)
+    #         df_oso = pd.read_excel(filename, SheetNames.OPEN_SELL_ORDERS)
 
-            # append to the end of the columns
-            df_obo.loc[len(df_obo),   OBOColumns.TXIDS]     = txid
-            df_obo.loc[len(df_obo)-1, OBOColumns.REQ_PRICE] = required_price
-            df_obo.loc[len(df_obo)-1, OBOColumns.PROFIT]    = profit_potential
+    #         # append to the end of the columns
+    #         df_obo.loc[len(df_obo),   OBOColumns.TXIDS]     = txid
+    #         df_obo.loc[len(df_obo)-1, OBOColumns.REQ_PRICE] = required_price
+    #         df_obo.loc[len(df_obo)-1, OBOColumns.PROFIT]    = profit_potential
 
-            with pd.ExcelWriter(filename, engine=OPENPYXL, mode=FileMode.WRITE_TRUNCATE) as writer:
-                df_so.to_excel(writer,  SheetNames.SAFETY_ORDERS,    index=False)
-                df_obo.to_excel(writer, SheetNames.OPEN_BUY_ORDERS,  index=False)
-                df_oso.to_excel(writer, SheetNames.OPEN_SELL_ORDERS, index=False)
-        return
+    #         with pd.ExcelWriter(filename, engine=OPENPYXL, mode=FileMode.WRITE_TRUNCATE) as writer:
+    #             df_so.to_excel(writer,  SheetNames.SAFETY_ORDERS,    index=False)
+    #             df_obo.to_excel(writer, SheetNames.OPEN_BUY_ORDERS,  index=False)
+    #             df_oso.to_excel(writer, SheetNames.OPEN_SELL_ORDERS, index=False)
+    #     return
 
     def __get_open_orders_on_symbol_pair(self, symbol: str) -> str:
         """Returns the number of open orders for self.symbol_pair."""
@@ -179,10 +179,10 @@ class Buy(Base, TradingView):
                         print()
                     
                     # keep track of the open order txid
-                    self.save_open_buy_order_txid(limit_order_result, self.symbol_pair, req_price, profit_potential)
+                    # self.save_open_buy_order_txid(limit_order_result, self.symbol_pair, req_price, profit_potential)
 
                     # once the limit order was entered successfully, delete it from the excel sheet.
-                    self.dca.update_safety_orders()
+                    # self.dca.update_safety_orders()
                     
                     # change order_placed to true in safety_orders table
                     sql.create_db_connection()
@@ -224,7 +224,7 @@ class Buy(Base, TradingView):
         sql = SQL()
         
         try:
-            if self.symbol_pair not in sql.get_bought_symbols():
+            if self.symbol_pair not in sql.get_symbols():
                 # If symbol_pair exists in database then the base order has already been placed!
                 base_order_result = self.__place_base_order(self.order_min, self.symbol_pair)
 
@@ -254,31 +254,31 @@ class Buy(Base, TradingView):
             G.log_file.print_and_log(e=e)
         return
 
-    def __get_symbols_from_directory(self) -> set:
-        """Get the symbol from EXCEL_FILES_DIRECTORY."""
-        bought_set = set()
-        try:
-            for filename in glob.iglob(EXCEL_FILES_DIRECTORY+"/*"):
-                if sys.platform == "win32":
-                    symbol = filename.split("/")[2].split("\\")[1].replace(".xlsx", "")
-                else:
-                    symbol = filename.split("/")[3].replace(".xlsx", "")
+    # def __get_symbols_from_directory(self) -> set:
+    #     """Get the symbol from EXCEL_FILES_DIRECTORY."""
+    #     bought_set = set()
+    #     try:
+    #         for filename in glob.iglob(EXCEL_FILES_DIRECTORY+"/*"):
+    #             if sys.platform == "win32":
+    #                 symbol = filename.split("/")[2].split("\\")[1].replace(".xlsx", "")
+    #             else:
+    #                 symbol = filename.split("/")[3].replace(".xlsx", "")
 
-                if symbol[:-3] not in self.exception_list:
-                    if symbol[-4:] == StableCoins.ZUSD:
-                        symbol = symbol[:-4]
-                    elif symbol[-3:] == StableCoins.USD:
-                        symbol = symbol[:-3]
-                else:
-                    symbol = symbol[:-3] 
+    #             if symbol[:-3] not in self.exception_list:
+    #                 if symbol[-4:] == StableCoins.ZUSD:
+    #                     symbol = symbol[:-4]
+    #                 elif symbol[-3:] == StableCoins.USD:
+    #                     symbol = symbol[:-3]
+    #             else:
+    #                 symbol = symbol[:-3] 
                 
-                bought_set.add(symbol)
-        except Exception as e:
-            G.log_file.print_and_log(e=e)
-        return bought_set
+    #             bought_set.add(symbol)
+    #     except Exception as e:
+    #         G.log_file.print_and_log(e=e)
+    #     return bought_set
 
     def __update_bought_set(self) -> set:
-        """Get all the symbol names from the EXCEL_FILES_DIRECTORY
+        """Get all the symbol names from the database
             and create the set of coins we are currently buying."""
         bought_set = set()
         sql        = SQL()
@@ -378,17 +378,16 @@ class Buy(Base, TradingView):
         try:
             symbol_pair = self.get_tradable_asset_pair(symbol)
             txid_set    = set()
-            bought_set  = set()
             sql         = SQL()
             
             sql.create_db_connection()
-            rs = sql.query(f"SELECT symbol_pair FROM safety_orders WHERE symbol_pair='{symbol_pair}' LIMIT 1")
+            result_set = sql.query(f"SELECT symbol_pair FROM safety_orders WHERE symbol_pair='{symbol_pair}' LIMIT 1")
             sql.close_db_connection()
             
-            for symbol in rs.fetchone():
-                bought_set.add(symbol[0])
+            if result_set.fetchone() is None:
+                return
             
-            if symbol_pair not in bought_set:
+            if symbol_pair not in result_set.fetchone()[0]:
                 return
             
             time.sleep(1)
@@ -399,10 +398,10 @@ class Buy(Base, TradingView):
                 return
             
             sql.create_db_connection()
-            rs = sql.query(f"SELECT obo_txid FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
+            result_set = sql.query(f"SELECT obo_txid FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
             sql.close_db_connection()
             
-            for txid in rs.fetchall():
+            for txid in result_set.fetchall():
                 txid_set.add(txid[0])
 
             for trade_txid, dictionary in self.trade_history[Dicts.RESULT][Data.TRADES].items():
@@ -445,7 +444,7 @@ class Buy(Base, TradingView):
         print("buy_set:", sorted(buy_set))
         
         sql = SQL()
-        bought_set = sql.get_bought_symbols()
+        bought_set = sql.get_symbols()
         Buy_.SET   = set(sorted(bought_set.union(buy_set)))
         return
 
@@ -512,7 +511,7 @@ class Buy(Base, TradingView):
         self.__init_loop_variables()
         bought_set = set()
 
-        # sql        = SQL()
+        # sql = SQL()
         # sql.create_db_connection()
         # sql.drop_all_tables()
         # sql.create_tables()

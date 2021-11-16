@@ -119,13 +119,41 @@ class SQL():
             self.update(q)
         return
 
-    def get_bought_symbols(self) -> set:
+    def get_symbols(self) -> set:
         bought_set = set()
         self.create_db_connection()
         result_set = self.query("SELECT symbol_pair FROM safety_orders")
         self.close_db_connection()
         
+        
         for symbol_pair in result_set.fetchall():
+            
+            
+    #             if symbol[:-3] not in self.exception_list:
+    #                 if symbol[-4:] == StableCoins.ZUSD:
+    #                     symbol = symbol[:-4]
+    #                 elif symbol[-3:] == StableCoins.USD:
+    #                     symbol = symbol[:-3]
+    #             else:
+    #                 symbol = symbol[:-3]             
+            
             bought_set.add(symbol_pair[0])
         return bought_set
+    
+    
+    
+    ###############################################################
+    ###############################################################
+    ###############################################################
+    
+    # TOOO!!!!!!!!!!!!!!!!!!
+    
+    def has_safety_order_table(self):
+        return
+    
+    def load_safety_order_table(self) -> None:
+        # AFTER PULLING SAFETY_ORDERS_TABLE FROM DATABASE, CONVERT TO DATAFRAME!
+        # self.safety_order_table = pd.read_excel(self.file_path, SheetNames.SAFETY_ORDERS)
+        return
+    
         
