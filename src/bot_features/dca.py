@@ -1,7 +1,6 @@
 """dca.py - DCA is a dollar cost averaging technique. 
 This bot uses DCA in order lower the average buy price for a purchased coin."""
 
-import os
 import pandas as pd
 
 from pprint                    import pprint
@@ -11,7 +10,7 @@ from my_sql.sql                import SQL
 
 
 class DCA(DCA_):
-    def __init__(self, symbol_pair: str, order_min: float, bid_price: float):
+    def __init__(self, symbol_pair: str, symbol: str, order_min: float, bid_price: float):
         self.percentage_deviation_levels:       list         = [ ]
         self.price_levels:                      list         = [ ]
         self.quantities:                        list         = [ ]
@@ -20,6 +19,7 @@ class DCA(DCA_):
         self.required_price_levels:             list         = [ ]
         self.required_change_percentage_levels: list         = [ ]
         self.profit_levels:                     list         = [ ]
+        self.symbol:                            str          = symbol
         self.symbol_pair:                       str          = symbol_pair
         self.bid_price:                         float        = bid_price
         self.order_min:                         float        = order_min
@@ -188,66 +188,28 @@ class DCA(DCA_):
             prev += self.quantities[i]
         return
 
-    def __load_safety_order_table(self) -> None:
-        """Uses a DataFrame to load the .xlsx file associated with the symbol into memory."""
-        # AFTER PULLING SAFETY_ORDERS_TABLE FROM DATABASE, CONVERT TO DATAFRAME!
-        # self.safety_order_table = pd.read_excel(self.file_path, SheetNames.SAFETY_ORDERS)
-        sql = SQL()
-        sql.create_db_connection()
-        query_result = sql.query(f"SELECT * FROM safety_orders WHERE symbol_pair='{self.symbol_pair}'")
-        sql.close_db_connection()
-        self.safety_order_table = pd.read_table()
-        return
-
     def __set_safety_order_table(self) -> None:
         """Set the Dataframe with the values calculated in previous functions."""
         order_numbers = [i for i in range(1, DCA_.SAFETY_ORDERS_MAX+1)]
 
-        self.safety_order_table = pd.DataFrame({
-            SOColumns.SAFETY_ORDER_NO: order_numbers,
-            SOColumns.DEVIATION:       self.percentage_deviation_levels,
-            SOColumns.QUANTITY:        self.quantities,
-            SOColumns.TOTAL_QUANTITY:  self.total_quantities,
-            SOColumns.PRICE:           self.price_levels,
-            SOColumns.AVG_PRICE:       self.average_price_levels,
-            SOColumns.REQ_PRICE:       self.required_price_levels,
-            SOColumns.REQ_CHANGE_PERC: self.required_change_percentage_levels,
-            SOColumns.PROFIT:          self.profit_levels})
-        
         sql = SQL()
         sql.create_db_connection()
         for i in range(DCA_.SAFETY_ORDERS_MAX):
-            sql.update(f"""INSERT INTO safety_orders {sql.so_columns} VALUES 
-                               ('{self.symbol_pair}',          {order_numbers[i]},              {self.percentage_deviation_levels[i]},
-                               {self.quantities[i]},           {self.total_quantities[i]},      {self.price_levels[i]},
-                               {self.average_price_levels[i]}, {self.required_price_levels[i]}, {self.required_change_percentage_levels[i]},
-                               {self.profit_levels[i]},        false,                           so_key)""")
+            sql.update(f"""INSERT INTO safety_orders {sql.so_columns} VALUES (
+                '{self.symbol_pair}', 
+                '{self.symbol}', 
+                {order_numbers[i]}, 
+                {self.percentage_deviation_levels[i]},
+                {self.quantities[i]},
+                {self.total_quantities[i]},
+                {self.price_levels[i]},
+                {self.average_price_levels[i]}, 
+                {self.required_price_levels[i]}, 
+                {self.required_change_percentage_levels[i]},
+                {self.profit_levels[i]},        
+                false,                           
+                so_key)""")
         sql.close_db_connection()
-        return
-
-    def __create_excel_file(self) -> None:
-        with pd.ExcelWriter(self.file_path, engine=OPENPYXL, mode=FileMode.WRITE_TRUNCATE) as writer:
-            # create the safety order table sheet
-            self.safety_order_table.to_excel(writer, SheetNames.SAFETY_ORDERS, index=False)
-            
-            # create the open_orders sheet
-            df1 = pd.DataFrame(data={OBOColumns.TXIDS: [], OBOColumns.REQ_PRICE: [], OBOColumns.PROFIT: []})
-            df1.to_excel(writer, SheetNames.OPEN_BUY_ORDERS, index=False)
-
-            # create the sell_orders sheet
-            df2 = pd.DataFrame(data={OSOColumns.TXIDS: [], OSOColumns.PROFIT: []})
-            df2.to_excel(writer, SheetNames.OPEN_SELL_ORDERS, index=False)
-        return
-
-    def __save_safety_order_table(self) -> None:
-        """Writes self.safety_order_table to excel file"""
-        df2 = pd.read_excel(self.file_path, SheetNames.OPEN_BUY_ORDERS)
-        df3 = pd.read_excel(self.file_path, SheetNames.OPEN_SELL_ORDERS)
-
-        with pd.ExcelWriter(self.file_path, engine=OPENPYXL, mode=FileMode.WRITE_TRUNCATE) as writer:
-            self.safety_order_table.to_excel(writer, SheetNames.SAFETY_ORDERS, index=False)
-            df2.to_excel(writer, SheetNames.OPEN_BUY_ORDERS, index=False)
-            df3.to_excel(writer, SheetNames.OPEN_SELL_ORDERS, index=False)
         return
 
     def __set_buy_orders(self) -> None:
@@ -271,20 +233,3 @@ class DCA(DCA_):
         for i in range(iterations):
             self.safety_orders[prices[i]] = quantities[i]
         return
-
-    def __remove_rows(self) -> None:
-        """1. load the .xlsx file into a dataframe.
-           2. drop the unnamed column.
-           3. drop the safety order that we just put into the exchange. (this will always be the first row in the excel sheet)
-           4. save the new table with the dropped rows."""
-        safety_order_table = pd.read_excel(self.file_path, SheetNames.SAFETY_ORDERS)
-        safety_order_table.drop(0, inplace=True)
-        self.safety_order_table = safety_order_table
-        return
-
-    def update_safety_orders(self) -> None:
-        """Rewrites the excel file with the dropped rows."""
-        self.__remove_rows()
-        self.__save_safety_order_table()
-        return
-        

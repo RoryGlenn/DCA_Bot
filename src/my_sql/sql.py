@@ -1,11 +1,9 @@
 import mysql.connector
+
+from mysql.connector.connection_cext import CMySQLConnection
 from mysql.connector.cursor          import MySQLCursorBuffered
 from mysql.connector.cursor_cext     import CMySQLCursor
-from mysql.connector.connection_cext import CMySQLConnection
 
-from kraken_files.kraken_enums import StableCoins
-
-from my_sql.safety_order_table import SOT 
 
 class SQL():
     def __init__(self, host_name: str = "localhost", user_name: str = "root", user_password: str = "12345", db_name: str = "dca") -> None:
@@ -13,9 +11,9 @@ class SQL():
         self.user_name:     str              = user_name
         self.user_password: str              = user_password
         self.db_name:       str              = db_name
-        self.so_columns:    str              = "(symbol_pair, safety_order_no, deviation, quantity, total_quantity, price, average_price, required_price, required_change, profit, order_placed, so_key)"
-        self.obo_columns:   str              = "(symbol_pair, required_price, profit, filled, obo_txid)"
-        self.oso_columns:   str              = "(symbol_pair, profit, cancelled, filled, oso_txid)"
+        self.so_columns:    str              = "(symbol_pair, symbol, safety_order_no, deviation, quantity, total_quantity, price, average_price, required_price, required_change, profit, order_placed, so_key)"
+        self.obo_columns:   str              = "(symbol_pair, symbol, required_price, profit, filled, obo_txid)"
+        self.oso_columns:   str              = "(symbol_pair, symbol, profit, cancelled, filled, oso_txid)"
         self.connection:    CMySQLConnection = None
         return
 
@@ -128,22 +126,13 @@ class SQL():
 
     def get_symbols(self) -> set:
         bought_set = set()
-        exception_list = ["XTZ"]
         
         self.create_db_connection()
-        result_set = self.query("SELECT symbol_pair FROM safety_orders")
+        result_set = self.query("SELECT symbol FROM safety_orders")
         self.close_db_connection()
         
         for symbol in result_set.fetchall():
-            symbol = symbol[0]
-            if symbol[:-3] not in exception_list:
-                if symbol[-4:] == StableCoins.ZUSD:
-                    symbol = symbol[:-4]
-                elif symbol[-3:] == StableCoins.USD:
-                    symbol = symbol[:-3]
-            else:
-                symbol = symbol[:-3]
-            bought_set.add(symbol)
+            bought_set.add(symbol[0])
         return bought_set
     
     
@@ -154,6 +143,21 @@ class SQL():
     
     # TOOO!!!!!!!!!!!!!!!!!!
     
-    def has_safety_order_table(self):
-        return
     
+    def get_profit(self, table_name: str, conditions: str) -> MySQLCursorBuffered:
+        self.sql.create_db_connection()
+        result_set = self.sql.query(f"SELECT profit FROM {table_name} {conditions}")
+        self.sql.close_db_connection()
+        return result_set
+        
+    
+    def con_update(self, table_name: str, cond1: str, cond2: str) -> None:
+        self.create_db_connection()
+        self.update(f"UPDATE {table_name} SET {cond1} WHERE {cond2}")
+        self.close_db_connection()
+        return
+
+    def con_insert(self, stmt: str):
+        self.create_db_connection()
+        self.update(stmt)
+        self.close_db_connection()
