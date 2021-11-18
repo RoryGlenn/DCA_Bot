@@ -166,7 +166,7 @@ class Buy(Base, TradingView):
         sql = SQL()
         
         try:
-            if self.symbol_pair not in sql.con_get_symbols():
+            if self.symbol_pair not in sql.con_get_symbol_pairs():
                 # If symbol_pair exists in database then the base order has already been placed!
                 base_order_result = self.__place_base_order(self.order_min, self.symbol_pair)
 
@@ -185,7 +185,7 @@ class Buy(Base, TradingView):
             else:
                 # Symbol is in EXCEL_DIRECTORY therefore, we have bought it before.
                 # Load up the .xlsx file and continue to place safety orders
-                self.dca = DCA(self.symbol_pair, 0, 0)
+                self.dca = DCA(self.symbol_pair, symbol, 0, 0)
 
             num_open_orders = self.__get_open_orders_on_symbol_pair(symbol) # change this to pull from open_buy_order table
             
@@ -204,6 +204,7 @@ class Buy(Base, TradingView):
         
         sql.create_db_connection()
         result_set = sql.query("SELECT symbol_pair FROM safety_orders")
+        result_set.close()
         sql.close_db_connection()
         
         for symbol in result_set.fetchall():
@@ -231,6 +232,7 @@ class Buy(Base, TradingView):
             
             sql.create_db_connection()
             result_set = sql.query(f"SELECT symbol_pair FROM safety_orders WHERE symbol_pair='{symbol_pair}'")
+            result_set.close()
             sql.close_db_connection()
             
             if result_set.rowcount <= 0:
@@ -251,6 +253,7 @@ class Buy(Base, TradingView):
 
             sql.create_db_connection()
             result_set = sql.query(f"SELECT oso_txid FROM open_sell_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
+            result_set.close()
             sql.close_db_connection()
             
             for txid in result_set.fetchall():
@@ -264,11 +267,13 @@ class Buy(Base, TradingView):
                     # the sell order has filled and we have completed the entire process!!!
                     sql.create_db_connection()
                     result_set = sql.query(f"SELECT profit FROM open_sell_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
+                    result_set.close()
                     sql.close_db_connection()                    
                     profit = result_set.fetchall()
                     
                     sql.create_db_connection()
                     result_set = sql.query(f"SELECT obo_txid FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
+                    result_set.close()
                     sql.close_db_connection()
                     open_buy_orders = result_set.fetchall()
                     
@@ -451,6 +456,9 @@ class Buy(Base, TradingView):
             self.wait(message=f"buy_loop: Waiting till {self.__get_buy_time()} to buy", timeout=Buy_.TIME_MINUTES*60)
             self.__set_buy_set(bought_set)
 
+            Buy_.SET = set()
+            Buy_.SET.add("XXLM")
+
             for symbol in Buy_.SET:
                 self.wait(message=f"buy_loop: checking {symbol}", timeout=Nap.LONG)
                 self.__update_open_buy_orders(symbol)
@@ -458,7 +466,7 @@ class Buy(Base, TradingView):
                 self.__set_pre_buy_variables(symbol)
                 
                 # if symbol is in the bought list, we don't care if it is a good time to buy or not, we need to manage it
-                if not self.is_buy and symbol not in bought_set: continue
+                # if not self.is_buy and symbol not in bought_set: continue
                 self.__set_post_buy_variables(symbol)
                 self.__place_limit_orders(symbol)
         return

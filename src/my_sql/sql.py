@@ -129,31 +129,51 @@ class SQL():
         
         self.create_db_connection()
         result_set = self.query("SELECT symbol FROM safety_orders")
+        result_set.close()
         self.close_db_connection()
         
         for symbol in result_set.fetchall():
             bought_set.add(symbol[0])
         return bought_set
     
+    
+    def con_get_symbol_pairs(self) -> set:
+        """Gets the symbol pairs that are currently in the database under the safety_orders table."""
+        bought_set = set()
+        
+        self.create_db_connection()
+        result_set = self.query("SELECT symbol_pair FROM safety_orders")
+        result_set.close()
+        self.close_db_connection()
+        
+        for symbol in result_set.fetchall():
+            bought_set.add(symbol[0])
+        return bought_set
+    
+    
     def con_get_profit(self, table_name: str, conditions: str) -> MySQLCursorBuffered:
         self.create_db_connection()
         result_set = self.query(f"SELECT profit FROM {table_name} {conditions}")
+        result_set.close()
         self.close_db_connection()
         return result_set
     
     def con_update(self, table_name: str, cond1: str, cond2: str) -> None:
         self.create_db_connection()
-        self.update(f"UPDATE {table_name} SET {cond1} WHERE {cond2}")
+        cursor = self.update(f"UPDATE {table_name} SET {cond1} WHERE {cond2}")
+        cursor.close()
         self.close_db_connection()
         return
 
     def con_insert(self, stmt: str):
         self.create_db_connection()
-        self.update(stmt)
+        cursor = self.update(stmt)
+        cursor.close()
         self.close_db_connection()
         
     def con_get_required_price(self, table_name: str, symbol_pair: str) -> float:
         self.create_db_connection()
         result_set = self.query(f"SELECT required_price FROM {table_name} WHERE symbol_pair='{symbol_pair}' AND order_placed=false LIMIT 1")
+        result_set.close()
         self.close_db_connection()
         return result_set.fetchone()[0] if result_set.rowcount > 0 else -1
