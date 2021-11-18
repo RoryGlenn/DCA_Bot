@@ -1,10 +1,6 @@
 
 """sell.py: Sells coin on kraken exchange based on users config file."""
 
-from mysql.connector.cursor import MySQLCursor, MySQLCursorBuffered
-import pandas as pd
-import os
-
 from pprint                    import pprint
 from kraken_files.kraken_enums import *
 from util.globals              import G
@@ -58,52 +54,32 @@ class Sell(Base):
             sql.close_db_connection()
         return
     
+    
     def __place_sell_limit_order(self, symbol_pair: str, filled_buy_order_txid: str) -> dict:
         """
         Place limit order to sell the coin.
         
         """
-        required_price    = self.round_decimals_down(self.__get_required_price(symbol_pair), self.__get_max_price_prec(symbol_pair))
-        max_prec          = self.__get_max_volume_prec(symbol_pair)
-        qty_owned         = self.__get_quantity_owned(symbol_pair)
-        qty_to_sell       = self.round_decimals_down(qty_owned, max_prec)
-        sell_order_result = self.limit_order(Trade.SELL, qty_to_sell, symbol_pair, required_price)
+        sql = SQL()
+
+        nonrounded_req_price = sql.con_get_required_price("safety_orders", symbol_pair)
+        max_prec             = self.__get_max_price_prec(symbol_pair)
+        required_price       = self.round_decimals_down(nonrounded_req_price, max_prec)
+        max_prec             = self.__get_max_volume_prec(symbol_pair)
+        qty_owned            = self.__get_quantity_owned(symbol_pair)
+        qty_to_sell          = self.round_decimals_down(qty_owned, max_prec)
+        sell_order_result    = self.limit_order(Trade.SELL, qty_to_sell, symbol_pair, required_price)
         
         if self.has_result(sell_order_result):
-            sql = SQL()
             sql.create_db_connection()
             result_set = sql.query(f"SELECT profit FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND obo_txid='{filled_buy_order_txid}'")
             sql.close_db_connection()
+            
             profit_potential = result_set.fetchone()[0] if result_set.rowcount > 0 else 0
             G.log_file.print_and_log(f"sell: limit order placed {symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: ${profit_potential}")
         else:
             G.log_file.print_and_log(f"sell: {symbol_pair} {sell_order_result[Dicts.ERROR]}")
         return sell_order_result
-
-    def __update_open_buy_orders(self, symbol_pair: str, filled_buy_order_txid: str) -> None:
-        """If the first open_buy_order has been filled and the sell order has been placed successfully,
-        we need to remove the first row in the open_buy_orders sheet as it is no longer open and needed 
-        to place the next sell limit order."""
-
-        # filename = EXCEL_FILES_DIRECTORY + "/" + symbol_pair + ".xlsx"
-        
-        # if not os.path.exists(filename):
-        #     raise Exception(f"__update_open_buy_orders: {filename} does not exist!")
-        
-        # df = pd.read_excel(filename, SheetNames.OPEN_BUY_ORDERS)
-        # df.drop(0, inplace=True)
-        # self.__save_to_open_buy_orders(symbol_pair, df)
-
-        # mark filled as true
-        # get the txid of which order was filled, then use that as the key to mark as filled        
-        sql = SQL()
-        sql.create_db_connection()
-        result_set: MySQLCursorBuffered = sql.execute_query(f"SELECT * FROM open_buy_orders WHERE txid='{filled_buy_order_txid}'")
-        
-        for x in result_set:
-            sql.execute_update("INSERT INTO open_buy_orders SET filled=true WHERE filled=false")
-        sql.close_db_connection()
-        return
 
     def __get_sell_order_txid(self, sell_order_result) -> str:
         if not self.has_result(sell_order_result):
@@ -161,6 +137,8 @@ class Sell(Base):
         sql.create_db_connection()
         result_set = sql.query(f"SELECT profit FROM open_buy_orders WHERE obo_txid='{filled_buy_order_txid}'")
         sql.close_db_connection()
+        profit_potential = result_set.fetchone()[0] if result_set.rowcount > 0 else 0
+        result_set.close()
         
         # 2. cancel open_sell_order
         self.__cancel_open_sell_order(symbol_pair)
@@ -174,7 +152,6 @@ class Sell(Base):
         sell_order_txid   = self.__get_sell_order_txid(sell_order_result)
         
         # insert sell order into sql
-        profit_potential = result_set.fetchone()[0] if result_set.rowcount > 0 else 0
         sql.update(f"INSERT INTO open_sell_orders {sql.oso_columns} VALUES \
                                ('{symbol_pair}', '{symbol}', {sell_order_txid}, {profit_potential}, false, false, '{sell_order_txid}')")
         sql.close_db_connection()

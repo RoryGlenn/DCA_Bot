@@ -62,7 +62,6 @@ class Buy(Base, TradingView):
     def __set_pre_buy_variables(self, symbol: str) -> None:
         """Sets the buy variables for each symbol."""
         try:
-            self.wait(message=f"buy_loop: checking {symbol}", timeout=Nap.LONG)
             self.symbol_pair = self.get_tradable_asset_pair(symbol)
             self.bid_price   = self.get_bid_price(self.symbol_pair)
             alt_name         = self.get_alt_name(symbol)
@@ -124,7 +123,7 @@ class Buy(Base, TradingView):
                     
                     try:
                         obo_txid         = limit_order_result[Dicts.RESULT][Data.TXID][0]
-                        profit_potential = sql.get_profit("safety_orders", f"WHERE symbol_pair='{self.symbol_pair}' AND order_placed=false LIMIT 1").fetchone()[0]
+                        profit_potential = sql.con_get_profit("safety_orders", f"WHERE symbol_pair='{self.symbol_pair}' AND order_placed=false LIMIT 1").fetchone()[0]
                     except Exception as e:
                         print()
                         print(e)
@@ -167,7 +166,7 @@ class Buy(Base, TradingView):
         sql = SQL()
         
         try:
-            if self.symbol_pair not in sql.get_symbols():
+            if self.symbol_pair not in sql.con_get_symbols():
                 # If symbol_pair exists in database then the base order has already been placed!
                 base_order_result = self.__place_base_order(self.order_min, self.symbol_pair)
 
@@ -368,7 +367,7 @@ class Buy(Base, TradingView):
             else:
                 buy_set.add(symbol)
         
-        bought_set = sql.get_symbols()
+        bought_set = sql.con_get_symbols()
         Buy_.SET   = set(sorted(bought_set.union(buy_set)))
         print("Buy_.SET:", Buy_.SET)
         return
@@ -427,6 +426,15 @@ class Buy(Base, TradingView):
                             break
         return bought_price
 
+
+    def nuke_and_restart(self):
+        sql = SQL()
+        sql.create_db_connection()
+        sql.drop_all_tables()
+        sql.create_tables()
+        sql.close_db_connection()
+        self.cancel_all_orders()
+
 ##################################################################################################################################
 ### BUY_LOOP
 ##################################################################################################################################
@@ -435,22 +443,16 @@ class Buy(Base, TradingView):
         """The main function for trading coins."""
         self.__init_loop_variables()
         bought_set = set()
-
-        # sql = SQL()
-        # sql.create_db_connection()
-        # sql.drop_all_tables()
-        # sql.create_tables()
-        # sql.close_db_connection()
-        # self.cancel_all_orders()
+        
+        # self.nuke_and_restart()
 
         while True:
             bought_set = self.__update_bought_set()
             self.wait(message=f"buy_loop: Waiting till {self.__get_buy_time()} to buy", timeout=Buy_.TIME_MINUTES*60)
             self.__set_buy_set(bought_set)
 
-            # Buy_.SET.add("MANA")
-
             for symbol in Buy_.SET:
+                self.wait(message=f"buy_loop: checking {symbol}", timeout=Nap.LONG)
                 self.__update_open_buy_orders(symbol)
                 self.__update_completed_trades(symbol)
                 self.__set_pre_buy_variables(symbol)

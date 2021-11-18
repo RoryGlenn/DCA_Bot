@@ -124,7 +124,7 @@ class SQL():
             self.update(q)
         return
 
-    def get_symbols(self) -> set:
+    def con_get_symbols(self) -> set:
         bought_set = set()
         
         self.create_db_connection()
@@ -135,21 +135,11 @@ class SQL():
             bought_set.add(symbol[0])
         return bought_set
     
-    
-    
-    ###############################################################
-    ###############################################################
-    ###############################################################
-    
-    # TOOO!!!!!!!!!!!!!!!!!!
-    
-    
-    def get_profit(self, table_name: str, conditions: str) -> MySQLCursorBuffered:
-        self.sql.create_db_connection()
-        result_set = self.sql.query(f"SELECT profit FROM {table_name} {conditions}")
-        self.sql.close_db_connection()
+    def con_get_profit(self, table_name: str, conditions: str) -> MySQLCursorBuffered:
+        self.create_db_connection()
+        result_set = self.query(f"SELECT profit FROM {table_name} {conditions}")
+        self.close_db_connection()
         return result_set
-        
     
     def con_update(self, table_name: str, cond1: str, cond2: str) -> None:
         self.create_db_connection()
@@ -161,3 +151,9 @@ class SQL():
         self.create_db_connection()
         self.update(stmt)
         self.close_db_connection()
+        
+    def con_get_required_price(self, table_name: str, symbol_pair: str) -> float:
+        self.create_db_connection()
+        result_set = self.query(f"SELECT required_price FROM {table_name} WHERE symbol_pair='{symbol_pair}' AND order_placed=false LIMIT 1")
+        self.close_db_connection()
+        return result_set.fetchone()[0] if result_set.rowcount > 0 else -1
