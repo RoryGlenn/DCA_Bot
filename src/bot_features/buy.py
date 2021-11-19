@@ -31,7 +31,6 @@ class Buy(Base, TradingView):
         super().__init__(parameter_dict)
         self.account_balance:         dict        = { }
         self.kraken_assets_dict:      dict        = { }
-        self.trade_history:           dict        = { }
         self.exception_list:          list        = ["XTZ"]
         self.bid_price:               float       = 0.0
         self.quantity_to_buy:         float       = 0.0
@@ -70,19 +69,6 @@ class Buy(Base, TradingView):
             G.log_file.print_and_log(e=e)
         return
 
-    def __get_open_orders_on_symbol_pair(self, symbol: str) -> str:
-        """Returns the number of open orders for self.symbol_pair."""
-        count           = 0
-        # alt_symbol_pair = self.get_alt_name(symbol) + StableCoins.USD
-
-        # if self.has_result(self.open_orders):
-        #     for _, dictionary in self.open_orders[Dicts.RESULT][Dicts.OPEN].items():
-        #         if dictionary[Dicts.DESCR][Data.PAIR] == alt_symbol_pair:
-        #             count += 1
-        
-        
-        return count
-
     def __set_post_buy_variables(self, symbol: str) -> None:
         """Sets variables in order to make an buy order."""
         try:
@@ -106,8 +92,6 @@ class Buy(Base, TradingView):
         """Place safety orders."""
         sql = SQL()
         
-        # MANAUSD safety orders are being placed TWICE instead of only once.
-        
         for price, quantity in self.dca.safety_orders.items():
             try:
                 sql_req_price      = sql.con_get_required_price("safety_orders", self.symbol_pair)
@@ -124,10 +108,7 @@ class Buy(Base, TradingView):
                         obo_txid         = limit_order_result[Dicts.RESULT][Data.TXID][0]
                         profit_potential = sql.con_get_profit("safety_orders", f"WHERE symbol_pair='{self.symbol_pair}' AND order_placed=false LIMIT 1").fetchone()[0]
                     except Exception as e:
-                        print()
                         print(e)
-                        print("yeah this shit happened again")
-                        print()
                     
                     # change order_placed to true in safety_orders table
                     sql.con_update_set("safety_orders", "order_placed=true", "order_placed=false LIMIT 1")
@@ -138,6 +119,8 @@ class Buy(Base, TradingView):
                     if limit_order_result[Dicts.ERROR][0] == KError.INSUFFICIENT_FUNDS:
                         G.log_file.print_and_log(f"buy_loop: {self.symbol_pair} Not enough USD to place remaining safety orders.")
                         return
+                    elif limit_order_result[Dicts.ERROR][0] == KError.INVALID_VOLUME:
+                        G.log_file.print_and_log(f"buy_loop: {self.symbol_pair} volume error.")
                     
                     G.log_file.print_and_log(message=f"buy_loop: {limit_order_result}", money=True)
             except Exception as e:
@@ -223,7 +206,7 @@ class Buy(Base, TradingView):
           4. start the process all over again!
         
         """
-        print("updating completed trades")
+        # print("updating completed trades")
         
         try:
             symbol_pair           = self.get_tradable_asset_pair(symbol)
@@ -231,10 +214,7 @@ class Buy(Base, TradingView):
             open_sell_order_txids = set()
             sql                   = SQL()
             
-            sql.create_db_connection()
-            result_set = sql.query(f"SELECT symbol_pair FROM safety_orders WHERE symbol_pair='{symbol_pair}'")
-            result_set.close()
-            sql.close_db_connection()
+            result_set = sql.con_query(f"SELECT symbol_pair FROM safety_orders WHERE symbol_pair='{symbol_pair}'")
             
             if result_set.rowcount <= 0:
                 return
@@ -247,35 +227,26 @@ class Buy(Base, TradingView):
             
             time.sleep(1)
             filled_sell_order_txids = dict()
-            # self.trade_history      = self.get_trades_history()
+            trade_history           = self.get_trades_history()
 
-            if not self.has_result(self.trade_history):
+            if not self.has_result(trade_history):
                 return
 
-            sql.create_db_connection()
-            result_set = sql.query(f"SELECT oso_txid FROM open_sell_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
-            result_set.close()
-            sql.close_db_connection()
+            result_set = sql.con_query(f"SELECT oso_txid FROM open_sell_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
             
             for txid in result_set.fetchall():
                 open_sell_order_txids.add(txid[0])
 
-            for trade_txid, dictionary in self.trade_history[Dicts.RESULT][Data.TRADES].items():
+            for trade_txid, dictionary in trade_history[Dicts.RESULT][Data.TRADES].items():
                 filled_sell_order_txids[dictionary[Data.ORDER_TXID]] = trade_txid
 
             for sell_order_txid in open_sell_order_txids:
                 if sell_order_txid[0] in filled_sell_order_txids.keys():
                     # the sell order has filled and we have completed the entire process!!!
-                    sql.create_db_connection()
-                    result_set = sql.query(f"SELECT profit FROM open_sell_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
-                    result_set.close()
-                    sql.close_db_connection()                    
-                    profit = result_set.fetchall()
+                    result_set = sql.con_query(f"SELECT profit FROM open_sell_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")        
+                    profit     = result_set.fetchall()
                     
-                    sql.create_db_connection()
-                    result_set = sql.query(f"SELECT obo_txid FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
-                    result_set.close()
-                    sql.close_db_connection()
+                    result_set = sql.con_query(f"SELECT obo_txid FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
                     open_buy_orders = result_set.fetchall()
                     
                     for txid in open_buy_orders:
@@ -304,17 +275,14 @@ class Buy(Base, TradingView):
         
         """
         
-        print("updating open buy orders")
+        # print("updating open buy orders")
         
         try:
             symbol_pair = self.get_tradable_asset_pair(symbol)
             txid_set    = set()
             sql         = SQL()
             
-            sql.create_db_connection()
-            result_set = sql.query(f"SELECT symbol_pair FROM safety_orders WHERE symbol_pair='{symbol_pair}' LIMIT 1") # close result_set
-            result_set.close()
-            sql.close_db_connection()
+            result_set = sql.con_query(f"SELECT symbol_pair FROM safety_orders WHERE symbol_pair='{symbol_pair}' LIMIT 1")
     
             if result_set.rowcount <= 0:
                 return
@@ -324,20 +292,17 @@ class Buy(Base, TradingView):
             
             time.sleep(1)
             filled_trades_order_txids = dict()
-            # self.trade_history        = self.get_trades_history()
+            trade_history        = self.get_trades_history()
             
-            if not self.has_result(self.trade_history):
+            if not self.has_result(trade_history):
                 return
             
-            sql.create_db_connection()
-            result_set = sql.query(f"SELECT obo_txid FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
-            result_set.close()
-            sql.close_db_connection()
+            result_set = sql.con_query(f"SELECT obo_txid FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
             
             for txid in result_set.fetchall():
                 txid_set.add(txid[0])
             
-            for trade_txid, dictionary in self.trade_history[Dicts.RESULT][Data.TRADES].items():
+            for trade_txid, dictionary in trade_history[Dicts.RESULT][Data.TRADES].items():
                 filled_trades_order_txids[dictionary[Data.ORDER_TXID]] = trade_txid
             
             for obo_txid in txid_set:
@@ -465,7 +430,6 @@ class Buy(Base, TradingView):
             
             for symbol in Buy_.SET:
                 self.wait(message=f"buy_loop: checking {symbol}", timeout=Nap.LONG)
-                self.trade_history = self.get_trades_history()
                 self.__update_open_buy_orders(symbol)
                 self.__update_completed_trades(symbol)
                 

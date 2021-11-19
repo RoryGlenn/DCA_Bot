@@ -57,6 +57,25 @@ class SQL():
             print(e)
         return cursor
     
+    def con_query(self, query: str) -> MySQLCursorBuffered:
+        try:
+            self.create_db_connection()
+            cursor: MySQLCursorBuffered = self.connection.cursor(buffered=True)
+            cursor.execute(query)
+        except Exception as e:
+            print(e)
+        
+        cursor.close()
+        self.close_db_connection()
+        return cursor    
+    
+    def con_update(self, query: str):
+        self.create_db_connection()
+        result_set = self.update(query)
+        result_set.close()
+        self.close_db_connection()
+        return
+    
     def con_update_set(self, table_name: str, cond1: str, cond2: str) -> None:
         self.create_db_connection()
         cursor = self.update(f"UPDATE {table_name} SET {cond1} WHERE {cond2}")
@@ -176,14 +195,14 @@ class SQL():
         
     def con_get_quantities(self, symbol_pair: str) -> list:
         self.create_db_connection()
-        result_set = self.query(f"SELECT price FROM safety_orders WHERE symbol_pair='{symbol_pair}' AND order_placed=false")
+        result_set = self.query(f"SELECT quantity FROM safety_orders WHERE symbol_pair='{symbol_pair}' AND order_placed=false")
         result_set.close()
         self.close_db_connection()
-        return [q[0] for q in result_set.fetchall()] if result_set.rowcount > 0 else []
+        return [quantity[0] for quantity in result_set.fetchall()] if result_set.rowcount > 0 else []
     
     def con_get_prices(self, symbol_pair: str) -> list:
         self.create_db_connection()
         result_set = self.query(f"SELECT price FROM safety_orders WHERE symbol_pair='{symbol_pair}' AND order_placed=false")
         result_set.close()
         self.close_db_connection()
-        return [p[0] for p in result_set.fetchall()] if result_set.rowcount > 0 else []
+        return [price[0] for price in result_set.fetchall()] if result_set.rowcount > 0 else []

@@ -38,9 +38,8 @@ class Sell(Base):
         
         txid_set = set()
         sql      = SQL()
-        sql.create_db_connection()
-        result_set = sql.query(f"SELECT oso_txid FROM open_sell_orders WHERE symbol_pair='{symbol_pair}' AND cancelled=false AND filled=false")
-        sql.close_db_connection()
+        
+        result_set = sql.con_query(f"SELECT oso_txid FROM open_sell_orders WHERE symbol_pair='{symbol_pair}' AND cancelled=false AND filled=false")
         
         for oso_txid in result_set.fetchall():
             txid_set.add(oso_txid[0])
@@ -49,9 +48,7 @@ class Sell(Base):
         # therefore, this for loop is skipped.
         for txid in txid_set:
             self.cancel_order(txid)
-            sql.create_db_connection()
-            result_set = sql.update(f"UPDATE open_sell_orders SET cancelled=true WHERE symbol_pair='{symbol_pair}' AND cancelled=false AND filled=false")
-            sql.close_db_connection()
+            sql.con_update(f"UPDATE open_sell_orders SET cancelled=true WHERE symbol_pair='{symbol_pair}' AND cancelled=false AND filled=false")
         return
     
     
@@ -71,11 +68,9 @@ class Sell(Base):
         sell_order_result    = self.limit_order(Trade.SELL, qty_to_sell, symbol_pair, required_price)
         
         if self.has_result(sell_order_result):
-            sql.create_db_connection()
-            result_set = sql.query(f"SELECT profit FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND obo_txid='{filled_buy_order_txid}'")
-            sql.close_db_connection()
+            result_set = sql.con_query(f"SELECT profit FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND obo_txid='{filled_buy_order_txid}'")
             
-            profit_potential = result_set.fetchone()[0] if result_set.rowcount > 0 else 0
+            profit_potential = round(result_set.fetchone()[0] if result_set.rowcount > 0 else 0, 6)
             G.log_file.print_and_log(f"sell: limit order placed {symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: ${profit_potential}")
         else:
             G.log_file.print_and_log(f"sell: {symbol_pair} {sell_order_result[Dicts.ERROR]}")
@@ -98,16 +93,13 @@ class Sell(Base):
         sell_order_result = self.limit_order(Trade.SELL, quantity, symbol_pair, required_price)
         
         if self.has_result(sell_order_result):
-            profit_potential = entry_price * quantity * DCA_.TARGET_PROFIT_PERCENT/100
+            profit_potential = round(entry_price * quantity * DCA_.TARGET_PROFIT_PERCENT/100, 6)
             G.log_file.print_and_log(f"sell: limit order placed {symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: ${profit_potential}")
 
             sell_order_txid = sell_order_result[Dicts.RESULT][Data.TXID][0]
             
             sql = SQL()
-            sql.create_db_connection()
-            query = f"INSERT INTO open_sell_orders {sql.oso_columns} VALUES ('{symbol_pair}', '{symbol}', {profit_potential}, false, false, '{sell_order_txid}')"
-            sql.update(query)
-            sql.close_db_connection()
+            sql.con_update(f"INSERT INTO open_sell_orders {sql.oso_columns} VALUES ('{symbol_pair}', '{symbol}', {profit_potential}, false, false, '{sell_order_txid}')")
         else:
             G.log_file.print_and_log(f"place_sell_limit_base_order: {symbol_pair} {sell_order_result[Dicts.ERROR]}")
 
@@ -145,10 +137,6 @@ class Sell(Base):
         # insert sell order into sql
         sql.con_insert(f"INSERT INTO open_sell_orders {sql.oso_columns} VALUES ('{symbol_pair}', '{symbol}', {sell_order_txid}, {profit_potential}, false, false, '{sell_order_txid}')")
 
-        
-
         # update open_buy_orders table
         sql.con_update_set(SQLTable.OPEN_BUY_ORDERS, "filled=true", f"obo_txid='{filled_buy_order_txid}' AND filled=false")
-        
-        
         return

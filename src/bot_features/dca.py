@@ -1,8 +1,6 @@
 """dca.py - DCA is a dollar cost averaging technique. 
 This bot uses DCA in order lower the average buy price for a purchased coin."""
 
-import pandas as pd
-
 from pprint                    import pprint
 from kraken_files.kraken_enums import *
 from util.globals              import G
@@ -23,10 +21,7 @@ class DCA(DCA_):
         self.symbol_pair:                       str          = symbol_pair
         self.bid_price:                         float        = bid_price
         self.order_min:                         float        = order_min
-        self.safety_order_table:                pd.DataFrame = pd.DataFrame()
         self.safety_orders:                     dict         = { }
-        self.account_balance:                   dict         = { }
-        self.trade_history:                     dict         = { }
         self.__start()
 
     def __start(self) -> None:
@@ -67,9 +62,10 @@ class DCA(DCA_):
         sql = SQL()
         sql.create_db_connection()
         result_set = sql.query(f"SELECT * FROM safety_orders WHERE symbol_pair='{self.symbol_pair}'")
+        result_set.close()
         sql.close_db_connection()
 
-        if result_set.fetchone() is None:
+        if result_set.rowcount <= 0:
             return False
         
         if len(result_set.fetchall()) <= 0:
@@ -220,14 +216,9 @@ class DCA(DCA_):
         prices     = sql.con_get_prices(self.symbol_pair)
         iterations = DCA_.SAFETY_ORDERS_ACTIVE_MAX
 
-        pprint(quantities)
-        pprint(prices)
-
         if len(prices) < DCA_.SAFETY_ORDERS_ACTIVE_MAX:
             iterations = len(prices)
 
         for i in range(iterations):
             self.safety_orders[prices[i]] = quantities[i]
-        
-        pprint(self.safety_orders)
         return
