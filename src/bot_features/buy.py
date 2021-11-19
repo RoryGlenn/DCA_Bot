@@ -418,15 +418,16 @@ class Buy(Base, TradingView):
         self.__init_loop_variables()
         bought_set = set()
         
-        self.nuke_and_restart()
+        # self.nuke_and_restart()
+        
+        # sql = SQL()
+        # sql.con_update(f"UPDATE open_buy_orders SET filled=true WHERE symbol_pair='CRVUSD' AND obo_txid='OUVH7B-SHBR3-C3XFS2' AND filled=false")
 
         while True:
             bought_set = self.__update_bought_set()
             self.wait(message=f"buy_loop: Waiting till {self.__get_buy_time()} to buy", timeout=Buy_.TIME_MINUTES*60)
             self.__set_buy_set(bought_set)
 
-            Buy_.SET = set()
-            Buy_.SET.add("CRV")
             
             for symbol in Buy_.SET:
                 self.wait(message=f"buy_loop: checking {symbol}", timeout=Nap.LONG)
@@ -435,7 +436,7 @@ class Buy(Base, TradingView):
                 
                 self.__set_pre_buy_variables(symbol)
                 # if symbol is in the bought list, we don't care if it is a good time to buy or not, we need to manage it
-                # if not self.is_buy and symbol not in bought_set: continue
+                if not self.is_buy and symbol not in bought_set: continue
                 self.__set_post_buy_variables(symbol)
                 self.__place_limit_orders(symbol)
         return

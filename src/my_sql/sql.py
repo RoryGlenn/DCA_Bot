@@ -58,16 +58,10 @@ class SQL():
         return cursor
     
     def con_query(self, query: str) -> MySQLCursorBuffered:
-        try:
-            self.create_db_connection()
-            cursor: MySQLCursorBuffered = self.connection.cursor(buffered=True)
-            cursor.execute(query)
-        except Exception as e:
-            print(e)
-        
-        cursor.close()
+        self.create_db_connection()
+        result_set = self.query(query)
         self.close_db_connection()
-        return cursor    
+        return result_set
     
     def con_update(self, query: str):
         self.create_db_connection()

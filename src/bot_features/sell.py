@@ -119,7 +119,7 @@ class Sell(Base):
         """
         sql = SQL()
         
-        sql.con_update_set(SQLTable.OPEN_BUY_ORDERS, "filled=true", f"WHERE symbol_pair='{symbol_pair}' AND obo_txid='{filled_buy_order_txid}' AND filled=false")
+        sql.con_update(f"UPDATE open_buy_orders SET filled=true WHERE symbol_pair='{symbol_pair}' AND obo_txid='{filled_buy_order_txid}' AND filled=false")
         
         # get profit from open_buy_orders table
         result_set = sql.con_get_profit("open_buy_orders", f"WHERE obo_txid='{filled_buy_order_txid}'")
@@ -129,13 +129,13 @@ class Sell(Base):
         self.__cancel_open_sell_order(symbol_pair)
 
         # 3. change cancelled sell order to true in open_sell_orders
-        sql.con_update_set(SQLTable.OPEN_SELL_ORDERS, "cancelled=true", f"symbol_pair='{symbol_pair}' AND filled=false LIMIT 1")
+        sql.con_update(f"UPDATE open_sell_orders SET cancelled=true WHERE symbol_pair='{symbol_pair}' AND filled=false LIMIT 1")
         
-        sell_order_result = self.__place_sell_limit_order(symbol_pair, filled_buy_order_txid)
+        sell_order_result = self.__place_sell_limit_order(symbol_pair, filled_buy_order_txid) # LOGIC ERROR HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! PUTS ORDER IN AT A LIMIT PRICE OF -1
         sell_order_txid   = self.__get_sell_order_txid(sell_order_result)
         
         # insert sell order into sql
-        sql.con_insert(f"INSERT INTO open_sell_orders {sql.oso_columns} VALUES ('{symbol_pair}', '{symbol}', {sell_order_txid}, {profit_potential}, false, false, '{sell_order_txid}')")
+        sql.con_insert(f"INSERT INTO open_sell_orders {sql.oso_columns} VALUES ('{symbol_pair}', '{symbol}', {profit_potential}, false, false, '{sell_order_txid}')")
 
         # update open_buy_orders table
         sql.con_update_set(SQLTable.OPEN_BUY_ORDERS, "filled=true", f"obo_txid='{filled_buy_order_txid}' AND filled=false")
