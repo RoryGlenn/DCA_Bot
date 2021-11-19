@@ -215,21 +215,19 @@ class DCA(DCA_):
     def __set_buy_orders(self) -> None:
         """Read rows in the .xlsx file into memory."""
         sql = SQL()
-        sql.create_db_connection()
-        result_set1 = sql.query(f"SELECT price FROM safety_orders WHERE symbol_pair='{self.symbol_pair}'")
-        sql.close_db_connection()        
-        
-        sql.create_db_connection()
-        result_set2 = sql.query(f"SELECT quantity FROM safety_orders WHERE symbol_pair='{self.symbol_pair}'")
-        sql.close_db_connection()
 
-        quantities = [q[0] for q in result_set2.fetchall()]
-        prices     = [p[0] for p in result_set1.fetchall()]
+        quantities = sql.con_get_quantities(self.symbol_pair)
+        prices     = sql.con_get_prices(self.symbol_pair)
         iterations = DCA_.SAFETY_ORDERS_ACTIVE_MAX
+
+        pprint(quantities)
+        pprint(prices)
 
         if len(prices) < DCA_.SAFETY_ORDERS_ACTIVE_MAX:
             iterations = len(prices)
 
         for i in range(iterations):
             self.safety_orders[prices[i]] = quantities[i]
+        
+        pprint(self.safety_orders)
         return

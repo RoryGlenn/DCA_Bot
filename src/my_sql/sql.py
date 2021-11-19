@@ -56,6 +56,28 @@ class SQL():
         except Exception as e:
             print(e)
         return cursor
+    
+    def con_update_set(self, table_name: str, cond1: str, cond2: str) -> None:
+        self.create_db_connection()
+        cursor = self.update(f"UPDATE {table_name} SET {cond1} WHERE {cond2}")
+        cursor.close()
+        self.close_db_connection()
+        return
+    
+    def con_insert(self, stmt: str) -> None:
+        self.create_db_connection()
+        cursor = self.update(stmt)
+        cursor.close()
+        self.close_db_connection()
+        return
+    
+    def con_delete(self, tablename: str, symbol_pair: str) -> None:
+        """Deletes row data from tablename given symbol_pair"""
+        self.create_db_connection()
+        result_set = self.update(f"DELETE FROM {tablename} WHERE symbol_pair='{symbol_pair}'")
+        result_set.close()
+        self.close_db_connection()
+        return
 
     def drop_all_tables(self) -> None:
         self.update("DROP TABLE open_sell_orders")
@@ -109,47 +131,26 @@ class SQL():
         self.update(open_sell_orders)        
         return
 
-    def insert_dummy_data(self) -> None:
-        query = list()
-        
-        query.append(f"INSERT INTO safety_orders {self.so_columns} VALUES ('OXTUSD',	1,	1.3,     10,        20,	        0.696358,	0.696358,	0.703322,	0.990099, 0.139272,	true,	1)")
-        query.append(f"INSERT INTO safety_orders {self.so_columns} VALUES ('OXTUSD',	2,	3.328,   25,        35,	        0.68205,	0.689204,	0.696096,	2.01784,  0.306922,	true,	2)")
-        query.append(f"INSERT INTO safety_orders {self.so_columns} VALUES ('OXTUSD',	3,	6.49168, 62.5,      87.5,	    0.659729,	0.674467,	0.681211,	3.15351,  0.709209,	false,	3)")
-        query.append(f"INSERT INTO safety_orders {self.so_columns} VALUES ('OXTUSD',	4,	11.427,  156.25,    218.75,	    0.624909,	0.649688,	0.656185,	4.7663,   1.6482,   false,	4)")
-        query.append(f"INSERT INTO safety_orders {self.so_columns} VALUES ('OXTUSD',	5,	19.1262, 390.625, 	546.875,    0.570589,	0.610139,	0.61624,    7.40794,  3.73379,	false,	5)")
-        query.append(f"INSERT INTO safety_orders {self.so_columns} VALUES ('OXTUSD',	6,	31.1368, 976.562, 	1367.19,    0.485851,	0.547995,	0.553474,	12.2181,  7.92392,	false,	6)")
-        query.append(f"INSERT INTO safety_orders {self.so_columns} VALUES ('OXTUSD',	7,	49.8734, 2441.41, 	3417.97,    0.353658,	0.450826,	0.455335,	22.33,    14.4022,	false,	7)")
-        
-        for q in query:
-            self.update(q)
-        return
-
     def con_get_symbols(self) -> set:
         bought_set = set()
-        
         self.create_db_connection()
         result_set = self.query("SELECT symbol FROM safety_orders")
         result_set.close()
         self.close_db_connection()
-        
         for symbol in result_set.fetchall():
             bought_set.add(symbol[0])
         return bought_set
-    
     
     def con_get_symbol_pairs(self) -> set:
         """Gets the symbol pairs that are currently in the database under the safety_orders table."""
         bought_set = set()
-        
         self.create_db_connection()
         result_set = self.query("SELECT symbol_pair FROM safety_orders")
         result_set.close()
         self.close_db_connection()
-        
         for symbol in result_set.fetchall():
             bought_set.add(symbol[0])
         return bought_set
-    
     
     def con_get_profit(self, table_name: str, conditions: str) -> MySQLCursorBuffered:
         self.create_db_connection()
@@ -157,23 +158,32 @@ class SQL():
         result_set.close()
         self.close_db_connection()
         return result_set
-    
-    def con_update(self, table_name: str, cond1: str, cond2: str) -> None:
-        self.create_db_connection()
-        cursor = self.update(f"UPDATE {table_name} SET {cond1} WHERE {cond2}")
-        cursor.close()
-        self.close_db_connection()
-        return
-
-    def con_insert(self, stmt: str):
-        self.create_db_connection()
-        cursor = self.update(stmt)
-        cursor.close()
-        self.close_db_connection()
         
     def con_get_required_price(self, table_name: str, symbol_pair: str) -> float:
         self.create_db_connection()
         result_set = self.query(f"SELECT required_price FROM {table_name} WHERE symbol_pair='{symbol_pair}' AND order_placed=false LIMIT 1")
         result_set.close()
         self.close_db_connection()
-        return result_set.fetchone()[0] if result_set.rowcount > 0 else -1
+        req_price_list = result_set.fetchall()
+        return req_price_list[0][0] if result_set.rowcount > 0 else -1
+    
+    def con_get_open_buy_orders(self, symbol_pair: str) -> int:
+        self.create_db_connection()
+        result_set = self.query(f"SELECT symbol_pair FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
+        result_set.close()
+        self.close_db_connection()
+        return len(result_set.fetchall())
+        
+    def con_get_quantities(self, symbol_pair: str) -> list:
+        self.create_db_connection()
+        result_set = self.query(f"SELECT price FROM safety_orders WHERE symbol_pair='{symbol_pair}' AND order_placed=false")
+        result_set.close()
+        self.close_db_connection()
+        return [q[0] for q in result_set.fetchall()] if result_set.rowcount > 0 else []
+    
+    def con_get_prices(self, symbol_pair: str) -> list:
+        self.create_db_connection()
+        result_set = self.query(f"SELECT price FROM safety_orders WHERE symbol_pair='{symbol_pair}' AND order_placed=false")
+        result_set.close()
+        self.close_db_connection()
+        return [p[0] for p in result_set.fetchall()] if result_set.rowcount > 0 else []

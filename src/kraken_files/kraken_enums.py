@@ -322,4 +322,10 @@ class SheetNames:
 
 class KError:
     INSUFFICIENT_FUNDS = 'EOrder:Insufficient funds'
+    INVALID_VOLUME     = 'EGeneral:Invalid arguments:volume'
           
+class SQLTable:
+    SAFETY_ORDERS     = "safety_orders"
+    OPEN_BUY_ORDERS   = "open_buy_orders"
+    OPEN_SELL_ORDERS  = "open_sell_orders"
+    

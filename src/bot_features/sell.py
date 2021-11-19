@@ -127,41 +127,28 @@ class Sell(Base):
         """
         sql = SQL()
         
-        sql.create_db_connection()
-        # 1. change filled=true in open_buy_orders table
-        sql.update(f"UPDATE open_buy_orders SET filled=true WHERE \
-            symbol_pair='{symbol_pair}' AND obo_txid='{filled_buy_order_txid}' AND filled=false LIMIT 1")
-        sql.close_db_connection()
+        sql.con_update_set(SQLTable.OPEN_BUY_ORDERS, "filled=true", f"WHERE symbol_pair='{symbol_pair}' AND obo_txid='{filled_buy_order_txid}' AND filled=false")
         
         # get profit from open_buy_orders table
-        sql.create_db_connection()
-        result_set = sql.query(f"SELECT profit FROM open_buy_orders WHERE obo_txid='{filled_buy_order_txid}'")
-        sql.close_db_connection()
+        result_set = sql.con_get_profit("open_buy_orders", f"WHERE obo_txid='{filled_buy_order_txid}'")
         profit_potential = result_set.fetchone()[0] if result_set.rowcount > 0 else 0
-        result_set.close()
         
         # 2. cancel open_sell_order
         self.__cancel_open_sell_order(symbol_pair)
 
         # 3. change cancelled sell order to true in open_sell_orders
-        sql.create_db_connection()
-        sql.update(f"UPDATE open_sell_orders SET cancelled=true WHERE symbol_pair='{symbol_pair}' AND filled=false LIMIT 1")
-        sql.close_db_connection()
+        sql.con_update_set(SQLTable.OPEN_SELL_ORDERS, "cancelled=true", f"symbol_pair='{symbol_pair}' AND filled=false LIMIT 1")
         
         sell_order_result = self.__place_sell_limit_order(symbol_pair, filled_buy_order_txid)
         sell_order_txid   = self.__get_sell_order_txid(sell_order_result)
         
         # insert sell order into sql
-        sql.update(f"INSERT INTO open_sell_orders {sql.oso_columns} VALUES \
-                               ('{symbol_pair}', '{symbol}', {sell_order_txid}, {profit_potential}, false, false, '{sell_order_txid}')")
-        sql.close_db_connection()
+        sql.con_insert(f"INSERT INTO open_sell_orders {sql.oso_columns} VALUES ('{symbol_pair}', '{symbol}', {sell_order_txid}, {profit_potential}, false, false, '{sell_order_txid}')")
 
-        # self.__update_open_buy_orders(symbol_pair, filled_buy_order_txid)
+        
 
         # update open_buy_orders table
-        sql.create_db_connection()
-        sql.update(f"UPDATE open_buy_orders SET filled=true WHERE obo_txid='{filled_buy_order_txid}' AND filled=false")
-        sql.close_db_connection()
+        sql.con_update_set(SQLTable.OPEN_BUY_ORDERS, "filled=true", f"obo_txid='{filled_buy_order_txid}' AND filled=false")
         
-        # self.__update_open_sell_orders_sheet(symbol_pair, sell_order_result, profit_potential)
+        
         return

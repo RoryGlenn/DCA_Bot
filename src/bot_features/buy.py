@@ -73,12 +73,14 @@ class Buy(Base, TradingView):
     def __get_open_orders_on_symbol_pair(self, symbol: str) -> str:
         """Returns the number of open orders for self.symbol_pair."""
         count           = 0
-        alt_symbol_pair = self.get_alt_name(symbol) + StableCoins.USD
+        # alt_symbol_pair = self.get_alt_name(symbol) + StableCoins.USD
 
-        if self.has_result(self.open_orders):
-            for _, dictionary in self.open_orders[Dicts.RESULT][Dicts.OPEN].items():
-                if dictionary[Dicts.DESCR][Data.PAIR] == alt_symbol_pair:
-                    count += 1
+        # if self.has_result(self.open_orders):
+        #     for _, dictionary in self.open_orders[Dicts.RESULT][Dicts.OPEN].items():
+        #         if dictionary[Dicts.DESCR][Data.PAIR] == alt_symbol_pair:
+        #             count += 1
+        
+        
         return count
 
     def __set_post_buy_variables(self, symbol: str) -> None:
@@ -92,12 +94,6 @@ class Buy(Base, TradingView):
             G.log_file.print_and_log(e=e)
         return
 
-    def __get_required_price(self):
-        self.sql.create_db_connection()
-        result_set = self.sql.query(f"SELECT required_price FROM safety_orders WHERE symbol_pair='{self.symbol_pair}' AND order_placed=false LIMIT 1")
-        self.sql.close_db_connection()
-        return result_set.fetchone()[0]
-
     def __place_base_order(self, order_min: float, symbol_pair: str) -> dict:
         """
         Place the base order for the coin we want to trade.
@@ -110,12 +106,15 @@ class Buy(Base, TradingView):
         """Place safety orders."""
         sql = SQL()
         
+        # MANAUSD safety orders are being placed TWICE instead of only once.
+        
         for price, quantity in self.dca.safety_orders.items():
             try:
+                sql_req_price      = sql.con_get_required_price("safety_orders", self.symbol_pair)
                 price_max_prec     = self.get_pair_decimals(self.symbol_pair)
                 rounded_price      = self.round_decimals_down(price, price_max_prec)
-                rounded_quantity   = self.round_decimals_down(quantity, self.get_max_volume_precision(symbol))
-                req_price          = self.round_decimals_down(self.__get_required_price(), price_max_prec)
+                rounded_quantity   = self.round_decimals_down(quantity, self.get_max_volume_precision(symbol)) # put this in its own max_vol_prec
+                req_price          = self.round_decimals_down(sql_req_price, price_max_prec)
                 limit_order_result = self.limit_order(Trade.BUY, rounded_quantity, self.symbol_pair, rounded_price)
 
                 if self.has_result(limit_order_result):
@@ -131,7 +130,7 @@ class Buy(Base, TradingView):
                         print()
                     
                     # change order_placed to true in safety_orders table
-                    sql.con_update("safety_orders", "order_placed=true", "order_placed=false LIMIT 1")
+                    sql.con_update_set("safety_orders", "order_placed=true", "order_placed=false LIMIT 1")
                     
                     # store open_buy_order row
                     sql.con_insert(f"INSERT INTO open_buy_orders {sql.obo_columns} VALUES ('{self.symbol_pair}', '{symbol}', {req_price}, {profit_potential}, false, '{obo_txid}')")
@@ -186,8 +185,8 @@ class Buy(Base, TradingView):
                 # Symbol is in EXCEL_DIRECTORY therefore, we have bought it before.
                 # Load up the .xlsx file and continue to place safety orders
                 self.dca = DCA(self.symbol_pair, symbol, 0, 0)
-
-            num_open_orders = self.__get_open_orders_on_symbol_pair(symbol) # change this to pull from open_buy_order table
+            
+            num_open_orders = sql.con_get_open_buy_orders(self.symbol_pair)
             
             # if the max active orders are already put in, and are still active, there is nothing left to do.
             if num_open_orders < DCA_.SAFETY_ORDERS_ACTIVE_MAX:
@@ -224,6 +223,8 @@ class Buy(Base, TradingView):
           4. start the process all over again!
         
         """
+        print("updating completed trades")
+        
         try:
             symbol_pair           = self.get_tradable_asset_pair(symbol)
             bought_set            = set()
@@ -246,7 +247,7 @@ class Buy(Base, TradingView):
             
             time.sleep(1)
             filled_sell_order_txids = dict()
-            self.trade_history      = self.get_trades_history()
+            # self.trade_history      = self.get_trades_history()
 
             if not self.has_result(self.trade_history):
                 return
@@ -281,13 +282,11 @@ class Buy(Base, TradingView):
                         self.cancel_order(txid[0])
                         
                     # remove rows associated with symbol_pair from all tables
-                    sql.create_db_connection()
-                    result_set = sql.query(f"DELETE FROM safety_orders    WHERE symbol_pair='{symbol_pair}'")
-                    result_set = sql.query(f"DELETE FROM open_buy_orders  WHERE symbol_pair='{symbol_pair}'")
-                    result_set = sql.query(f"DELETE FROM open_sell_orders WHERE symbol_pair='{symbol_pair}'")
-                    sql.close_db_connection()
+                    sql.con_delete(SQLTable.SAFETY_ORDERS,    symbol_pair)
+                    sql.con_delete(SQLTable.OPEN_BUY_ORDERS,  symbol_pair)
+                    sql.con_delete(SQLTable.OPEN_SELL_ORDERS, symbol_pair)
                     
-                    print(f"{symbol_pair} trade complete, profit: {profit[0]}")
+                    print(f"{symbol_pair} trade complete, profit: {profit}")
         except Exception as e:
             G.log_file.print_and_log(e=e)
         return
@@ -304,13 +303,17 @@ class Buy(Base, TradingView):
         Note: Function is called only once inside of the buy loop.
         
         """
+        
+        print("updating open buy orders")
+        
         try:
             symbol_pair = self.get_tradable_asset_pair(symbol)
             txid_set    = set()
             sql         = SQL()
             
             sql.create_db_connection()
-            result_set = sql.query(f"SELECT symbol_pair FROM safety_orders WHERE symbol_pair='{symbol_pair}' LIMIT 1")
+            result_set = sql.query(f"SELECT symbol_pair FROM safety_orders WHERE symbol_pair='{symbol_pair}' LIMIT 1") # close result_set
+            result_set.close()
             sql.close_db_connection()
     
             if result_set.rowcount <= 0:
@@ -321,13 +324,14 @@ class Buy(Base, TradingView):
             
             time.sleep(1)
             filled_trades_order_txids = dict()
-            self.trade_history        = self.get_trades_history()
+            # self.trade_history        = self.get_trades_history()
             
             if not self.has_result(self.trade_history):
                 return
             
             sql.create_db_connection()
             result_set = sql.query(f"SELECT obo_txid FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
+            result_set.close()
             sql.close_db_connection()
             
             for txid in result_set.fetchall():
@@ -449,7 +453,7 @@ class Buy(Base, TradingView):
         self.__init_loop_variables()
         bought_set = set()
         
-        # self.nuke_and_restart()
+        self.nuke_and_restart()
 
         while True:
             bought_set = self.__update_bought_set()
@@ -457,14 +461,15 @@ class Buy(Base, TradingView):
             self.__set_buy_set(bought_set)
 
             Buy_.SET = set()
-            Buy_.SET.add("XXLM")
-
+            Buy_.SET.add("CRV")
+            
             for symbol in Buy_.SET:
                 self.wait(message=f"buy_loop: checking {symbol}", timeout=Nap.LONG)
+                self.trade_history = self.get_trades_history()
                 self.__update_open_buy_orders(symbol)
                 self.__update_completed_trades(symbol)
-                self.__set_pre_buy_variables(symbol)
                 
+                self.__set_pre_buy_variables(symbol)
                 # if symbol is in the bought list, we don't care if it is a good time to buy or not, we need to manage it
                 # if not self.is_buy and symbol not in bought_set: continue
                 self.__set_post_buy_variables(symbol)
