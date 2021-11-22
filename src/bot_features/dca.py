@@ -4,6 +4,7 @@ This bot uses DCA in order lower the average buy price for a purchased coin."""
 from pprint                    import pprint
 
 from more_itertools import first
+from numpy import average
 from sympy import denom
 from kraken_files.kraken_enums import *
 from my_sql.sql                import SQL
@@ -153,16 +154,15 @@ class DCA(DCA_):
         base_order_qty = self.bid_price * self.order_min
         
         for i in range(DCA_.SAFETY_ORDERS_MAX):
-            numerator   = 0
-            
+            numerator = 0
             for j in range(i+1):
                 numerator += self.price_levels[j] * self.quantities[j]
-            
-            numerator += base_order_qty            
+                
+            numerator += base_order_qty
             weighted_average = numerator / self.total_quantities[i]
             weighted_average = round(weighted_average, DECIMAL_MAX)
             self.average_price_levels.append(weighted_average)
-            
+        
         print("average_price_levels: ", self.average_price_levels)
         return    
     
@@ -185,7 +185,7 @@ class DCA(DCA_):
             weighted_average = round(weighted_average, DECIMAL_MAX)
             average_price_levels.append(weighted_average)
         
-        # print("average_price_levels alt: ", average_price_levels)
+        print("average_price_levels alt: ", average_price_levels)
         return
 
     def __set_required_price_levels(self) -> None:
@@ -195,14 +195,25 @@ class DCA(DCA_):
         # safety orders
         for i in range(DCA_.SAFETY_ORDERS_MAX):
             required_price = self.average_price_levels[i] + (self.average_price_levels[i] * target_profit_decimal)
+            required_price = round(required_price, DECIMAL_MAX)
             self.required_price_levels.append(required_price)
+        print("required_price_levels:", self.required_price_levels)
         return
 
     def __set_required_change_percentage_levels(self) -> None:
-        """Sets the required change percent for each safety order number."""
+        """Sets the required change percent for each safety order number.
+        
+        Required change is how much the average price needs to move to the required price
+        Averave price -> Required price = required change
+        
+        """
+        
         for i in range(DCA_.SAFETY_ORDERS_MAX):
-            required_change_percentage = (1 - (self.price_levels[i] / self.required_price_levels[i])) * 100
+            required_change_percentage = ((self.required_price_levels[i] / self.price_levels[i]) - 1) * 100
+            required_change_percentage = round(required_change_percentage, DECIMAL_MAX)
             self.required_change_percentage_levels.append(required_change_percentage)
+        
+        print("required_change_percentage_levels:", self.required_change_percentage_levels)
         return
     
     def __set_profit_levels(self) -> None:
