@@ -2,8 +2,10 @@
 This bot uses DCA in order lower the average buy price for a purchased coin."""
 
 from pprint                    import pprint
+
+from more_itertools import first
+from sympy import denom
 from kraken_files.kraken_enums import *
-from util.globals              import G
 from my_sql.sql                import SQL
 
 
@@ -48,7 +50,8 @@ class DCA(DCA_):
             self.__set_price_levels()
             self.__set_quantity_levels()
             self.__set_total_quantity_levels()
-            self.__set_average_price_levels()
+            self.__set_weighted_average_price_levels()
+            self.__set_weighted_average_price_levels_()
             self.__set_required_price_levels()
             self.__set_required_change_percentage_levels()
             self.__set_profit_levels()
@@ -60,14 +63,11 @@ class DCA(DCA_):
     def __has_safety_order_table(self) -> bool:
         """Returns True if safety orders exists."""
         sql = SQL()
-        sql.create_db_connection()
-        result_set = sql.query(f"SELECT * FROM safety_orders WHERE symbol_pair='{self.symbol_pair}'")
-        result_set.close()
-        sql.close_db_connection()
+        result_set = sql.con_query(f"SELECT * FROM safety_orders WHERE symbol_pair='{self.symbol_pair}'")
 
         if result_set.rowcount <= 0:
             return False
-        
+
         if len(result_set.fetchall()) <= 0:
             return False
         return True
@@ -106,6 +106,7 @@ class DCA(DCA_):
             safety_order = safety_order + step_percent
             safety_order = round(safety_order, DECIMAL_MAX)
             self.percentage_deviation_levels.append(safety_order)
+        print("deviation levels: ", self.percentage_deviation_levels)
         return
 
     def __set_price_levels(self) -> None:
@@ -118,7 +119,8 @@ class DCA(DCA_):
         for i in range(DCA_.SAFETY_ORDERS_MAX):
             level = self.percentage_deviation_levels[i] / 100
             price = self.bid_price - (self.bid_price * level)
-            self.price_levels.append(price)
+            self.price_levels.append(round(price, DECIMAL_MAX))
+        print("price_levels: ", self.price_levels)
         return
 
     def __set_quantity_levels(self) -> None:
@@ -132,6 +134,7 @@ class DCA(DCA_):
         for _ in range(1, DCA_.SAFETY_ORDERS_MAX):
             self.quantities.append(DCA_.SAFETY_ORDER_VOLUME_SCALE * prev)
             prev = DCA_.SAFETY_ORDER_VOLUME_SCALE * prev
+        print("quantities:", self.quantities)
         return
     
     def __set_total_quantity_levels(self) -> None:
@@ -140,18 +143,49 @@ class DCA(DCA_):
         for i in range(DCA_.SAFETY_ORDERS_MAX):
             sum = prev + self.quantities[i]
             self.total_quantities.append(sum)
-            prev = self.quantities[i]
+            prev = self.total_quantities[i]
+        print("total_quantities:", self.total_quantities)
         return
     
-    def __set_average_price_levels(self) -> None:
-        """Sets the average price level for each safety order number."""
-        prev_average = self.price_levels[0]
-
-        # safety orders
+    
+    def __set_weighted_average_price_levels(self) -> None:
+        """Sets the weighted average price level for each safety order number."""
+        base_order_qty = self.bid_price * self.order_min
+        
         for i in range(DCA_.SAFETY_ORDERS_MAX):
-            average = (self.price_levels[i] + prev_average) / 2
-            self.average_price_levels.append(average)
-            prev_average = average
+            numerator   = 0
+            
+            for j in range(i+1):
+                numerator += self.price_levels[j] * self.quantities[j]
+            
+            numerator += base_order_qty            
+            weighted_average = numerator / self.total_quantities[i]
+            weighted_average = round(weighted_average, DECIMAL_MAX)
+            self.average_price_levels.append(weighted_average)
+            
+        print("average_price_levels: ", self.average_price_levels)
+        return    
+    
+    def __set_weighted_average_price_levels_(self) -> None:
+        """Sets the average price level for each safety order number."""
+        weighted_average = (self.bid_price * self.order_min + self.price_levels[0] * self.quantities[0]) / (self.order_min + self.quantities[0])
+        weighted_average = round(weighted_average, DECIMAL_MAX)
+        average_price_levels = list()
+        average_price_levels.append(weighted_average)
+
+        for i in range(1, DCA_.SAFETY_ORDERS_MAX):
+            numerator   = 0
+            denominator = 0
+            
+            for j in range(i):
+                numerator   += self.price_levels[j] * self.quantities[j]
+                denominator += self.quantities[j]
+                
+            weighted_average = numerator / denominator
+            weighted_average = round(weighted_average, DECIMAL_MAX)
+            average_price_levels.append(weighted_average)
+        
+        # print("average_price_levels alt: ", average_price_levels)
         return
 
     def __set_required_price_levels(self) -> None:
@@ -202,8 +236,8 @@ class DCA(DCA_):
                 {self.average_price_levels[i]}, 
                 {self.required_price_levels[i]}, 
                 {self.required_change_percentage_levels[i]},
-                {self.profit_levels[i]},        
-                false,                           
+                {self.profit_levels[i]},
+                false,
                 so_key)""")
         sql.close_db_connection()
         return
@@ -214,10 +248,7 @@ class DCA(DCA_):
 
         quantities = sql.con_get_quantities(self.symbol_pair)
         prices     = sql.con_get_prices(self.symbol_pair)
-        iterations = DCA_.SAFETY_ORDERS_ACTIVE_MAX
-
-        if len(prices) < DCA_.SAFETY_ORDERS_ACTIVE_MAX:
-            iterations = len(prices)
+        iterations = len(prices) if len(prices) < DCA_.SAFETY_ORDERS_ACTIVE_MAX else DCA_.SAFETY_ORDERS_ACTIVE_MAX
 
         for i in range(iterations):
             self.safety_orders[prices[i]] = quantities[i]

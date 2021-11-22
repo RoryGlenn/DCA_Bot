@@ -70,28 +70,6 @@ class SQL():
         self.close_db_connection()
         return
     
-    def con_update_set(self, table_name: str, cond1: str, cond2: str) -> None:
-        self.create_db_connection()
-        cursor = self.update(f"UPDATE {table_name} SET {cond1} WHERE {cond2}")
-        cursor.close()
-        self.close_db_connection()
-        return
-    
-    def con_insert(self, stmt: str) -> None:
-        self.create_db_connection()
-        cursor = self.update(stmt)
-        cursor.close()
-        self.close_db_connection()
-        return
-    
-    def con_delete(self, tablename: str, symbol_pair: str) -> None:
-        """Deletes row data from tablename given symbol_pair"""
-        self.create_db_connection()
-        result_set = self.update(f"DELETE FROM {tablename} WHERE symbol_pair='{symbol_pair}'")
-        result_set.close()
-        self.close_db_connection()
-        return
-
     def drop_all_tables(self) -> None:
         self.update("DROP TABLE open_sell_orders")
         self.update("DROP TABLE open_buy_orders")

@@ -35,7 +35,6 @@ class Sell(Base):
         Open the sell_txids.xlsx file, cancel all sell orders by symbol name.
         
         """
-        
         txid_set = set()
         sql      = SQL()
         
@@ -59,7 +58,7 @@ class Sell(Base):
         """
         sql = SQL()
 
-        nonrounded_req_price = sql.con_get_required_price("safety_orders", symbol_pair)
+        nonrounded_req_price = sql.con_get_required_price(SQLTable.SAFETY_ORDERS, symbol_pair)
         max_prec             = self.__get_max_price_prec(symbol_pair)
         required_price       = self.round_decimals_down(nonrounded_req_price, max_prec)
         max_prec             = self.__get_max_volume_prec(symbol_pair)
@@ -68,8 +67,7 @@ class Sell(Base):
         sell_order_result    = self.limit_order(Trade.SELL, qty_to_sell, symbol_pair, required_price)
         
         if self.has_result(sell_order_result):
-            result_set = sql.con_query(f"SELECT profit FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND obo_txid='{filled_buy_order_txid}'")
-            
+            result_set       = sql.con_query(f"SELECT profit FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND obo_txid='{filled_buy_order_txid}'")
             profit_potential = round(result_set.fetchone()[0] if result_set.rowcount > 0 else 0, 6)
             G.log_file.print_and_log(f"sell: limit order placed {symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: ${profit_potential}")
         else:
@@ -118,11 +116,10 @@ class Sell(Base):
 
         """
         sql = SQL()
-        
         sql.con_update(f"UPDATE open_buy_orders SET filled=true WHERE symbol_pair='{symbol_pair}' AND obo_txid='{filled_buy_order_txid}' AND filled=false")
         
         # get profit from open_buy_orders table
-        result_set = sql.con_get_profit("open_buy_orders", f"WHERE obo_txid='{filled_buy_order_txid}'")
+        result_set       = sql.con_get_profit("open_buy_orders", f"WHERE obo_txid='{filled_buy_order_txid}'")
         profit_potential = result_set.fetchone()[0] if result_set.rowcount > 0 else 0
         
         # 2. cancel open_sell_order
@@ -135,8 +132,8 @@ class Sell(Base):
         sell_order_txid   = self.__get_sell_order_txid(sell_order_result)
         
         # insert sell order into sql
-        sql.con_insert(f"INSERT INTO open_sell_orders {sql.oso_columns} VALUES ('{symbol_pair}', '{symbol}', {profit_potential}, false, false, '{sell_order_txid}')")
+        sql.con_update(f"INSERT INTO open_sell_orders {sql.oso_columns} VALUES ('{symbol_pair}', '{symbol}', {profit_potential}, false, false, '{sell_order_txid}')")
 
         # update open_buy_orders table
-        sql.con_update_set(SQLTable.OPEN_BUY_ORDERS, "filled=true", f"obo_txid='{filled_buy_order_txid}' AND filled=false")
+        sql.con_update(f"UPDATE open_buy_orders SET filled=true WHERE obo_txid='{filled_buy_order_txid}' AND filled=false")
         return

@@ -7,7 +7,7 @@ from kraken_files.kraken_enums import FileMode
 class Log():
     def __init__(self):
         self.log_directory_path = "src/kraken_files/logs"
-        self.log_file_path      = self.log_directory_path + "/" + str(datetime.date.today()) + ".txt"
+        self.log_file_path      = "src/kraken_files/logs" + "/" + str(datetime.date.today()) + ".txt"
 
     def get_current_time(self) -> datetime:
         return datetime.datetime.now().strftime("%H:%M:%S")
