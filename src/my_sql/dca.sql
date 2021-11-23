@@ -10,6 +10,8 @@ CREATE TABLE safety_orders (
     required_price      FLOAT       NOT NULL,
     required_change     FLOAT       NOT NULL,
     profit              FLOAT       NOT NULL,
+    cost                FLOAT       NOT NULL,
+    total_cost          FLOAT       NOT NULL,
     order_placed        BOOLEAN     NOT NULL,
     so_key              INT         NOT NULL AUTO_INCREMENT,
     PRIMARY KEY (so_key)

@@ -105,14 +105,12 @@ class Buy(Base, TradingView):
                     G.log_file.print_and_log(message=f"buy_loop: safety order placed {self.symbol_pair} {limit_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}", money=True)
                     
                     obo_txid         = limit_order_result[Dicts.RESULT][Data.TXID][0]
-                    profit_potential = sql.con_get_profit("safety_orders", f"WHERE symbol_pair='{self.symbol_pair}' AND order_placed=false LIMIT 1").fetchone()[0]
+                    profit_potential = sql.con_get_profit(SQLTable.SAFETY_ORDERS, f"WHERE symbol_pair='{self.symbol_pair}' AND order_placed=false LIMIT 1").fetchone()[0]
                     
                     # change order_placed to true in safety_orders table
-                    # sql.con_update_set("safety_orders", "order_placed=true", "order_placed=false LIMIT 1")
                     sql.con_update(f"UPDATE safety_orders SET order_placed=true WHERE symbol_pair='{self.symbol_pair}' AND order_placed=false LIMIT 1")
                     
                     # store open_buy_order row
-                    # sql.con_insert(f"INSERT INTO open_buy_orders {sql.obo_columns} VALUES ('{self.symbol_pair}', '{symbol}', {req_price}, {profit_potential}, false, '{obo_txid}')")
                     sql.con_update(f"INSERT INTO open_buy_orders {sql.obo_columns} VALUES ('{self.symbol_pair}', '{symbol}', {req_price}, {profit_potential}, false, '{obo_txid}')")
                 else:
                     if limit_order_result[Dicts.ERROR][0] == KError.INSUFFICIENT_FUNDS:
@@ -242,12 +240,11 @@ class Buy(Base, TradingView):
                     # the sell order has filled and we have completed the entire process!!!
                     result_set      = sql.con_query(f"SELECT profit FROM open_sell_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")        
                     profit          = result_set.fetchall()
+                    
                     result_set      = sql.con_query(f"SELECT obo_txid FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
                     open_buy_orders = result_set.fetchall()
                     
                     for txid in open_buy_orders:
-                        # print(txid)
-                        # print(txid[0])
                         self.cancel_order(txid[0])
                         
                     # remove rows associated with symbol_pair from all tables
@@ -255,7 +252,7 @@ class Buy(Base, TradingView):
                     sql.con_update(f"DELETE FROM open_buy_orders  WHERE symbol_pair='{symbol_pair}'")
                     sql.con_update(f"DELETE FROM open_sell_orders WHERE symbol_pair='{symbol_pair}'")
                     
-                    print(f"{symbol_pair} trade complete, profit: {profit[0][0]}")
+                    G.log_file.print_and_log(message=f"{symbol_pair} trade complete, profit: {profit[0][0]}", money=True)
         except Exception as e:
             G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return
@@ -339,7 +336,8 @@ class Buy(Base, TradingView):
         
         bought_set = sql.con_get_symbols()
         Buy_.SET   = set(sorted(bought_set.union(buy_set)))
-        print("Buy_.SET:", Buy_.SET)
+        
+        G.log_file.print_and_log(f"Buy_.SET: {Buy_.SET}")
         return
 
     def __set_buy_set(self, bought_set: set) -> None:
@@ -356,7 +354,8 @@ class Buy(Base, TradingView):
 
                 self.__set_future_time()
                 Buy_.SET = set(sorted(result_set.union(bought_set)))
-                print("Buy_.SET:", Buy_.SET)
+                
+                G.log_file.print_and_log(f"Buy_.SET: {Buy_.SET}")
         except Exception as e:
             G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return
@@ -411,8 +410,6 @@ class Buy(Base, TradingView):
 ### BUY_LOOP
 ##################################################################################################################################
 
-
-
     def buy_loop(self) -> None:
         """The main function for trading coins."""
         self.__init_loop_variables()
@@ -425,9 +422,6 @@ class Buy(Base, TradingView):
             self.wait(message=f"buy_loop: Waiting till {self.__get_buy_time()} to buy", timeout=Buy_.TIME_MINUTES*60)
             self.__set_buy_set(bought_set)
             
-            # Buy_.SET = set()
-            # Buy_.SET.add("MANA")
-            
             for symbol in Buy_.SET:
                 self.wait(message=f"buy_loop: checking {symbol}", timeout=Nap.LONG)
                 self.__update_open_buy_orders(symbol)
@@ -435,7 +429,6 @@ class Buy(Base, TradingView):
                 self.__set_pre_buy_variables(symbol)
                 
                 # if symbol is in the bought list, we don't care if it is a good time to buy or not, we need to manage it
-                # if not self.is_buy and symbol not in bought_set: continue
                 if self.__is_buy(symbol, bought_set):
                     self.__set_post_buy_variables(symbol)
                     self.__place_limit_orders(symbol)

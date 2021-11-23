@@ -20,6 +20,8 @@ class DCA(DCA_):
         self.required_price_levels:             list         = [ ]
         self.required_change_percentage_levels: list         = [ ]
         self.profit_levels:                     list         = [ ]
+        self.cost_levels:                       list         = [ ]
+        self.total_cost_levels:                 list         = [ ]
         self.symbol:                            str          = symbol
         self.symbol_pair:                       str          = symbol_pair
         self.bid_price:                         float        = bid_price
@@ -52,10 +54,11 @@ class DCA(DCA_):
             self.__set_quantity_levels()
             self.__set_total_quantity_levels()
             self.__set_weighted_average_price_levels()
-            self.__set_weighted_average_price_levels_()
             self.__set_required_price_levels()
             self.__set_required_change_percentage_levels()
             self.__set_profit_levels()
+            self.__set_cost_levels()
+            self.__set_total_cost_levels()            
             self.__set_safety_order_table()
         self.__set_buy_orders()
         return
@@ -104,7 +107,6 @@ class DCA(DCA_):
             safety_order = safety_order + step_percent
             safety_order = round(safety_order, DECIMAL_MAX)
             self.percentage_deviation_levels.append(safety_order)
-        # print("deviation levels: ", self.percentage_deviation_levels)
         return
 
     def __set_price_levels(self) -> None:
@@ -118,7 +120,6 @@ class DCA(DCA_):
             level = self.percentage_deviation_levels[i] / 100
             price = self.bid_price - (self.bid_price * level)
             self.price_levels.append(round(price, DECIMAL_MAX))
-        # print("price_levels: ", self.price_levels)
         return
 
     def __set_quantity_levels(self) -> None:
@@ -132,7 +133,6 @@ class DCA(DCA_):
         for _ in range(1, DCA_.SAFETY_ORDERS_MAX):
             self.quantities.append(DCA_.SAFETY_ORDER_VOLUME_SCALE * prev)
             prev = DCA_.SAFETY_ORDER_VOLUME_SCALE * prev
-        # print("quantities:", self.quantities)
         return
     
     def __set_total_quantity_levels(self) -> None:
@@ -142,7 +142,6 @@ class DCA(DCA_):
             sum = prev + self.quantities[i]
             self.total_quantities.append(sum)
             prev = self.total_quantities[i]
-        # print("total_quantities:", self.total_quantities)
         return
     
     
@@ -159,30 +158,8 @@ class DCA(DCA_):
             weighted_average = numerator / self.total_quantities[i]
             weighted_average = round(weighted_average, DECIMAL_MAX)
             self.average_price_levels.append(weighted_average)
-        # print("average_price_levels: ", self.average_price_levels)
         return    
     
-    def __set_weighted_average_price_levels_(self) -> None:
-        """Sets the average price level for each safety order number."""
-        weighted_average = (self.bid_price * self.order_min + self.price_levels[0] * self.quantities[0]) / (self.order_min + self.quantities[0])
-        weighted_average = round(weighted_average, DECIMAL_MAX)
-        average_price_levels = list()
-        average_price_levels.append(weighted_average)
-
-        for i in range(1, DCA_.SAFETY_ORDERS_MAX):
-            numerator   = 0
-            denominator = 0
-            
-            for j in range(i):
-                numerator   += self.price_levels[j] * self.quantities[j]
-                denominator += self.quantities[j]
-                
-            weighted_average = numerator / denominator
-            weighted_average = round(weighted_average, DECIMAL_MAX)
-            average_price_levels.append(weighted_average)
-        # print("average_price_levels alt: ", average_price_levels)
-        return
-
     def __set_required_price_levels(self) -> None:
         """Sets the required price for each safety order number."""
         target_profit_decimal = DCA_.TARGET_PROFIT_PERCENT / 100
@@ -192,7 +169,6 @@ class DCA(DCA_):
             required_price = self.average_price_levels[i] + (self.average_price_levels[i] * target_profit_decimal)
             required_price = round(required_price, DECIMAL_MAX)
             self.required_price_levels.append(required_price)
-        # print("required_price_levels:", self.required_price_levels)
         return
 
     def __set_required_change_percentage_levels(self) -> None:
@@ -202,8 +178,6 @@ class DCA(DCA_):
             required_change_percentage = ((self.required_price_levels[i] / self.price_levels[i]) - 1) * 100
             required_change_percentage = round(required_change_percentage, DECIMAL_MAX)
             self.required_change_percentage_levels.append(required_change_percentage)
-        
-        # print("required_change_percentage_levels:", self.required_change_percentage_levels)
         return
     
     def __set_profit_levels(self) -> None:
@@ -217,6 +191,27 @@ class DCA(DCA_):
             usd_profit = (DCA_.TARGET_PROFIT_PERCENT/100) * usd_value
             self.profit_levels.append(usd_profit)
             prev += self.quantities[i]
+        return
+    
+    def __set_cost_levels(self) -> None:
+        """Sets the cost (USD) spent for each safety order row."""
+
+        for i in range(DCA_.SAFETY_ORDERS_MAX):
+            cost = self.price_levels[i] * self.quantities[i]
+            cost = round(cost, DECIMAL_MAX)
+            self.cost_levels.append(cost)
+        return
+    
+    def __set_total_cost_levels(self) -> None:
+        """Sets the total cost (USD) for each safety order row.
+        This includes the prev order costs. """
+
+        total_cost = self.bid_price * self.order_min
+        
+        for i in range(DCA_.SAFETY_ORDERS_MAX):
+            total_cost += self.price_levels[i] * self.quantities[i]
+            total_cost = round(total_cost, DECIMAL_MAX)
+            self.total_cost_levels.append(total_cost)
         return
 
     def __set_safety_order_table(self) -> None:
@@ -238,6 +233,8 @@ class DCA(DCA_):
                 {self.required_price_levels[i]}, 
                 {self.required_change_percentage_levels[i]},
                 {self.profit_levels[i]},
+                {self.cost_levels[i]},
+                {self.total_cost_levels[i]},
                 false,
                 so_key)""")
         sql.close_db_connection()

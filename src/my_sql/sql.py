@@ -11,7 +11,7 @@ class SQL():
         self.user_name:     str              = user_name
         self.user_password: str              = user_password
         self.db_name:       str              = db_name
-        self.so_columns:    str              = "(symbol_pair, symbol, safety_order_no, deviation, quantity, total_quantity, price, average_price, required_price, required_change, profit, order_placed, so_key)"
+        self.so_columns:    str              = "(symbol_pair, symbol, safety_order_no, deviation, quantity, total_quantity, price, average_price, required_price, required_change, profit, cost, total_cost, order_placed, so_key)"
         self.obo_columns:   str              = "(symbol_pair, symbol, required_price, profit, filled, obo_txid)"
         self.oso_columns:   str              = "(symbol_pair, symbol, profit, cancelled, filled, oso_txid)"
         self.connection:    CMySQLConnection = None
@@ -92,6 +92,8 @@ class SQL():
                 required_price      FLOAT       NOT NULL,
                 required_change     FLOAT       NOT NULL,
                 profit              FLOAT       NOT NULL,
+                cost                FLOAT       NOT NULL,
+                total_cost          FLOAT       NOT NULL,
                 order_placed        BOOLEAN     NOT NULL,
                 so_key              INT         NOT NULL AUTO_INCREMENT,
                 PRIMARY KEY (so_key)
@@ -178,5 +180,4 @@ class SQL():
         result_set.close()
         self.close_db_connection()
         return [price[0] for price in result_set.fetchall()] if result_set.rowcount > 0 else []
-    
     
