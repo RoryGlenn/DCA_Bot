@@ -238,7 +238,7 @@ class Buy(Base, TradingView):
                 filled_sell_order_txids[dictionary[Data.ORDER_TXID]] = trade_txid
 
             for sell_order_txid in open_sell_order_txids:
-                if sell_order_txid[0] in filled_sell_order_txids.keys():
+                if sell_order_txid in filled_sell_order_txids.keys():
                     # the sell order has filled and we have completed the entire process!!!
                     result_set = sql.con_query(f"SELECT profit FROM open_sell_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")        
                     profit     = result_set.fetchall()
@@ -413,7 +413,7 @@ class Buy(Base, TradingView):
         self.__init_loop_variables()
         bought_set = set()
         
-        self.nuke_and_restart()
+        # self.nuke_and_restart()
         
         while True:
             bought_set = self.__update_bought_set()
@@ -430,7 +430,7 @@ class Buy(Base, TradingView):
                 
                 self.__set_pre_buy_variables(symbol)
                 # if symbol is in the bought list, we don't care if it is a good time to buy or not, we need to manage it
-                # if not self.is_buy and symbol not in bought_set: continue
+                if not self.is_buy and symbol not in bought_set: continue
                 self.__set_post_buy_variables(symbol)
                 self.__place_limit_orders(symbol)
         return
