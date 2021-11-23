@@ -59,7 +59,7 @@ class ConfigParser():
                             removed_set.add(param)
                             break
         except Exception as e:
-            G.log_file.print_and_log(e=e)
+            G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
             sys.exit()
         return parameter_dict
 

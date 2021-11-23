@@ -65,7 +65,7 @@ class Buy(Base, TradingView):
             alt_name         = self.get_alt_name(symbol)
             self.is_buy      = self.is_strong_buy(alt_name+StableCoins.USD)
         except Exception as e:
-            G.log_file.print_and_log(e=e)
+            G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return
 
     def __set_post_buy_variables(self, symbol: str) -> None:
@@ -76,7 +76,7 @@ class Buy(Base, TradingView):
             self.pair_decimals       = self.get_pair_decimals(self.symbol_pair)
             self.open_orders         = self.get_open_orders()
         except Exception as e:
-            G.log_file.print_and_log(e=e)
+            G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return
 
     def __place_base_order(self, order_min: float, symbol_pair: str) -> dict:
@@ -93,7 +93,7 @@ class Buy(Base, TradingView):
         
         for price, quantity in self.dca.safety_orders.items():
             try:
-                sql_req_price      = sql.con_get_required_price("safety_orders", self.symbol_pair)
+                sql_req_price      = sql.con_get_required_price(SQLTable.SAFETY_ORDERS, self.symbol_pair)
                 price_max_prec     = self.get_pair_decimals(self.symbol_pair)
                 rounded_price      = self.round_decimals_down(price, price_max_prec)
                 max_vol_prec       = self.get_max_volume_precision(symbol)
@@ -112,7 +112,8 @@ class Buy(Base, TradingView):
                     sql.con_update(f"UPDATE safety_orders SET order_placed=true WHERE symbol_pair='{self.symbol_pair}' AND order_placed=false LIMIT 1")
                     
                     # store open_buy_order row
-                    sql.con_insert(f"INSERT INTO open_buy_orders {sql.obo_columns} VALUES ('{self.symbol_pair}', '{symbol}', {req_price}, {profit_potential}, false, '{obo_txid}')")
+                    # sql.con_insert(f"INSERT INTO open_buy_orders {sql.obo_columns} VALUES ('{self.symbol_pair}', '{symbol}', {req_price}, {profit_potential}, false, '{obo_txid}')")
+                    sql.con_update(f"INSERT INTO open_buy_orders {sql.obo_columns} VALUES ('{self.symbol_pair}', '{symbol}', {req_price}, {profit_potential}, false, '{obo_txid}')")
                 else:
                     if limit_order_result[Dicts.ERROR][0] == KError.INSUFFICIENT_FUNDS:
                         G.log_file.print_and_log(f"{self.symbol_pair} Not enough USD to place remaining safety orders.")
@@ -122,7 +123,7 @@ class Buy(Base, TradingView):
                     
                     G.log_file.print_and_log(message=f"{limit_order_result}", money=True)
             except Exception as e:
-                G.log_file.print_and_log(e=e)
+                G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return
 
     def __place_limit_orders(self, symbol: str) -> None:
@@ -151,10 +152,11 @@ class Buy(Base, TradingView):
                 base_order_result = self.__place_base_order(self.order_min, self.symbol_pair)
 
                 if self.has_result(base_order_result):
-                    G.log_file.print_and_log(f"Base order filled: {base_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}")
+                    base_price     = self.__get_bought_price(base_order_result)
+                    
+                    G.log_file.print_and_log(f"Base order filled: {base_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]} @ {base_price}")
                     
                     base_order_qty = float(str(base_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]).split(" ")[1])
-                    base_price     = self.__get_bought_price(base_order_result)
                     self.dca       = DCA(self.symbol_pair, symbol, base_order_qty, base_price)
                     
                     # upon placing the base_order, pass in the txid into dca to write to db
@@ -173,7 +175,7 @@ class Buy(Base, TradingView):
             if num_open_orders < DCA_.SAFETY_ORDERS_ACTIVE_MAX:
                 self.__place_safety_orders(symbol)
         except Exception as e:
-            G.log_file.print_and_log(e=e)
+            G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return
 
     def __update_bought_set(self) -> set:
@@ -254,7 +256,7 @@ class Buy(Base, TradingView):
                     
                     print(f"{symbol_pair} trade complete, profit: {profit}")
         except Exception as e:
-            G.log_file.print_and_log(e=e)
+            G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return
 
     def __update_open_buy_orders(self, symbol: str) -> None:
@@ -308,7 +310,7 @@ class Buy(Base, TradingView):
                         # 3. Place a new sell order
                     self.sell.start(symbol_pair, symbol, obo_txid)
         except Exception as e:
-            G.log_file.print_and_log(e=e)
+            G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return
 
     def __get_future_time(self) -> str:
@@ -355,7 +357,7 @@ class Buy(Base, TradingView):
                 Buy_.SET = set(sorted(result_set.union(bought_set)))
                 print("Buy_.SET:", Buy_.SET)
         except Exception as e:
-            G.log_file.print_and_log(e=e)
+            G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return
     
     def __get_account_value(self) -> float:
@@ -408,23 +410,18 @@ class Buy(Base, TradingView):
 
     def buy_loop(self) -> None:
         """The main function for trading coins."""
-        # self.__init_loop_variables()
-        # bought_set = set()
+        self.__init_loop_variables()
+        bought_set = set()
         
-        # self.nuke_and_restart()
+        self.nuke_and_restart()
         
-        sql = SQL()
-        sql.create_db_connection()
-        sql.drop_all_tables()
-        sql.create_tables()
-        sql.close_db_connection()
-        
-        self.dca = DCA("SCUSD", "SC", 280, 0.020424)
-
         while True:
             bought_set = self.__update_bought_set()
-            self.wait(message=f"buy_loop: Waiting till {self.__get_buy_time()} to buy", timeout=Buy_.TIME_MINUTES*60)
+            self.wait(message=f"\nbuy_loop: Waiting till {self.__get_buy_time()} to buy", timeout=Buy_.TIME_MINUTES*60)
             self.__set_buy_set(bought_set)
+            
+            Buy_.SET = set()
+            Buy_.SET.add("MANA")
             
             for symbol in Buy_.SET:
                 self.wait(message=f"buy_loop: checking {symbol}", timeout=Nap.LONG)
@@ -433,7 +430,7 @@ class Buy(Base, TradingView):
                 
                 self.__set_pre_buy_variables(symbol)
                 # if symbol is in the bought list, we don't care if it is a good time to buy or not, we need to manage it
-                if not self.is_buy and symbol not in bought_set: continue
+                # if not self.is_buy and symbol not in bought_set: continue
                 self.__set_post_buy_variables(symbol)
                 self.__place_limit_orders(symbol)
         return

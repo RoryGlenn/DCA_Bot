@@ -57,7 +57,6 @@ class DCA(DCA_):
             self.__set_required_change_percentage_levels()
             self.__set_profit_levels()
             self.__set_safety_order_table()
-            
         self.__set_buy_orders()
         return
 
@@ -69,9 +68,7 @@ class DCA(DCA_):
         if result_set.rowcount <= 0:
             return False
 
-        if len(result_set.fetchall()) <= 0:
-            return False
-        return True
+        return not len(result_set.fetchall()) <= 0
 
     def __set_deviation_percentage_levels(self) -> None:
         """
@@ -107,7 +104,7 @@ class DCA(DCA_):
             safety_order = safety_order + step_percent
             safety_order = round(safety_order, DECIMAL_MAX)
             self.percentage_deviation_levels.append(safety_order)
-        print("deviation levels: ", self.percentage_deviation_levels)
+        # print("deviation levels: ", self.percentage_deviation_levels)
         return
 
     def __set_price_levels(self) -> None:
@@ -121,7 +118,7 @@ class DCA(DCA_):
             level = self.percentage_deviation_levels[i] / 100
             price = self.bid_price - (self.bid_price * level)
             self.price_levels.append(round(price, DECIMAL_MAX))
-        print("price_levels: ", self.price_levels)
+        # print("price_levels: ", self.price_levels)
         return
 
     def __set_quantity_levels(self) -> None:
@@ -135,7 +132,7 @@ class DCA(DCA_):
         for _ in range(1, DCA_.SAFETY_ORDERS_MAX):
             self.quantities.append(DCA_.SAFETY_ORDER_VOLUME_SCALE * prev)
             prev = DCA_.SAFETY_ORDER_VOLUME_SCALE * prev
-        print("quantities:", self.quantities)
+        # print("quantities:", self.quantities)
         return
     
     def __set_total_quantity_levels(self) -> None:
@@ -145,7 +142,7 @@ class DCA(DCA_):
             sum = prev + self.quantities[i]
             self.total_quantities.append(sum)
             prev = self.total_quantities[i]
-        print("total_quantities:", self.total_quantities)
+        # print("total_quantities:", self.total_quantities)
         return
     
     
@@ -162,8 +159,7 @@ class DCA(DCA_):
             weighted_average = numerator / self.total_quantities[i]
             weighted_average = round(weighted_average, DECIMAL_MAX)
             self.average_price_levels.append(weighted_average)
-        
-        print("average_price_levels: ", self.average_price_levels)
+        # print("average_price_levels: ", self.average_price_levels)
         return    
     
     def __set_weighted_average_price_levels_(self) -> None:
@@ -184,8 +180,7 @@ class DCA(DCA_):
             weighted_average = numerator / denominator
             weighted_average = round(weighted_average, DECIMAL_MAX)
             average_price_levels.append(weighted_average)
-        
-        print("average_price_levels alt: ", average_price_levels)
+        # print("average_price_levels alt: ", average_price_levels)
         return
 
     def __set_required_price_levels(self) -> None:
@@ -197,23 +192,18 @@ class DCA(DCA_):
             required_price = self.average_price_levels[i] + (self.average_price_levels[i] * target_profit_decimal)
             required_price = round(required_price, DECIMAL_MAX)
             self.required_price_levels.append(required_price)
-        print("required_price_levels:", self.required_price_levels)
+        # print("required_price_levels:", self.required_price_levels)
         return
 
     def __set_required_change_percentage_levels(self) -> None:
-        """Sets the required change percent for each safety order number.
-        
-        Required change is how much the average price needs to move to the required price
-        Averave price -> Required price = required change
-        
-        """
+        """Sets the required change percent for each safety order number."""
         
         for i in range(DCA_.SAFETY_ORDERS_MAX):
             required_change_percentage = ((self.required_price_levels[i] / self.price_levels[i]) - 1) * 100
             required_change_percentage = round(required_change_percentage, DECIMAL_MAX)
             self.required_change_percentage_levels.append(required_change_percentage)
         
-        print("required_change_percentage_levels:", self.required_change_percentage_levels)
+        # print("required_change_percentage_levels:", self.required_change_percentage_levels)
         return
     
     def __set_profit_levels(self) -> None:

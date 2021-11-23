@@ -305,7 +305,7 @@ class KrakenAPI(object):
             if symbol in account_balance.keys():
                 return account_balance[symbol]
         except Exception as e:
-            G.log_file.print_and_log(message="", e=e)
+            G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return 0.0
 
 

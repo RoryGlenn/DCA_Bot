@@ -5,6 +5,7 @@ import os
 from tradingview_ta            import TA_Handler, Interval
 from pprint                    import pprint
 from kraken_files.kraken_enums import *
+from util.globals              import G
 
 class TVData:
     SCREENER       = "crypto"
@@ -40,7 +41,7 @@ class TradingView():
             symbol_data = TA_Handler(symbol=symbol_pair, screener=TVData.SCREENER, exchange=TVData.EXCHANGE, interval=interval)
             return symbol_data.get_analysis().summary[TVData.RECOMMENDATION]
         except Exception as e:
-            pprint(e)
+            G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return []
 
     def is_buy(self, symbol_pair: list) -> bool:

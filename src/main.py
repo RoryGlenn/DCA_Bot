@@ -61,7 +61,7 @@ class General:
             elif sys.platform == "linux" or sys.platform == "linux2":
                 """https://www.vmware.com/support/vcm/doc/help/vcm-57/Content/ProvisioningHW/ProvHW_GS_Task_Provision_UNIX_ntp.htm"""
         except Exception as e:
-            G.log_file.print_and_log(message="Failed to sync time.", e=e)
+            G.log_file.print_and_log(message="Failed to sync time.", e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return
 
     def init() -> None:

@@ -42,7 +42,7 @@ class Log():
         except Exception as e:
             print(e)
 
-    def print_and_log(self, message: str = "", money: bool = False, e=False, end: bool = False) -> None:
+    def print_and_log(self, message: str = "", money: bool = False, end: bool = False, e=False, error_type: str = "", filename: str = "", tb_lineno: str = "") -> None:
         """Print to the console and write to the log file. 
         If something went wrong, just print the error to console."""
         try:
@@ -54,10 +54,9 @@ class Log():
                 self.write(f"[$] {result}")
                 return
             if e:
-                print(
-                    f"[!] {result} || {e}, {type(e).__name__}, {__file__}, {e.__traceback__.tb_lineno}")
-                self.write(
-                    f"[!] {result} || {e}, {type(e).__name__}, {__file__}, {e.__traceback__.tb_lineno}")
+                #                                  {type(e).__name__}, {__file__}, {e.__traceback__.tb_lineno}
+                print(     f"[!] {result} || {e}, {error_type} {filename} {tb_lineno}")
+                self.write(f"[!] {result} || {e}, {error_type} {filename} {tb_lineno}")
                 return
             if end:
                 print(f"[-] {result}")

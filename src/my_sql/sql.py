@@ -3,7 +3,7 @@ import mysql.connector
 from mysql.connector.connection_cext import CMySQLConnection
 from mysql.connector.cursor          import MySQLCursorBuffered
 from mysql.connector.cursor_cext     import CMySQLCursor
-
+from util.globals                    import G
 
 class SQL():
     def __init__(self, host_name: str = "localhost", user_name: str = "root", user_password: str = "12345", db_name: str = "dca") -> None:
@@ -25,7 +25,7 @@ class SQL():
                 passwd=self.user_password,
                 database=self.db_name)
         except Exception as e:
-            print(e)
+            G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return 
     
     def close_db_connection(self) -> None:
@@ -37,7 +37,7 @@ class SQL():
             else:
                 print("MySQL no connection open")
         except Exception as e:
-            print(e)
+            G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return
 
     def update(self, query: str) -> CMySQLCursor:
@@ -46,7 +46,7 @@ class SQL():
             cursor.execute(query)
             self.connection.commit()
         except Exception as e:
-            print(e)
+            G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return cursor
 
     def query(self, query: str) -> MySQLCursorBuffered:
@@ -54,7 +54,7 @@ class SQL():
             cursor: MySQLCursorBuffered = self.connection.cursor(buffered=True)
             cursor.execute(query)
         except Exception as e:
-            print(e)
+            G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return cursor
     
     def con_query(self, query: str) -> MySQLCursorBuffered:
