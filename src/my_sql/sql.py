@@ -178,3 +178,5 @@ class SQL():
         result_set.close()
         self.close_db_connection()
         return [price[0] for price in result_set.fetchall()] if result_set.rowcount > 0 else []
+    
+    

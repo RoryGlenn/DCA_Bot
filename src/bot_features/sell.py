@@ -47,7 +47,7 @@ class Sell(Base):
         # therefore, this for loop is skipped.
         for txid in txid_set:
             self.cancel_order(txid)
-            sql.con_update(f"UPDATE open_sell_orders SET cancelled=true WHERE symbol_pair='{symbol_pair}' AND cancelled=false AND filled=false")
+            sql.con_update(f"UPDATE open_sell_orders SET cancelled=true WHERE symbol_pair='{symbol_pair}' AND cancelled=false AND filled=false and oso_txid='{txid}'")
         return
     
     
@@ -63,6 +63,7 @@ class Sell(Base):
         required_price       = self.round_decimals_down(nonrounded_req_price, max_prec)
         max_prec             = self.__get_max_volume_prec(symbol_pair)
         qty_owned            = self.__get_quantity_owned(symbol_pair)
+        
         qty_to_sell          = self.round_decimals_down(qty_owned, max_prec)
         sell_order_result    = self.limit_order(Trade.SELL, qty_to_sell, symbol_pair, required_price)
         
