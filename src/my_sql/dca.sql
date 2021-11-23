@@ -23,7 +23,8 @@ CREATE TABLE open_buy_orders (
     required_price FLOAT       NOT NULL,
     profit         FLOAT       NOT NULL,
     filled         BOOLEAN     NOT NULL,
-    obo_txid       VARCHAR(30) PRIMARY KEY
+    obo_txid       VARCHAR(30) PRIMARY KEY,
+    obo_no         INT         NOT NULL AUTO_INCREMENT
 );
 
 CREATE TABLE open_sell_orders (

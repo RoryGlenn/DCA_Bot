@@ -98,7 +98,7 @@ class Sell(Base):
             sell_order_txid = sell_order_result[Dicts.RESULT][Data.TXID][0]
             
             sql = SQL()
-            sql.con_update(f"INSERT INTO open_sell_orders {sql.oso_columns} VALUES ('{symbol_pair}', '{symbol}', {profit_potential}, false, false, '{sell_order_txid}')")
+            sql.con_update(f"INSERT INTO open_sell_orders {sql.oso_columns} VALUES ('{symbol_pair}', '{symbol}', {profit_potential}, false, false, '{sell_order_txid}', oso_no)")
         else:
             G.log_file.print_and_log(f"place_sell_limit_base_order: {symbol_pair} {sell_order_result[Dicts.ERROR]}")
 
@@ -133,7 +133,7 @@ class Sell(Base):
         sell_order_txid   = self.__get_sell_order_txid(sell_order_result)
         
         # insert sell order into sql
-        sql.con_update(f"INSERT INTO open_sell_orders {sql.oso_columns} VALUES ('{symbol_pair}', '{symbol}', {profit_potential}, false, false, '{sell_order_txid}')")
+        sql.con_update(f"INSERT INTO open_sell_orders {sql.oso_columns} VALUES ('{symbol_pair}', '{symbol}', {profit_potential}, false, false, '{sell_order_txid}', oso_no)")
 
         # update open_buy_orders table
         sql.con_update(f"UPDATE open_buy_orders SET filled=true WHERE obo_txid='{filled_buy_order_txid}' AND filled=false")

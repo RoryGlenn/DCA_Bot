@@ -111,7 +111,7 @@ class Buy(Base, TradingView):
                     sql.con_update(f"UPDATE safety_orders SET order_placed=true WHERE symbol_pair='{self.symbol_pair}' AND order_placed=false LIMIT 1")
                     
                     # store open_buy_order row
-                    sql.con_update(f"INSERT INTO open_buy_orders {sql.obo_columns} VALUES ('{self.symbol_pair}', '{symbol}', {req_price}, {profit_potential}, false, '{obo_txid}')")
+                    sql.con_update(f"INSERT INTO open_buy_orders {sql.obo_columns} VALUES ('{self.symbol_pair}', '{symbol}', {req_price}, {profit_potential}, false, '{obo_txid}', obo_no)")
                 else:
                     if limit_order_result[Dicts.ERROR][0] == KError.INSUFFICIENT_FUNDS:
                         G.log_file.print_and_log(f"{self.symbol_pair} Not enough USD to place remaining safety orders.")
@@ -419,6 +419,8 @@ class Buy(Base, TradingView):
         
         while True:
             bought_set = self.__update_bought_set()
+            
+            print()
             self.wait(message=f"buy_loop: Waiting till {self.__get_buy_time()} to buy", timeout=Buy_.TIME_MINUTES*60)
             self.__set_buy_set(bought_set)
             
@@ -429,8 +431,8 @@ class Buy(Base, TradingView):
                 self.__set_pre_buy_variables(symbol)
                 
                 # if symbol is in the bought list, we don't care if it is a good time to buy or not, we need to manage it
-                if self.__is_buy(symbol, bought_set):
-                    self.__set_post_buy_variables(symbol)
-                    self.__place_limit_orders(symbol)
+                # if self.__is_buy(symbol, bought_set):
+                self.__set_post_buy_variables(symbol)
+                self.__place_limit_orders(symbol)
         return
     

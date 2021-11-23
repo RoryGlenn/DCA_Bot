@@ -236,7 +236,7 @@ class DCA(DCA_):
                 {self.cost_levels[i]},
                 {self.total_cost_levels[i]},
                 false,
-                so_key)""")
+                so_no)""")
         sql.close_db_connection()
         return
 

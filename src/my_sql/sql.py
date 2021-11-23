@@ -1,9 +1,11 @@
 import mysql.connector
+import os
 
 from mysql.connector.connection_cext import CMySQLConnection
 from mysql.connector.cursor          import MySQLCursorBuffered
 from mysql.connector.cursor_cext     import CMySQLCursor
 from util.globals                    import G
+from kraken_files.kraken_enums       import *
 
 class SQL():
     def __init__(self, host_name: str = "localhost", user_name: str = "root", user_password: str = "12345", db_name: str = "dca") -> None:
@@ -11,9 +13,9 @@ class SQL():
         self.user_name:     str              = user_name
         self.user_password: str              = user_password
         self.db_name:       str              = db_name
-        self.so_columns:    str              = "(symbol_pair, symbol, safety_order_no, deviation, quantity, total_quantity, price, average_price, required_price, required_change, profit, cost, total_cost, order_placed, so_key)"
-        self.obo_columns:   str              = "(symbol_pair, symbol, required_price, profit, filled, obo_txid)"
-        self.oso_columns:   str              = "(symbol_pair, symbol, profit, cancelled, filled, oso_txid)"
+        self.so_columns:    str              = "(symbol_pair, symbol, safety_order_no, deviation, quantity, total_quantity, price, average_price, required_price, required_change, profit, cost, total_cost, order_placed, so_no)"
+        self.obo_columns:   str              = "(symbol_pair, symbol, required_price, profit, filled, obo_txid, obo_no)"
+        self.oso_columns:   str              = "(symbol_pair, symbol, profit, cancelled, filled, oso_txid, oso_no)"
         self.connection:    CMySQLConnection = None
         return
 
@@ -71,9 +73,9 @@ class SQL():
         return
     
     def drop_all_tables(self) -> None:
-        self.update("DROP TABLE open_sell_orders")
-        self.update("DROP TABLE open_buy_orders")
-        self.update("DROP TABLE safety_orders")
+        self.con_update("DROP TABLE open_sell_orders")
+        self.con_update("DROP TABLE open_buy_orders")
+        self.con_update("DROP TABLE safety_orders")
         return
 
     def create_tables(self) -> None:
@@ -95,8 +97,8 @@ class SQL():
                 cost                FLOAT       NOT NULL,
                 total_cost          FLOAT       NOT NULL,
                 order_placed        BOOLEAN     NOT NULL,
-                so_key              INT         NOT NULL AUTO_INCREMENT,
-                PRIMARY KEY (so_key)
+                so_no               INT         NOT NULL AUTO_INCREMENT,
+                PRIMARY KEY (so_no)
             );  """
 
         open_buy_orders = """
@@ -106,7 +108,9 @@ class SQL():
                 required_price FLOAT       NOT NULL,
                 profit         FLOAT       NOT NULL,
                 filled         BOOLEAN     NOT NULL,
-                obo_txid       VARCHAR(30) PRIMARY KEY
+                obo_txid       VARCHAR(30) NOT NULL,
+                obo_no         INT         NOT NULL AUTO_INCREMENT,
+                PRIMARY KEY (obo_no)
             );  """
 
         open_sell_orders = """
@@ -116,13 +120,32 @@ class SQL():
                 profit      FLOAT       NOT NULL,
                 cancelled   BOOLEAN     NOT NULL,
                 filled      BOOLEAN     NOT NULL,
-                oso_txid    VARCHAR(30) PRIMARY KEY
+                oso_txid    VARCHAR(30) NOT NULL,
+                oso_no      INT         NOT NULL AUTO_INCREMENT,
+                PRIMARY KEY (oso_no)
             );  """
 
-        self.update(safety_orders)
-        self.update(open_buy_orders)
-        self.update(open_sell_orders)        
+        self.con_update(safety_orders)
+        self.con_update(open_buy_orders)
+        self.con_update(open_sell_orders)        
         return
+
+
+    def create_kraken_coins_table(self) -> None:
+        self.con_update("DROP TABLE kraken_coins")
+        self.con_update("CREATE TABLE kraken_coins (symbol    VARCHAR(10) NOT NULL, \
+                                                    symbol_no INT         NOT NULL AUTO_INCREMENT, \
+                                                    PRIMARY KEY(symbol_no));")
+        
+        if os.path.exists(KRAKEN_COINS):
+            with open(KRAKEN_COINS, 'r') as file:
+                lines = file.readlines()
+                lines.sort()
+                for line in lines:
+                    symbol = line.replace("\n", "")
+                    self.con_update(f"INSERT INTO kraken_coins (symbol) VALUES ('{symbol}')")
+        return
+
 
     def con_get_symbols(self) -> set:
         bought_set = set()
@@ -130,6 +153,7 @@ class SQL():
         result_set = self.query("SELECT symbol FROM safety_orders")
         result_set.close()
         self.close_db_connection()
+
         for symbol in result_set.fetchall():
             bought_set.add(symbol[0])
         return bought_set
