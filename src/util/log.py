@@ -9,15 +9,19 @@ class Log():
         self.log_directory_path = "src/kraken_files/logs"
         self.log_file_path      = "src/kraken_files/logs" + "/" + str(datetime.date.today()) + ".txt"
 
-    def get_current_time(self) -> datetime:
+    def get_current_time(self) -> str:
         return datetime.datetime.now().strftime("%H:%M:%S")
+    
+    def get_current_date(self) -> str:
+        return datetime.datetime.today().strftime("%d/%m/%Y")
 
-    def directory_create(self):
+    def directory_create(self) -> None:
         try:
             if not os.path.exists(self.log_directory_path):
                 os.mkdir(self.log_directory_path)
         except Exception as e:
-            print(e)
+            print(Color.BG_RED + f"ERROR:{Color.ENDC} || {e}, {type(e).__name__} {__file__} {e.__traceback__.tb_lineno}" )
+        return
 
     def file_create(self):
         try:
@@ -32,7 +36,8 @@ class Log():
                 file.write(
                     "\n=========================================================================================\n")
         except Exception as e:
-            print(e)
+            print(Color.BG_RED + f"ERROR:{Color.ENDC} || {e}, {type(e).__name__} {__file__} {e.__traceback__.tb_lineno}" )
+        return
 
     def write(self, text, file_path="src/kraken_files/logs/" + str(datetime.date.today()) + ".txt"):
         """Writes to the end of the log file"""
@@ -40,28 +45,33 @@ class Log():
             with open(file_path, FileMode.WRITE_APPEND) as file:
                 file.write(f"{text}\n")
         except Exception as e:
-            print(e)
+            print(Color.BG_RED + f"ERROR:{Color.ENDC} || {e}, {type(e).__name__} {__file__} {e.__traceback__.tb_lineno}" )
+        return
+
 
     def print_and_log(self, message: str = "", money: bool = False, end: bool = False, e=False, error_type: str = "", filename: str = "", tb_lineno: str = "") -> None:
         """Print to the console and write to the log file. 
         If something went wrong, just print the error to console."""
         try:
             current_time = self.get_current_time()
-            result = f"{current_time} {message}"
+            current_date = self.get_current_date()
+            
+            result = f"[{current_date} {current_time}] {message}"
 
             if money:
-                print(     f"[$] {result}")
-                self.write(f"[$] {result}")
+                print(     f"{result}")
+                self.write(f"{result}")
                 return
             if e:
-                print(Color.BG_RED + f"[!] {result} || {e}, {error_type} {filename} {tb_lineno}" + Color.ENDC)
-                self.write(          f"[!] {result} || {e}, {error_type} {filename} {tb_lineno}")
+                print(f"{result} {Color.BG_RED}ERROR:{Color.ENDC} || {e}, {error_type} {filename} {tb_lineno}" )
+                self.write(f"{result} ERROR: || {e}, {error_type} {filename} {tb_lineno}")
                 return
             if end:
-                print(     f"[-] {result}")
-                self.write(f"[-] {result}")
+                print(     f"{result}")
+                self.write(f"{result}")
                 return
-            print(     f"[*] {result}")
-            self.write(f"[*] {result}")
+            print(     f"{result}")
+            self.write(f"{result}")
         except:
-            print(e)
+            print(f"{result} {Color.BG_RED}ERROR:{Color.ENDC} || {e}, {error_type} {filename} {tb_lineno}" )
+        return

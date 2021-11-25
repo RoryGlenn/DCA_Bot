@@ -32,7 +32,7 @@ class General:
             os.system(Misc.CLEAR)
         return
 
-    def get_current_time() -> None:
+    def get_current_time() -> str:
         """ 
         Gets the current time in hours, minutes, seconds.
 

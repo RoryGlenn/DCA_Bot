@@ -6,6 +6,7 @@ from tradingview_ta            import TA_Handler, Interval
 from pprint                    import pprint
 from kraken_files.kraken_enums import *
 from util.globals              import G
+from datetime                  import datetime
 
 class TVData:
     SCREENER       = "crypto"
@@ -34,7 +35,7 @@ class TVData:
 class TradingView():
     def __init__(self) -> None:
         pass
-
+    
     def __get_recommendation(self, symbol_pair: str, interval: str) -> list:
         """Get a recommendation (buy or sell) for the symbol."""
         try:
@@ -64,7 +65,6 @@ class TradingView():
                 return False
         return True
 
-
     def is_strong_buy(self, symbol_pair: list) -> bool:
         for interval in TVData.SCALP_INTERVALS:
             recomendation = self.__get_recommendation(symbol_pair, interval)
@@ -91,7 +91,7 @@ class TradingView():
             for symbol in sorted(lines):
                 symbol = symbol.replace("\n", "")
 
-                print(f"{iteration} : {total} {symbol}")
+                G.log_file.print_and_log(f"{iteration} of {total}: {symbol}")
 
                 if symbol not in StableCoins.STABLE_COINS_LIST:
                     if self.is_buy(symbol+StableCoins.USD):
@@ -118,7 +118,7 @@ class TradingView():
             for symbol in sorted(lines):
                 symbol = symbol.replace("\n", "")
 
-                print(f"{iteration} : {total} {symbol}")
+                G.log_file.print_and_log(f"{iteration} of {total}: {symbol}")
 
                 if symbol not in StableCoins.STABLE_COINS_LIST:
                     if self.is_buy_long(symbol+StableCoins.USD):
@@ -147,7 +147,7 @@ class TradingView():
             for symbol in sorted(lines):
                 symbol = symbol.replace("\n", "")
 
-                print(f"{iteration} : {total} {symbol}")
+                G.log_file.print_and_log(f"{iteration} of {total}: {symbol}")
 
                 if symbol not in StableCoins.STABLE_COINS_LIST:
                     if self.is_strong_buy(symbol+StableCoins.USD):

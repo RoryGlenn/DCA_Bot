@@ -2,17 +2,12 @@ import os
 os.system("color")
 
 class Color:
-    HEADER = '\033[95m'
-    BLUE   = '\033[94m'
-    CYAN   = '\033[96m'
-    GREEN  = '\033[92m'
-    YELLOW = '\033[93m'
-    ORANGE = '\033[91m'
-    
     BOLD        = '\033[1m'
     UNDERLINE   = '\033[4m'
     CROSSED_OUT = '\033[9m'
     ENDC        = '\033[0m'
+
+    GREY = "\033[30m" + "\033[37m"
 
     # Black
     FG_BLACK        = "\033[30m"
@@ -27,13 +22,13 @@ class Color:
     BG_BRIGHT_RED = "\033[41;1m"
 
     # Green
-    fgGreen = "\033[32m"
-    fgBrightGreen = "\033[32;1m"
-    bgGreen = "\033[42m"
-    bgBrightGreen = "\033[42;1m"
+    FG_GREEN        = "\033[32m"
+    FG_BRIGHT_GREEN = "\033[32;1m"
+    BG_GREEN        = "\033[42m"
+    BG_BRIGHT_GREEN = "\033[42;1m"
 
     # Yellow
-    fgYellow = "\033[33m"
+    FG_YELLOW = "\033[33m"
     fgBrightYellow = "\033[33;1m"
     bgYellow = "\033[43m"
     bgBrightYellow = "\033[43;1m"
