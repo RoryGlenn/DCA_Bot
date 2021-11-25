@@ -161,7 +161,7 @@ class SQL():
         self.close_db_connection()
         
         if result_set.rowcount <= 0:
-            return set()
+            return bought_set
             
         for symbol in result_set.fetchall():
             bought_set.add(symbol[0])
@@ -174,6 +174,10 @@ class SQL():
         result_set = self.query("SELECT symbol_pair FROM safety_orders")
         result_set.close()
         self.close_db_connection()
+        
+        if result_set.rowcount <= 0:
+            return bought_set
+        
         for symbol in result_set.fetchall():
             bought_set.add(symbol[0])
         return bought_set
