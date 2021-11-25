@@ -165,7 +165,7 @@ class Buy(Base, TradingView):
                     self.sell.dca = self.dca
                     
                     # upon placing the base_order, pass in the txid into dca to write to db
-                    self.sell.place_sell_limit_base_order(self.symbol_pair, symbol, base_price, base_order_qty)
+                    self.sell.place_sell_limit_base_order(self.symbol_pair, base_price, base_order_qty)
                 else:
                     G.log_file.print_and_log(Color.FG_YELLOW + f"Can't place base order:{Color.ENDC} {self.symbol_pair} {base_order_result[Dicts.ERROR]}")
                     return
@@ -422,7 +422,7 @@ class Buy(Base, TradingView):
     def buy_loop(self) -> None:
         """The main function for trading coins."""
         self.__init_loop_variables()
-        # self.nuke_and_restart()
+        self.nuke_and_restart()
 
         while True:
             bought_set = self.__update_bought_set()

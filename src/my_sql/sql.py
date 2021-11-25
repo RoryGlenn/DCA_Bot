@@ -160,11 +160,9 @@ class SQL():
         result_set.close()
         self.close_db_connection()
         
-        if result_set.rowcount <= 0:
-            return bought_set
-            
-        for symbol in result_set.fetchall():
-            bought_set.add(symbol[0])
+        if result_set.rowcount > 0:
+            for symbol in result_set.fetchall():
+                bought_set.add(symbol[0])
         return bought_set
     
     def con_get_symbol_pairs(self) -> set:
@@ -174,27 +172,18 @@ class SQL():
         result_set = self.query("SELECT symbol_pair FROM safety_orders")
         result_set.close()
         self.close_db_connection()
-        
-        if result_set.rowcount <= 0:
-            return bought_set
-        
-        for symbol in result_set.fetchall():
-            bought_set.add(symbol[0])
+        if result_set.rowcount > 0:
+            for symbol in result_set.fetchall():
+                bought_set.add(symbol[0])
         return bought_set
-    
-    def con_get_profit(self, table_name: str, conditions: str):
-        self.create_db_connection()
-        result_set = self.query(f"SELECT profit FROM {table_name} {conditions}")
-        result_set.close()
-        self.close_db_connection()
-        return result_set
         
     def con_get_required_price(self, table_name: str, symbol_pair: str) -> float:
         self.create_db_connection()
         result_set = self.query(f"SELECT required_price FROM {table_name} WHERE symbol_pair='{symbol_pair}' AND order_placed=false LIMIT 1")
         result_set.close()
         self.close_db_connection()
-        req_price_list = result_set.fetchall()
+        if result_set.rowcount > 0:
+            req_price_list = result_set.fetchall()
         return req_price_list[0][0] if result_set.rowcount > 0 else -1
     
     def con_get_open_buy_orders(self, symbol_pair: str) -> int:
@@ -202,7 +191,9 @@ class SQL():
         result_set = self.query(f"SELECT symbol_pair FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
         result_set.close()
         self.close_db_connection()
-        return len(result_set.fetchall())
+        if result_set.rowcount > 0:
+            return len(result_set.fetchall())
+        return 0
         
     def con_get_quantities(self, symbol_pair: str) -> list:
         self.create_db_connection()

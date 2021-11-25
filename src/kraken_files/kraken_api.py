@@ -284,6 +284,10 @@ class KrakenAPI(object):
         result = str()
         if Dicts.BID_PRICE in response.keys():
             result = response[Dicts.BID_PRICE][0]
+        
+        # if result is empty, assets could be staked. If so, symbol will have a ".S" at the end of it.        
+        if len(result) <= 0:
+            return 0
         return float(result)
 
     def parse_account_balance(self, response: dict) -> dict:

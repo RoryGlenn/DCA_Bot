@@ -87,7 +87,7 @@ class Sell(Base):
 ##################################################################
 ### Place sell order for base order only!
 ##################################################################
-    def place_sell_limit_base_order(self, symbol_pair: str, symbol: str, entry_price: float, quantity: float) -> dict:
+    def place_sell_limit_base_order(self, symbol_pair: str, entry_price: float, quantity: float) -> dict:
         """Create a sell limit order for the base order only!"""
         sql = SQL()
         
@@ -100,10 +100,10 @@ class Sell(Base):
 
         if self.has_result(sell_order_result):
             profit_potential = round(entry_price * quantity * DCA_.TARGET_PROFIT_PERCENT/100, 6)
-            G.log_file.print_and_log(Color.bgBlue + f"sell: limit order placed{Color.ENDC} {symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: ${profit_potential}" + Color.ENDC)
+            G.log_file.print_and_log(Color.bgBlue + f"sell limit order placed{Color.ENDC} {symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: ${profit_potential}" + Color.ENDC)
             sell_order_txid = sell_order_result[Dicts.RESULT][Data.TXID][0]
 
-            # get the values from the safety order in order to place it into open_buy_orders table
+            # get the values from the safety order in order to place it into open_sell_orders table
             row = sql.con_get_row(SQLTable.SAFETY_ORDERS, symbol_pair, 1)
             
             sql.con_update(f"""INSERT INTO open_sell_orders {sql.oso_columns} VALUES 
