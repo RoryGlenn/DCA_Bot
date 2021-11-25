@@ -121,7 +121,7 @@ class Sell(Base):
 ##################################################################
 ### Run the entire sell process for safety orders
 ##################################################################
-    def start(self, symbol_pair: str, symbol: str, filled_buy_order_txid: str) -> None:
+    def start(self, symbol_pair: str, filled_buy_order_txid: str) -> None:
         """
         Everytime an open_buy_order is filled we need to
             1. Set filled=true in open_buy_orders table
@@ -133,10 +133,6 @@ class Sell(Base):
         sql = SQL()
         sql.con_update(f"UPDATE open_buy_orders SET filled=true WHERE symbol_pair='{symbol_pair}' AND obo_txid='{filled_buy_order_txid}' AND filled=false")
         
-        # get profit from open_buy_orders table
-        result_set       = sql.con_get_profit("open_buy_orders", f"WHERE obo_txid='{filled_buy_order_txid}'")
-        profit_potential = result_set.fetchone()[0] if result_set.rowcount > 0 else 0
-        
         # 2. cancel open_sell_order
         self.__cancel_open_sell_order(symbol_pair)
 
@@ -147,7 +143,16 @@ class Sell(Base):
         sell_order_txid   = self.__get_sell_order_txid(sell_order_result)
         
         # insert sell order into sql
-        sql.con_update(f"INSERT INTO open_sell_orders {sql.oso_columns} VALUES ('{symbol_pair}', '{symbol}', {profit_potential}, false, false, '{sell_order_txid}', oso_no)")
+        safety_order_number = sql.con_get_max_safety_order_no(SQLTable.OPEN_BUY_ORDERS, symbol_pair)
+        row                 = sql.con_get_row(SQLTable.OPEN_BUY_ORDERS, symbol_pair, safety_order_number)
+        
+        sql.con_update(f"""INSERT INTO open_sell_orders {sql.oso_columns} VALUES 
+                       ('{row[0]}', '{row[1]}',          {row[2]},   {row[3]},
+                         {row[4]},   {row[5]},           {row[6]},   {row[7]},
+                         {row[8]},   {row[9]},           {row[10]},  {row[11]},
+                         {row[12]},  {row[13]},          {row[14]},  false,
+                         false,     '{sell_order_txid}', {row[15]}
+                        )""")
 
         # update open_buy_orders table
         sql.con_update(f"UPDATE open_buy_orders SET filled=true WHERE obo_txid='{filled_buy_order_txid}' AND filled=false")

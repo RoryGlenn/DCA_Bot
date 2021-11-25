@@ -2,7 +2,7 @@ import datetime
 import os
 
 from kraken_files.kraken_enums import FileMode
-
+from bot_features.colors       import Color
 
 class Log():
     def __init__(self):
@@ -50,16 +50,15 @@ class Log():
             result = f"{current_time} {message}"
 
             if money:
-                print(f"[$] {result}")
+                print(     f"[$] {result}")
                 self.write(f"[$] {result}")
                 return
             if e:
-                #                                  {type(e).__name__}, {__file__}, {e.__traceback__.tb_lineno}
-                print(     f"[!] {result} || {e}, {error_type} {filename} {tb_lineno}")
-                self.write(f"[!] {result} || {e}, {error_type} {filename} {tb_lineno}")
+                print(Color.BG_RED + f"[!] {result} || {e}, {error_type} {filename} {tb_lineno}" + Color.ENDC)
+                self.write(          f"[!] {result} || {e}, {error_type} {filename} {tb_lineno}")
                 return
             if end:
-                print(f"[-] {result}")
+                print(     f"[-] {result}")
                 self.write(f"[-] {result}")
                 return
             print(     f"[*] {result}")

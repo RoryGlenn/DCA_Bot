@@ -20,43 +20,31 @@ class SQL():
         return
 
     def create_db_connection(self) -> None:
-        try:
-            self.connection = mysql.connector.connect(
-                host=self.host_name,
-                user=self.user_name,
-                passwd=self.user_password,
-                database=self.db_name)
-        except Exception as e:
-            G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
+        self.connection = mysql.connector.connect(
+            host=self.host_name,
+            user=self.user_name,
+            passwd=self.user_password,
+            database=self.db_name)
         return 
     
     def close_db_connection(self) -> None:
-        try:
-            if self.connection is not None:
-                cursor: CMySQLCursor = self.connection.cursor()
-                cursor.close()
-                self.connection.close()
-            else:
-                print("MySQL no connection open")
-        except Exception as e:
-            G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
+        if self.connection is not None:
+            cursor: CMySQLCursor = self.connection.cursor()
+            cursor.close()
+            self.connection.close()
+        else:
+            print("MySQL no connection open")
         return
 
     def update(self, query: str) -> CMySQLCursor:
-        try:
-            cursor: CMySQLCursor = self.connection.cursor()
-            cursor.execute(query)
-            self.connection.commit()
-        except Exception as e:
-            G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
+        cursor: CMySQLCursor = self.connection.cursor()
+        cursor.execute(query)
+        self.connection.commit()
         return cursor
 
     def query(self, query: str) -> MySQLCursorBuffered:
-        try:
-            cursor: MySQLCursorBuffered = self.connection.cursor(buffered=True)
-            cursor.execute(query)
-        except Exception as e:
-            G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
+        cursor: MySQLCursorBuffered = self.connection.cursor(buffered=True)
+        cursor.execute(query)
         return cursor
     
     def con_query(self, query: str) -> MySQLCursorBuffered:
@@ -71,7 +59,6 @@ class SQL():
         result_set.close()
         self.close_db_connection()
         return
-    
     
     def drop_all_tables(self) -> None:
         self.con_update("DROP TABLE open_sell_orders")
@@ -167,7 +154,6 @@ class SQL():
                     self.con_update(f"INSERT INTO kraken_coins (symbol) VALUES ('{symbol}')")
         return
 
-
     def con_get_symbols(self) -> set:
         bought_set = set()
         self.create_db_connection()
@@ -234,23 +220,21 @@ class SQL():
         return tuple()
     
     def con_get_max_safety_order_no(self, tablename: str, symbol_pair: str) -> int:
-        result_set = self.con_query(f"SELECT MAX(safety_order_no) FROM {tablename} WHERE symbol_pair='{symbol_pair}' and order_placed=false")
-        
+        result_set = self.con_query(f"SELECT MAX(safety_order_no) FROM {tablename} WHERE symbol_pair='{symbol_pair}' AND order_placed=true")
         if result_set.rowcount > 0:
             num = result_set.fetchone()
             if isinstance(num, tuple):
                 return num[0]
             else:
-                return result_set.fetchone()
+                return num
         return tuple()
     
     def con_get_min_safety_order_no(self, tablename: str, symbol_pair: str) -> int:
-        result_set = self.con_query(f"SELECT MIN(safety_order_no) FROM {tablename} WHERE symbol_pair='{symbol_pair}' and order_placed=false")
-        
+        result_set = self.con_query(f"SELECT MIN(safety_order_no) FROM {tablename} WHERE symbol_pair='{symbol_pair}' AND order_placed=false")
         if result_set.rowcount > 0:
             num = result_set.fetchone()
             if isinstance(num, tuple):
                 return num[0]
             else:
-                return result_set.fetchone()
+                return num
         return tuple()        

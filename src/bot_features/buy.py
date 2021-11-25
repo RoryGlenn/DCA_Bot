@@ -1,12 +1,11 @@
 
 """
 buy.py - Buys coin on kraken exchange based on users config file.
-
-1. Have a list of coins that you want to buy.
-2. Pull data from trading view based on 3c settings.
-3. Make decision on whether to buy or not.
-4. After base order is filled, create sell limit order at % higher
-5. every time a safety order is filled, cancel current sell limit order and create a new sell limit order
+    1. Have a list of coins that you want to buy.
+    2. Pull data from trading view based on 3c settings.
+    3. Make decision on whether to buy or not.
+    4. After base order is filled, create sell limit order at % higher
+    5. every time a safety order is filled, cancel current sell limit order and create a new sell limit order
 
 """
 
@@ -21,6 +20,7 @@ from bot_features.dca          import DCA
 from bot_features.sell         import Sell
 from bot_features.tradingview  import TradingView
 from my_sql.sql                import SQL
+from colors                    import Color
 
 x_list   = ['XETC', 'XETH', 'XLTC', 'XMLN', 'XREP', 'XXBT', 'XXDG', 'XXLM', 'XXMR', 'XXRP', 'XZEC']
 reg_list = ['ETC',  'ETH',  'LTC',  'MLN',  'REP',  'XBT',  'XDG',  'XLM',  'XMR',  'XRP',  'ZEC' ]
@@ -50,7 +50,7 @@ class Buy(Base, TradingView):
         self.__init_buy_set()
         self.__set_future_time()
         
-        G.log_file.print_and_log(message=f"Account value: ${self.__get_account_value()}")
+        G.log_file.print_and_log(message=Color.bgGreen + "Account value: " + Color.ENDC + f"${self.__get_account_value()}")
         return
 
     def __get_buy_time(self) -> str:
@@ -307,12 +307,7 @@ class Buy(Base, TradingView):
             for obo_txid in txid_set:
                 if obo_txid in filled_trades_order_txids.keys():
                     # if the txid is in the trade history, the order open_buy_order was filled.
-                    
-                    # Everytime an open_buy_order is filled we need to
-                        # 1. Set filled=true in open_buy_orders table
-                        # 2. Cancel the open_sell_order on 'symbol_pair'
-                        # 3. Place a new sell order
-                    self.sell.start(symbol_pair, symbol, obo_txid)
+                    self.sell.start(symbol_pair, obo_txid)
         except Exception as e:
             G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return
@@ -359,8 +354,9 @@ class Buy(Base, TradingView):
                         result_set.add(symbol)
 
                 self.__set_future_time()
-                # Buy_.SET = set(sorted(result_set.union(bought_set)))
-                Buy_.SET = set(sorted(result_set))
+                
+                # must be a union or else the buy_loop won't check if the symbol was ever sold.
+                Buy_.SET = set(sorted(result_set.union(bought_set)))
                 
                 G.log_file.print_and_log(f"Buy_.SET: {Buy_.SET}")
         except Exception as e:
@@ -403,6 +399,7 @@ class Buy(Base, TradingView):
         return bought_price
 
     def __is_buy(self, symbol: str, bought_set: set) -> bool:
+        # if symbol is in the bought list, we don't care if it is a good time to buy or not, we need to manage it
         return not bool(not self.is_buy and symbol not in bought_set)
 
     def nuke_and_restart(self):
@@ -418,24 +415,22 @@ class Buy(Base, TradingView):
     def buy_loop(self) -> None:
         """The main function for trading coins."""
         self.__init_loop_variables()
-        self.nuke_and_restart()
-        
-        sql = SQL()
+        # self.nuke_and_restart()
+        # sql = SQL()
 
         while True:
             bought_set = self.__update_bought_set()
-            # self.wait(message=f"buy_loop: Waiting till {self.__get_buy_time()} to buy", timeout=Buy_.TIME_MINUTES*60)
             self.__set_buy_set(bought_set)
             
             for symbol in Buy_.SET:
-                self.wait(message=f"buy_loop: checking {symbol}", timeout=Nap.LONG)
                 self.__update_open_buy_orders(symbol)
                 self.__update_completed_trades(symbol)
                 self.__set_pre_buy_variables(symbol)
                 
-                # if symbol is in the bought list, we don't care if it is a good time to buy or not, we need to manage it
-                # if self.__is_buy(symbol, bought_set):
-                self.__set_post_buy_variables(symbol)
-                self.__place_limit_orders(symbol)
+                if self.__is_buy(symbol, bought_set):
+                    self.__set_post_buy_variables(symbol)
+                    self.__place_limit_orders(symbol)
+                self.wait(message=f"buy_loop: checking {symbol}", timeout=Nap.LONG)
+            self.wait(message=f"buy_loop: Waiting till {self.__get_buy_time()} to buy", timeout=Buy_.TIME_MINUTES*60)
         return
     
