@@ -18,7 +18,7 @@ class TVData:
         Interval.INTERVAL_5_MINUTES, 
         Interval.INTERVAL_15_MINUTES, 
         Interval.INTERVAL_1_HOUR, 
-        Interval.INTERVAL_2_HOUR,
+        Interval.INTERVAL_2_HOURS,
         Interval.INTERVAL_4_HOURS,
         Interval.INTERVAL_1_DAY,
         Interval.INTERVAL_1_WEEK,
@@ -90,7 +90,7 @@ class TradingView():
             for symbol in sorted(lines):
                 symbol = symbol.replace("\n", "")
 
-                G.log_file.print_and_log(f"{iteration} of  {total}: {symbol}")
+                G.log_file.print_and_log(f"{iteration} of {total}: {symbol}")
 
                 if symbol not in StableCoins.STABLE_COINS_LIST:
                     if self.is_buy(symbol+StableCoins.USD):
@@ -117,7 +117,7 @@ class TradingView():
             for symbol in sorted(lines):
                 symbol = symbol.replace("\n", "")
 
-                G.log_file.print_and_log(f"{iteration} of  {total}: {symbol}")
+                G.log_file.print_and_log(f"{iteration} of {total}: {symbol}")
 
                 if symbol not in StableCoins.STABLE_COINS_LIST:
                     if self.is_buy_long(symbol+StableCoins.USD):
@@ -146,7 +146,7 @@ class TradingView():
             for symbol in sorted(lines):
                 symbol = symbol.replace("\n", "")
 
-                G.log_file.print_and_log(f"{iteration} of  {total}: {symbol}")
+                G.log_file.print_and_log(f"{iteration} of {total}: {symbol}")
 
                 if symbol not in StableCoins.STABLE_COINS_LIST:
                     if self.is_strong_buy(symbol+StableCoins.USD):

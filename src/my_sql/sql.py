@@ -1,11 +1,10 @@
 import mysql.connector
 import os
+import sys
 
-from mysql.connector.connection_cext import CMySQLConnection
-from mysql.connector.cursor          import MySQLCursorBuffered
-from mysql.connector.cursor_cext     import CMySQLCursor
-from util.globals                    import G
-from kraken_files.kraken_enums       import *
+from util.globals              import G
+from kraken_files.kraken_enums import *
+
 
 class SQL():
     def __init__(self, host_name: str = "localhost", user_name: str = "root", user_password: str = "12345", db_name: str = "dca") -> None:
@@ -16,7 +15,7 @@ class SQL():
         self.so_columns:    str              = "(symbol_pair, symbol, safety_order_no, deviation, quantity, total_quantity, price, average_price, required_price, required_change, profit, cost, total_cost, order_placed, so_no)"
         self.obo_columns:   str              = "(symbol_pair, symbol, safety_order_no, deviation, quantity, total_quantity, price, average_price, required_price, required_change, profit, cost, total_cost, filled, obo_txid, obo_no)"
         self.oso_columns:   str              = "(symbol_pair, symbol, safety_order_no, deviation, quantity, total_quantity, price, average_price, required_price, required_change, profit, cost, total_cost, cancelled, filled, oso_txid, oso_no)"
-        self.connection:    CMySQLConnection = None
+        self.connection = None
         return
 
     def create_db_connection(self) -> None:
@@ -29,25 +28,25 @@ class SQL():
     
     def close_db_connection(self) -> None:
         if self.connection is not None:
-            cursor: CMySQLCursor = self.connection.cursor()
+            cursor  = self.connection.cursor()
             cursor.close()
             self.connection.close()
         else:
             print("MySQL no connection open")
         return
 
-    def update(self, query: str) -> CMySQLCursor:
-        cursor: CMySQLCursor = self.connection.cursor()
+    def update(self, query: str):
+        cursor = self.connection.cursor()
         cursor.execute(query)
         self.connection.commit()
         return cursor
 
-    def query(self, query: str) -> MySQLCursorBuffered:
-        cursor: MySQLCursorBuffered = self.connection.cursor(buffered=True)
+    def query(self, query: str):
+        cursor = self.connection.cursor(buffered=True)
         cursor.execute(query)
         return cursor
     
-    def con_query(self, query: str) -> MySQLCursorBuffered:
+    def con_query(self, query: str):
         self.create_db_connection()
         result_set = self.query(query)
         self.close_db_connection()
@@ -160,7 +159,10 @@ class SQL():
         result_set = self.query("SELECT symbol FROM safety_orders")
         result_set.close()
         self.close_db_connection()
-
+        
+        if result_set.rowcount <= 0:
+            return set()
+            
         for symbol in result_set.fetchall():
             bought_set.add(symbol[0])
         return bought_set
@@ -176,7 +178,7 @@ class SQL():
             bought_set.add(symbol[0])
         return bought_set
     
-    def con_get_profit(self, table_name: str, conditions: str) -> MySQLCursorBuffered:
+    def con_get_profit(self, table_name: str, conditions: str):
         self.create_db_connection()
         result_set = self.query(f"SELECT profit FROM {table_name} {conditions}")
         result_set.close()
@@ -219,7 +221,7 @@ class SQL():
             return result_set.fetchone()
         return tuple()
     
-    def parse_so_number(self, result_set: MySQLCursorBuffered) -> int:
+    def parse_so_number(self, result_set) -> int:
         """Return the safety order number that previously queried."""
         if result_set.rowcount > 0:
             num = result_set.fetchone()
