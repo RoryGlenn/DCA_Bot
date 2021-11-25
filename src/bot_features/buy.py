@@ -102,7 +102,7 @@ class Buy(Base, TradingView):
                 if self.has_result(limit_order_result):
                     G.log_file.print_and_log(message=Color.BG_GREEN + f"Safety order placed{Color.ENDC}: {self.symbol_pair} {limit_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}", money=True)
                     obo_txid            = limit_order_result[Dicts.RESULT][Data.TXID][0]
-                    # safety_order_number = sql.con_get_min_safety_order_no_from_so(SQLTable.SAFETY_ORDERS, self.symbol_pair)
+                    
                     result_set          = sql.con_query(f"SELECT MIN(safety_order_no) FROM safety_orders WHERE symbol_pair='{self.symbol_pair}' AND order_placed=false")
                     safety_order_number = sql.parse_so_number(result_set)
 
@@ -340,7 +340,7 @@ class Buy(Base, TradingView):
         bought_set = sql.con_get_symbols()
         Buy_.SET   = set(sorted(bought_set.union(buy_set)))
         
-        G.log_file.print_and_log(Color.bgMagenta + f"Buy_.SET:{Color.ENDC} {Buy_.SET}" )
+        G.log_file.print_and_log(Color.bgCyan + f"Buy_.SET:     {Color.ENDC} {Buy_.SET}" )
         return
 
     def __set_buy_set(self, bought_set: set) -> None:
@@ -360,7 +360,7 @@ class Buy(Base, TradingView):
                 # must be a union or else the buy_loop won't check if the symbol was ever sold.
                 Buy_.SET = set(sorted(result_set.union(bought_set)))
                 
-            G.log_file.print_and_log(Color.bgMagenta + f"Buy_.SET:{Color.ENDC} {Buy_.SET}" )
+                G.log_file.print_and_log(Color.bgCyan + f"Buy_.SET:     {Color.ENDC} {Buy_.SET}" )
         except Exception as e:
             G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return
@@ -437,6 +437,7 @@ class Buy(Base, TradingView):
                     self.__set_post_buy_variables(symbol)
                     self.__place_limit_orders(symbol)
             
+            print()
             self.wait(message=Color.FG_BRIGHT_BLACK + f"Waiting till {self.__get_buy_time()} to buy" + Color.ENDC, timeout=Buy_.TIME_MINUTES*60)
         return
     

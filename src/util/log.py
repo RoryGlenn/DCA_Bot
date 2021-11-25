@@ -55,8 +55,7 @@ class Log():
         try:
             current_time = self.get_current_time()
             current_date = self.get_current_date()
-            
-            result = f"[{current_date} {current_time}] {message}"
+            result       = f"[{current_date} {current_time}] {message}"
 
             if money:
                 print(     f"{result}")
@@ -70,6 +69,7 @@ class Log():
                 print(     f"{result}")
                 self.write(f"{result}")
                 return
+            
             print(     f"{result}")
             self.write(f"{result}")
         except:

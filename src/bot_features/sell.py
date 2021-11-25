@@ -145,23 +145,18 @@ class Sell(Base):
             sell_order_result = self.__place_sell_limit_order(symbol_pair, filled_buy_order_txid)
             sell_order_txid   = self.__get_sell_order_txid(sell_order_result)
             
-            # insert sell order into sql
-            # safety_order_number = sql.con_get_max_safety_order_no_from_obo(SQLTable.OPEN_BUY_ORDERS, symbol_pair)
-            
             result_set          = sql.con_query(f"SELECT MIN(safety_order_no) FROM {SQLTable.OPEN_BUY_ORDERS} WHERE symbol_pair='{symbol_pair}' AND filled=true")
             safety_order_number = sql.parse_so_number(result_set)
             row                 = sql.con_get_row(SQLTable.OPEN_BUY_ORDERS, symbol_pair, safety_order_number)
-            
-            print(len(row))
-            print(row)
-            
+
+            # insert sell order into sql
             sql.con_update(f"""INSERT INTO open_sell_orders {sql.oso_columns} VALUES 
-                          ('{row[0]}', '{row[1]}',          {row[2]},   {row[3]},
-                            {row[4]},   {row[5]},           {row[6]},   {row[7]},
-                            {row[8]},   {row[9]},           {row[10]},  {row[11]},
-                            {row[12]},  {row[13]},          {row[14]},  false,
-                            false,     '{sell_order_txid}', {row[15]}
-                            )""")
+                          ('{row[0]}',         '{row[1]}', {row[2]},  {row[3]},
+                            {row[4]},           {row[5]},  {row[6]},  {row[7]},
+                            {row[8]},           {row[9]},  {row[10]}, {row[11]},
+                            {row[12]},          {row[14]}, false,     false,
+                           '{sell_order_txid}', {row[15]}
+                          )""")
 
             # update open_buy_orders table
             sql.con_update(f"UPDATE open_buy_orders SET filled=true WHERE obo_txid='{filled_buy_order_txid}' AND filled=false")

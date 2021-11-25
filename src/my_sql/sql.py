@@ -219,28 +219,6 @@ class SQL():
             return result_set.fetchone()
         return tuple()
     
-    # def con_get_max_safety_order_no_from_obo(self, tablename: str, symbol_pair: str) -> int:
-    #     result_set = self.con_query(f"SELECT MAX(safety_order_no) FROM {tablename} WHERE symbol_pair='{symbol_pair}' AND filled=true")
-    #     if result_set.rowcount > 0:
-    #         num = result_set.fetchone()
-    #         if isinstance(num, tuple):
-    #             return num[0]
-    #         else:
-    #             return num
-    #     return tuple()
-    
-    # def con_get_min_safety_order_no_from_so(self, tablename: str, symbol_pair: str) -> int:
-    #     result_set = self.con_query(f"SELECT MIN(safety_order_no) FROM {tablename} WHERE symbol_pair='{symbol_pair}' AND order_placed=false")
-    #     if result_set.rowcount > 0:
-    #         num = result_set.fetchone()
-    #         if isinstance(num, tuple):
-    #             return num[0]
-    #         else:
-    #             return num
-    #     return tuple()        
-    
-    
-    
     def parse_so_number(self, result_set: MySQLCursorBuffered) -> int:
         """Return the safety order number that previously queried."""
         if result_set.rowcount > 0:
