@@ -50,7 +50,7 @@ class Buy(Base, TradingView):
         self.__init_buy_set()
         self.__set_future_time()
         
-        print(f"Account value: ${self.__get_account_value()}")
+        G.log_file.print_and_log(message=f"Account value: ${self.__get_account_value()}")
         return
 
     def __get_buy_time(self) -> str:
@@ -93,25 +93,29 @@ class Buy(Base, TradingView):
         
         for price, quantity in self.dca.safety_orders.items():
             try:
-                sql_req_price      = sql.con_get_required_price(SQLTable.SAFETY_ORDERS, self.symbol_pair)
-                price_max_prec     = self.get_pair_decimals(self.symbol_pair)
-                rounded_price      = self.round_decimals_down(price, price_max_prec)
-                max_vol_prec       = self.get_max_volume_precision(symbol)
-                rounded_quantity   = self.round_decimals_down(quantity, max_vol_prec)
-                req_price          = self.round_decimals_down(sql_req_price, price_max_prec)
-                limit_order_result = self.limit_order(Trade.BUY, rounded_quantity, self.symbol_pair, rounded_price)
+                price_max_prec      = self.get_pair_decimals(self.symbol_pair)
+                rounded_price       = self.round_decimals_down(price, price_max_prec)
+                max_vol_prec        = self.get_max_volume_precision(symbol)
+                rounded_quantity    = self.round_decimals_down(quantity, max_vol_prec)
+                limit_order_result  = self.limit_order(Trade.BUY, rounded_quantity, self.symbol_pair, rounded_price)
 
                 if self.has_result(limit_order_result):
                     G.log_file.print_and_log(message=f"buy_loop: safety order placed {self.symbol_pair} {limit_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}", money=True)
-                    
-                    obo_txid         = limit_order_result[Dicts.RESULT][Data.TXID][0]
-                    profit_potential = sql.con_get_profit(SQLTable.SAFETY_ORDERS, f"WHERE symbol_pair='{self.symbol_pair}' AND order_placed=false LIMIT 1").fetchone()[0]
-                    
+                    obo_txid            = limit_order_result[Dicts.RESULT][Data.TXID][0]
+                    safety_order_number = sql.con_get_min_safety_order_no(SQLTable.SAFETY_ORDERS, self.symbol_pair)
+
                     # change order_placed to true in safety_orders table
                     sql.con_update(f"UPDATE safety_orders SET order_placed=true WHERE symbol_pair='{self.symbol_pair}' AND order_placed=false LIMIT 1")
                     
+                    row = sql.con_get_row(SQLTable.SAFETY_ORDERS, self.symbol_pair, safety_order_number)
+                    
                     # store open_buy_order row
-                    sql.con_update(f"INSERT INTO open_buy_orders {sql.obo_columns} VALUES ('{self.symbol_pair}', '{symbol}', {req_price}, {profit_potential}, false, '{obo_txid}', obo_no)")
+                    sql.con_update(f"""INSERT INTO open_buy_orders {sql.obo_columns} VALUES 
+                                   ('{row[0]}', '{row[1]}',  {row[2]},    {row[3]},
+                                     {row[4]},   {row[5]},   {row[6]},    {row[7]},
+                                     {row[8]},   {row[9]},   {row[10]},   {row[11]},
+                                     {row[12]},  false,     '{obo_txid}', {row[14]})
+                                    """)
                 else:
                     if limit_order_result[Dicts.ERROR][0] == KError.INSUFFICIENT_FUNDS:
                         G.log_file.print_and_log(f"{self.symbol_pair} Not enough USD to place remaining safety orders.")
@@ -152,11 +156,12 @@ class Buy(Base, TradingView):
                 if self.has_result(base_order_result):
                     base_price     = self.__get_bought_price(base_order_result)
                     
-                    G.log_file.print_and_log(f"Base order filled: {base_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]} @ {base_price}")
+                    G.log_file.print_and_log(f"Base order filled: {base_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]} {base_price}")
                     
                     base_order_qty = float(str(base_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]).split(" ")[1])
                     self.dca       = DCA(self.symbol_pair, symbol, base_order_qty, base_price)
                     
+                    self.sell.dca = self.dca
                     # upon placing the base_order, pass in the txid into dca to write to db
                     self.sell.place_sell_limit_base_order(self.symbol_pair, symbol, base_price, base_order_qty)
                 else:
@@ -187,6 +192,7 @@ class Buy(Base, TradingView):
         if result_set.rowcount > 0:
             for symbol in result_set.fetchall():
                 bought_set.add(symbol[0])
+        print()
         return bought_set
 
     def __update_completed_trades(self, symbol: str) -> None:
@@ -269,7 +275,7 @@ class Buy(Base, TradingView):
         Note: Function is called only once inside of the buy loop.
         
         """
-                
+
         try:
             symbol_pair = self.get_tradable_asset_pair(symbol)
             txid_set    = set()
@@ -353,7 +359,8 @@ class Buy(Base, TradingView):
                         result_set.add(symbol)
 
                 self.__set_future_time()
-                Buy_.SET = set(sorted(result_set.union(bought_set)))
+                # Buy_.SET = set(sorted(result_set.union(bought_set)))
+                Buy_.SET = set(sorted(result_set))
                 
                 G.log_file.print_and_log(f"Buy_.SET: {Buy_.SET}")
         except Exception as e:
@@ -400,10 +407,8 @@ class Buy(Base, TradingView):
 
     def nuke_and_restart(self):
         sql = SQL()
-        sql.create_db_connection()
         sql.drop_all_tables()
         sql.create_tables()
-        sql.close_db_connection()
         self.cancel_all_orders()
 
 ##################################################################################################################################
@@ -413,15 +418,13 @@ class Buy(Base, TradingView):
     def buy_loop(self) -> None:
         """The main function for trading coins."""
         self.__init_loop_variables()
-        bought_set = set()
+        self.nuke_and_restart()
         
-        # self.nuke_and_restart()
-        
+        sql = SQL()
+
         while True:
             bought_set = self.__update_bought_set()
-            
-            print()
-            self.wait(message=f"buy_loop: Waiting till {self.__get_buy_time()} to buy", timeout=Buy_.TIME_MINUTES*60)
+            # self.wait(message=f"buy_loop: Waiting till {self.__get_buy_time()} to buy", timeout=Buy_.TIME_MINUTES*60)
             self.__set_buy_set(bought_set)
             
             for symbol in Buy_.SET:

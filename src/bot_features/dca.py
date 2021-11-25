@@ -2,10 +2,6 @@
 This bot uses DCA in order lower the average buy price for a purchased coin."""
 
 from pprint                    import pprint
-
-from more_itertools import first
-from numpy import average
-from sympy import denom
 from kraken_files.kraken_enums import *
 from my_sql.sql                import SQL
 
@@ -22,6 +18,7 @@ class DCA(DCA_):
         self.profit_levels:                     list         = [ ]
         self.cost_levels:                       list         = [ ]
         self.total_cost_levels:                 list         = [ ]
+        self.so_numbers:                             list         = [ ]
         self.symbol:                            str          = symbol
         self.symbol_pair:                       str          = symbol_pair
         self.bid_price:                         float        = bid_price
@@ -60,6 +57,8 @@ class DCA(DCA_):
             self.__set_cost_levels()
             self.__set_total_cost_levels()            
             self.__set_safety_order_table()
+        
+        self.__set_so_numbers()
         self.__set_buy_orders()
         return
 
@@ -238,6 +237,17 @@ class DCA(DCA_):
                 false,
                 so_no)""")
         sql.close_db_connection()
+        return
+    
+    def __set_so_numbers(self) -> None:
+        sql = SQL()
+        result_set = sql.con_query(f"SELECT MIN(so_no) FROM safety_orders WHERE symbol_pair='{self.symbol_pair}' GROUP BY so_no")
+        
+        if result_set.rowcount > 0:
+            numbers = result_set.fetchall()
+            
+            for num in numbers:
+                self.so_numbers.append(num[0])
         return
 
     def __set_buy_orders(self) -> None:

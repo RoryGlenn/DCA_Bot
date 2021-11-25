@@ -2,6 +2,7 @@
 """sell.py: Sells coin on kraken exchange based on users config file."""
 
 from pprint                    import pprint
+from bot_features.dca import DCA
 from kraken_files.kraken_enums import *
 from util.globals              import G
 from bot_features.base         import Base
@@ -12,6 +13,7 @@ class Sell(Base):
         super().__init__(parameter_dict)
         self.asset_pairs_dict:  dict = self.get_all_tradable_asset_pairs()[Dicts.RESULT]
         self.sell_order_placed: bool = False
+        self.dca:               DCA  = None
 
     def __get_quantity_owned(self, symbol: str) -> float:
         """Gets the quantity of a coin owned."""
@@ -85,6 +87,9 @@ class Sell(Base):
 ##################################################################
     def place_sell_limit_base_order(self, symbol_pair: str, symbol: str, entry_price: float, quantity: float) -> dict:
         """Create a sell limit order for the base order only!"""
+        sql = SQL()
+        
+        # cancel open sell order based on what is inside the database column
         self.__cancel_open_sell_order(symbol_pair)
         
         required_price    = entry_price + (entry_price*DCA_.TARGET_PROFIT_PERCENT/100)
@@ -96,12 +101,21 @@ class Sell(Base):
             G.log_file.print_and_log(f"sell: limit order placed {symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: ${profit_potential}")
 
             sell_order_txid = sell_order_result[Dicts.RESULT][Data.TXID][0]
+
+            # get the values from the safety order in order to place it into open_buy_orders table
+            row = sql.con_get_row(SQLTable.SAFETY_ORDERS, symbol_pair, 1)
             
-            sql = SQL()
-            sql.con_update(f"INSERT INTO open_sell_orders {sql.oso_columns} VALUES ('{symbol_pair}', '{symbol}', {profit_potential}, false, false, '{sell_order_txid}', oso_no)")
+            sql.con_update(f"""INSERT INTO open_sell_orders {sql.oso_columns} VALUES 
+                           ('{row[0]}', '{row[1]}',
+                             {row[2]},   {row[3]},
+                             {row[4]},   {row[5]},
+                             {row[6]},   {row[7]},
+                             {row[8]},   {row[9]}, 
+                             {row[10]},  {row[11]},
+                             {row[12]},  false,
+                             false,      '{sell_order_txid}', {row[14]})""")
         else:
             G.log_file.print_and_log(f"place_sell_limit_base_order: {symbol_pair} {sell_order_result[Dicts.ERROR]}")
-
         return sell_order_result
     
 ##################################################################
@@ -129,7 +143,7 @@ class Sell(Base):
         # 3. change cancelled sell order to true in open_sell_orders
         sql.con_update(f"UPDATE open_sell_orders SET cancelled=true WHERE symbol_pair='{symbol_pair}' AND filled=false LIMIT 1")
         
-        sell_order_result = self.__place_sell_limit_order(symbol_pair, filled_buy_order_txid) # LOGIC ERROR HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! PUTS ORDER IN AT A LIMIT PRICE OF -1
+        sell_order_result = self.__place_sell_limit_order(symbol_pair, filled_buy_order_txid)
         sell_order_txid   = self.__get_sell_order_txid(sell_order_result)
         
         # insert sell order into sql
