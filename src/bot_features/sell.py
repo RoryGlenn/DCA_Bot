@@ -36,22 +36,22 @@ class Sell(Base):
 
     def __cancel_open_sell_order(self, symbol_pair: str) -> None:
         """
-        Open the sell_txids.xlsx file, cancel all sell orders by symbol name.
-        
+        Cancel the open sell order based on txid stored in the open_sell_orders table.
+        Set cancelled=true in open_sell_orders table.
+
         """
         txid_set = set()
         sql      = SQL()
         
         result_set = sql.con_query(f"SELECT oso_txid FROM open_sell_orders WHERE symbol_pair='{symbol_pair}' AND cancelled=false AND filled=false")
         
-        for oso_txid in result_set.fetchall():
-            txid_set.add(oso_txid[0])
+        if result_set.rowcount > 0:
+            for oso_txid in result_set.fetchall():
+                txid_set.add(oso_txid[0])
 
-        # on first sell order, there will be no txid inside of the sell_order sheet,
-        # therefore, this for loop is skipped.
-        for txid in txid_set:
-            self.cancel_order(txid)
-            sql.con_update(f"UPDATE open_sell_orders SET cancelled=true WHERE symbol_pair='{symbol_pair}' AND cancelled=false AND filled=false and oso_txid='{txid}'")
+            for txid in txid_set:
+                self.cancel_order(txid)
+                sql.con_update(f"UPDATE open_sell_orders SET cancelled=true WHERE symbol_pair='{symbol_pair}' AND cancelled=false AND filled=false and oso_txid='{txid}'")
         return
 
     
@@ -74,15 +74,16 @@ class Sell(Base):
         if self.has_result(sell_order_result):
             result_set       = sql.con_query(f"SELECT profit FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND obo_txid='{filled_buy_order_txid}'")
             profit_potential = round(result_set.fetchone()[0] if result_set.rowcount > 0 else 0, 6)
-            G.log_file.print_and_log(Color.bgBlue + f"sell limit order placed{Color.ENDC} {symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: ${profit_potential}")
+            G.log_file.print_and_log(Color.bgBlue + f"Sell limit order placed{Color.ENDC} {symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: ${profit_potential}")
         else:
-            G.log_file.print_and_log(Color.FG_YELLOW + f"sell: {Color.ENDC} {symbol_pair} {sell_order_result[Dicts.ERROR]}" )
+            G.log_file.print_and_log(Color.FG_YELLOW + f"Sell: {Color.ENDC} {symbol_pair} {sell_order_result[Dicts.ERROR]}" )
         return sell_order_result
 
     def __get_sell_order_txid(self, sell_order_result) -> str:
         if not self.has_result(sell_order_result):
             raise Exception(f"sell.__get_sell_order_txid: {sell_order_result}")        
         return sell_order_result[Dicts.RESULT][Data.TXID][0]
+        
         
 ##################################################################
 ### Place sell order for base order only!
@@ -100,7 +101,7 @@ class Sell(Base):
 
         if self.has_result(sell_order_result):
             profit_potential = round(entry_price * quantity * DCA_.TARGET_PROFIT_PERCENT/100, 6)
-            G.log_file.print_and_log(Color.bgBlue + f"sell limit order placed{Color.ENDC} {symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: ${profit_potential}" + Color.ENDC)
+            G.log_file.print_and_log(Color.bgBlue + f"Sell limit order placed{Color.ENDC} {symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: ${profit_potential}" + Color.ENDC)
             sell_order_txid = sell_order_result[Dicts.RESULT][Data.TXID][0]
 
             # get the values from the safety order in order to place it into open_sell_orders table
@@ -120,32 +121,27 @@ class Sell(Base):
             G.log_file.print_and_log(f"place_sell_limit_base_order: {symbol_pair} {sell_order_result[Dicts.ERROR]}")
         return sell_order_result
     
+    
 ##################################################################
 ### Run the entire sell process for safety orders
 ##################################################################
     def start(self, symbol_pair: str, filled_buy_order_txid: str) -> None:
         """
         Everytime an open_buy_order is filled we need to
-            1. Set filled=true in open_buy_orders table
-            2. Cancel the open_sell_order on 'symbol_pair'
-            3. Place a new sell order
-            4. insert new sell order into open_sell_order table
+            1. Cancel the open_sell_order on 'symbol_pair'
+            2. Place a new sell order
+            3. insert new sell order into open_sell_order table
 
         """
         try:
             sql = SQL()
-            sql.con_update(f"UPDATE open_buy_orders SET filled=true WHERE symbol_pair='{symbol_pair}' AND obo_txid='{filled_buy_order_txid}' AND filled=false")
             
-            # 2. cancel open_sell_order
             self.__cancel_open_sell_order(symbol_pair)
 
-            # 3. change cancelled sell order to true in open_sell_orders
-            sql.con_update(f"UPDATE open_sell_orders SET cancelled=true WHERE symbol_pair='{symbol_pair}' AND filled=false LIMIT 1")
-            
             sell_order_result = self.__place_sell_limit_order(symbol_pair, filled_buy_order_txid)
             sell_order_txid   = self.__get_sell_order_txid(sell_order_result)
             
-            result_set          = sql.con_query(f"SELECT MIN(safety_order_no) FROM {SQLTable.OPEN_BUY_ORDERS} WHERE symbol_pair='{symbol_pair}' AND filled=true")
+            result_set          = sql.con_query(f"SELECT MIN(safety_order_no) FROM {SQLTable.OPEN_BUY_ORDERS} WHERE symbol_pair='{symbol_pair}' AND filled=false")
             safety_order_number = sql.parse_so_number(result_set)
             row                 = sql.con_get_row(SQLTable.OPEN_BUY_ORDERS, symbol_pair, safety_order_number)
 
@@ -154,12 +150,8 @@ class Sell(Base):
                           ('{row[0]}',         '{row[1]}', {row[2]},  {row[3]},
                             {row[4]},           {row[5]},  {row[6]},  {row[7]},
                             {row[8]},           {row[9]},  {row[10]}, {row[11]},
-                            {row[12]},          {row[14]}, false,     false,
-                           '{sell_order_txid}', {row[15]}
+                            {row[12]},          false,     false,    '{sell_order_txid}', {row[15]}
                           )""")
-
-            # update open_buy_orders table
-            sql.con_update(f"UPDATE open_buy_orders SET filled=true WHERE obo_txid='{filled_buy_order_txid}' AND filled=false")
         except Exception as e:
             G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return

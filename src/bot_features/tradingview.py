@@ -39,7 +39,8 @@ class TradingView():
         """Get a recommendation (buy or sell) for the symbol."""
         try:
             symbol_data = TA_Handler(symbol=symbol_pair, screener=TVData.SCREENER, exchange=TVData.EXCHANGE, interval=interval)
-            return symbol_data.get_analysis().summary[TVData.RECOMMENDATION]
+            if symbol_data is not None and symbol_data.get_analysis() is not None:
+                return symbol_data.get_analysis().summary[TVData.RECOMMENDATION]
         except Exception as e:
             G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return []

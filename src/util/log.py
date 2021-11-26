@@ -61,7 +61,7 @@ class Log():
                 self.write(f"{result}")
                 return
             if e:
-                print(f"{result} {Color.BG_RED}ERROR:{Color.ENDC} || {e}, {error_type} {filename} {tb_lineno}" )
+                print(f"{result}{Color.BG_RED}ERROR:{Color.ENDC} || {e}, {error_type} {filename} {tb_lineno}" )
                 self.write(f"{result} ERROR: || {e}, {error_type} {filename} {tb_lineno}")
                 return
             if end:

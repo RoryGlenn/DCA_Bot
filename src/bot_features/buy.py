@@ -49,7 +49,7 @@ class Buy(Base, TradingView):
         self.__init_buy_set()
         self.__set_future_time()
         
-        G.log_file.print_and_log(message=Color.BG_GREEN + "ACCOUNT VALUE:" + Color.ENDC + f" ${self.__get_account_value()}")
+        G.log_file.print_and_log(message=Color.BG_GREEN + "Account Value          " + Color.ENDC + f" ${self.__get_account_value()}")
         return
 
     def __get_buy_time(self) -> str:
@@ -90,7 +90,7 @@ class Buy(Base, TradingView):
         """Place safety orders."""
         sql = SQL()
         
-        print(self.dca.safety_orders)
+        
         
         for price, quantity in self.dca.safety_orders.items():
             try:
@@ -101,7 +101,7 @@ class Buy(Base, TradingView):
                 limit_order_result  = self.limit_order(Trade.BUY, rounded_quantity, self.symbol_pair, rounded_price)
 
                 if self.has_result(limit_order_result):
-                    G.log_file.print_and_log(message=Color.BG_GREEN + f"Safety order placed{Color.ENDC}: {self.symbol_pair} {limit_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}", money=True)
+                    G.log_file.print_and_log(message=Color.BG_GREEN + f"Safety order placed    {Color.ENDC} {self.symbol_pair} {limit_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}", money=True)
                     obo_txid            = limit_order_result[Dicts.RESULT][Data.TXID][0]
                     
                     result_set          = sql.con_query(f"SELECT MIN(safety_order_no) FROM safety_orders WHERE symbol_pair='{self.symbol_pair}' AND order_placed=false")
@@ -159,7 +159,7 @@ class Buy(Base, TradingView):
                 if self.has_result(base_order_result):
                     base_price = self.__get_bought_price(base_order_result)
                     
-                    G.log_file.print_and_log(Color.BG_GREEN + f"Base order filled:{Color.ENDC} {base_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]} {base_price}")
+                    G.log_file.print_and_log(Color.BG_GREEN + f"Base order filled      {Color.ENDC} {base_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]} {base_price}")
                     
                     base_order_qty = float(str(base_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]).split(" ")[1])
                     self.dca       = DCA(self.symbol_pair, symbol, base_order_qty, base_price)
@@ -260,7 +260,7 @@ class Buy(Base, TradingView):
                     sql.con_update(f"DELETE FROM open_buy_orders  WHERE symbol_pair='{symbol_pair}'")
                     sql.con_update(f"DELETE FROM open_sell_orders WHERE symbol_pair='{symbol_pair}'")
                     
-                    G.log_file.print_and_log(message=Color.BG_GREEN + f"{symbol_pair} trade complete, profit: {profit[0][0]}" + Color.ENDC, money=True)
+                    G.log_file.print_and_log(message=Color.BG_GREEN + f"Trade complete      {Color.ENDC} {symbol_pair}, profit: {profit[0][0]}", money=True)
         except Exception as e:
             G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return
@@ -306,9 +306,19 @@ class Buy(Base, TradingView):
             
             for trade_txid, dictionary in trade_history[Dicts.RESULT][Data.TRADES].items():
                 filled_trades_order_txids[dictionary[Data.ORDER_TXID]] = trade_txid
+                
             
             for obo_txid in txid_set:
                 if obo_txid in filled_trades_order_txids.keys():
+                    
+                    # update open_buy_orders table
+                    sql.con_update(f"UPDATE open_buy_orders SET filled=true WHERE obo_txid='{obo_txid}' AND filled=false AND symbol_pair='{symbol_pair}'")                    
+                    row = sql.con_query(f"SELECT * FROM {SQLTable.OPEN_BUY_ORDERS} WHERE symbol_pair='{symbol_pair}' AND obo_txid='{obo_txid}'")
+
+                    if row.rowcount > 0:
+                        row = row.fetchall()[0]
+                        G.log_file.print_and_log(Color.bgMagenta + f"""Safety order filled    {Color.ENDC} {row[0]} safety order number {row[2]}""")
+                    
                     # if the txid is in the trade history, the order open_buy_order was filled.
                     self.sell.start(symbol_pair, obo_txid)
         except Exception as e:
@@ -341,7 +351,7 @@ class Buy(Base, TradingView):
         bought_set = sql.con_get_symbols()
         Buy_.SET   = set(sorted(bought_set.union(buy_set)))
         
-        G.log_file.print_and_log(Color.bgCyan + f"Buy_.SET:     {Color.ENDC} {Buy_.SET}" )
+        G.log_file.print_and_log(Color.bgCyan + f"Buy Set                {Color.ENDC} {Buy_.SET}" )
         return
 
     def __set_buy_set(self, bought_set: set) -> None:
@@ -361,7 +371,7 @@ class Buy(Base, TradingView):
                 # must be a union or else the buy_loop won't check if the symbol was ever sold.
                 Buy_.SET = set(sorted(result_set.union(bought_set)))
                 
-                G.log_file.print_and_log(Color.bgCyan + f"Buy_.SET:     {Color.ENDC} {Buy_.SET}" )
+                G.log_file.print_and_log(Color.bgCyan + f"Buy Set                {Color.ENDC} {Buy_.SET}" )
         except Exception as e:
             G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return
@@ -434,9 +444,9 @@ class Buy(Base, TradingView):
                 self.__update_completed_trades(symbol)
                 self.__set_pre_buy_variables(symbol)
                 
-                if self.__is_buy(symbol, bought_set):
-                    self.__set_post_buy_variables(symbol)
-                    self.__place_limit_orders(symbol)
+                # if self.__is_buy(symbol, bought_set):
+                self.__set_post_buy_variables(symbol)
+                self.__place_limit_orders(symbol)
             
             print()
             self.wait(message=Color.FG_BRIGHT_BLACK + f"Waiting till {self.__get_buy_time()} to buy" + Color.ENDC, timeout=Buy_.TIME_MINUTES*60)

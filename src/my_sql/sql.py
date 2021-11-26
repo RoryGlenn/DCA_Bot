@@ -41,18 +41,18 @@ class SQL():
         self.connection.commit()
         return cursor
 
-    def query(self, query: str):
+    def query(self, query: str) -> MySQLCursorBuffered:
         cursor = self.connection.cursor(buffered=True)
         cursor.execute(query)
         return cursor
     
-    def con_query(self, query: str):
+    def con_query(self, query: str) -> MySQLCursorBuffered:
         self.create_db_connection()
         result_set = self.query(query)
         self.close_db_connection()
         return result_set
     
-    def con_update(self, query: str):
+    def con_update(self, query: str) -> None:
         self.create_db_connection()
         result_set = self.update(query)
         result_set.close()

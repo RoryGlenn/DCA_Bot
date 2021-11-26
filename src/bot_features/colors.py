@@ -56,8 +56,4 @@ class Color:
     fgBrightWhite = "\033[37;1m"
     bgWhite = "\033[47m"
     bgBrightWhite = "\033[47;1m"
-
-
-
-# if __name__ == '__main__':
-#     print(Color.YELLOW, "Hello!", Color.ENDC)
+    
