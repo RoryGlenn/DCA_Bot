@@ -1,15 +1,12 @@
 """spot.py: Supports base functionality for buying, selling and transfering. Meant to be inherited from for additional classes"""
 
 import ast
-from datetime import datetime
-from pprint import pprint
-
-import pandas as pd
 import requests
-from kraken_files.kraken_api import KrakenAPI
-from kraken_files.kraken_enums import *
-from util.globals import G
 
+from datetime                  import datetime
+from util.globals              import G
+from kraken_files.kraken_api   import KrakenAPI
+from kraken_files.kraken_enums import *
 
 
 class Base(KrakenAPI):
@@ -18,10 +15,8 @@ class Base(KrakenAPI):
         Returns new Spot object with specified data
         
         """
-        super().__init__(key=parameter_dict[KRAKEN_API_KEY],
-                         secret=parameter_dict[KRAKEN_SECRET_KEY])
-        self.asset_pairs_dict:   dict = {}
-        # self.kraken_assets_dict: dict = {}
+        super().__init__(key=parameter_dict[KRAKEN_API_KEY], secret=parameter_dict[KRAKEN_SECRET_KEY])
+        self.asset_pairs_dict: dict = {}
         return
        
     def get_current_time(self) -> str:
@@ -84,14 +79,14 @@ class Base(KrakenAPI):
         return int(self.get_asset_info()[Dicts.RESULT][symbol][Dicts.DECIMALS])
         
 
-    def get_roi_percent(self, current_value: float, entry_value: float) -> float:
-        """
-        Calculate the return on investment (roi) of the symbols current_value and entry_value.
-        Then convert from percent to decimal by multiplying by 100.
+    # def get_roi_percent(self, current_value: float, entry_value: float) -> float:
+    #     """
+    #     Calculate the return on investment (roi) of the symbols current_value and entry_value.
+    #     Then convert from percent to decimal by multiplying by 100.
         
-        """
+    #     """
         
-        return ((current_value / entry_value) - 1) * 100
+    #     return ((current_value / entry_value) - 1) * 100
 
 
     def get_ask_price(self, symbol_pair: str) -> float:
@@ -142,28 +137,28 @@ class Base(KrakenAPI):
         If "result" not in dict, an error occurred."""
         return bool(Dicts.RESULT in dictionary.keys())
 
-    def print_order_result(self, symbol: str, order_result: dict) -> None:
-        if self.has_result(order_result):
-            G.log_file.print_and_log(f"sell_loop: limit order {symbol}: {order_result}", money=True)
-        else:
-            G.log_file.print_and_log(f"sell_loop: did not sell {symbol} {order_result}", money=True)        
-        return
+    # def print_order_result(self, symbol: str, order_result: dict) -> None:
+    #     if self.has_result(order_result):
+    #         G.log_file.print_and_log(f"sell_loop: limit order {symbol}: {order_result}", money=True)
+    #     else:
+    #         G.log_file.print_and_log(f"sell_loop: did not sell {symbol} {order_result}", money=True)        
+    #     return
 
-    def get_withdrawal_minimum(self, symbol: str) -> float:
-        """
-        Gets the minimum withdrawal quantity for any coin on kraken
+    # def get_withdrawal_minimum(self, symbol: str) -> float:
+    #     """
+    #     Gets the minimum withdrawal quantity for any coin on kraken
 
-        """
+    #     """
 
-        df = pd.read_csv(KrakenFiles.WITHDRAWAL_MINIMUMS)
-        for _, row in df.iterrows():
-            if row[Dicts.ASSET] == symbol:
-                return row[Dicts.MINIMUM]
+    #     df = pd.read_csv(KrakenFiles.WITHDRAWAL_MINIMUMS)
+    #     for _, row in df.iterrows():
+    #         if row[Dicts.ASSET] == symbol:
+    #             return row[Dicts.MINIMUM]
 
-        """
-        If we couldn't find the first symbol, search again without the first character
-        We have to do this with symbols like XXLM, or XLTC"""
-        return self.get_withdrawal_minimum(symbol[1:])
+    #     """
+    #     If we couldn't find the first symbol, search again without the first character
+    #     We have to do this with symbols like XXLM, or XLTC"""
+    #     return self.get_withdrawal_minimum(symbol[1:])
 
     def get_quantity_owned(self, symbol: str) -> float:
         account_balance = self.get_account_balance()
@@ -172,26 +167,26 @@ class Base(KrakenAPI):
                 return float(value)
         return 0
 
-    def convert_quantities(self, coin1_qty: float, coin2_ask_price: float) -> float:
-        """Get the value of coin1 in terms of coin2.
+    # def convert_quantities(self, coin1_qty: float, coin2_ask_price: float) -> float:
+    #     """Get the value of coin1 in terms of coin2.
         
-        For example If we have 100 USD and we want to 
-        buy Bitcoin when it is valued at 50,000 dollars for 1, return 0.002 BTC
+    #     For example If we have 100 USD and we want to 
+    #     buy Bitcoin when it is valued at 50,000 dollars for 1, return 0.002 BTC
 
-        """
-        coin2_quantity = coin1_qty / coin2_ask_price
-        return coin2_quantity
+    #     """
+    #     coin2_quantity = coin1_qty / coin2_ask_price
+    #     return coin2_quantity
 
 
-    def get_decimal_places(self, number: float) -> int:
-        """Returns the number of decimal places after the period in a floating point number.
-        For example: 
-            6 = get_decimal_places(12.234829)
-        """
-        number:              str = str(number)
-        decimal_place_index: int = number.find(".")
-        return len(number[decimal_place_index:])
+    # def get_decimal_places(self, number: float) -> int:
+    #     """Returns the number of decimal places after the period in a floating point number.
+    #     For example: 
+    #         6 = get_decimal_places(12.234829)
+    #     """
+    #     number:              str = str(number)
+    #     decimal_place_index: int = number.find(".")
+    #     return len(number[decimal_place_index:])
         
 
-    def get_minimum_value(self, price: float, symbol: str) -> float:
-        return price * self.get_order_min(symbol)
+    # def get_minimum_value(self, price: float, symbol: str) -> float:
+    #     return price * self.get_order_min(symbol)

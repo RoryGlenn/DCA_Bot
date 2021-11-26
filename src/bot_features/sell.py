@@ -34,6 +34,11 @@ class Sell(Base):
     def __get_max_volume_prec(self, symbol_pair: str) -> int:
         return self.get_max_volume_precision(symbol_pair[:-4]) if StableCoins.ZUSD in symbol_pair else self.get_max_volume_precision(symbol_pair[:-3])
 
+    def __get_sell_order_txid(self, sell_order_result) -> str:
+        if not self.has_result(sell_order_result):
+            raise Exception(f"sell.__get_sell_order_txid: {sell_order_result}")        
+        return sell_order_result[Dicts.RESULT][Data.TXID][0]
+
     def __cancel_open_sell_order(self, symbol_pair: str) -> None:
         """
         Cancel the open sell order based on txid stored in the open_sell_orders table.
@@ -79,12 +84,7 @@ class Sell(Base):
             G.log_file.print_and_log(Color.FG_YELLOW + f"Sell: {Color.ENDC} {symbol_pair} {sell_order_result[Dicts.ERROR]}" )
         return sell_order_result
 
-    def __get_sell_order_txid(self, sell_order_result) -> str:
-        if not self.has_result(sell_order_result):
-            raise Exception(f"sell.__get_sell_order_txid: {sell_order_result}")        
-        return sell_order_result[Dicts.RESULT][Data.TXID][0]
-        
-        
+
 ##################################################################
 ### Place sell order for base order only!
 ##################################################################
@@ -108,14 +108,11 @@ class Sell(Base):
             row = sql.con_get_row(SQLTable.SAFETY_ORDERS, symbol_pair, 1)
             
             sql.con_update(f"""INSERT INTO open_sell_orders {sql.oso_columns} VALUES 
-                           ('{row[0]}', '{row[1]}',
-                             {row[2]},   {row[3]},
-                             {row[4]},   {row[5]},
-                             {row[6]},   {row[7]},
-                             {row[8]},   {row[9]}, 
-                             {row[10]},  {row[11]},
-                             {row[12]},  false,
-                             false,      '{sell_order_txid}', {row[14]}
+                           ('{row[0]}', '{row[1]}', {row[2]},   {row[3]},
+                             {row[4]},   {row[5]},  {row[6]},   {row[7]},
+                             {row[8]},   {row[9]},  {row[10]},  {row[11]},
+                             {row[12]},  false,     false,     '{sell_order_txid}',
+                             {row[14]}
                             )""")
         else:
             G.log_file.print_and_log(f"place_sell_limit_base_order: {symbol_pair} {sell_order_result[Dicts.ERROR]}")
@@ -140,18 +137,20 @@ class Sell(Base):
 
             sell_order_result = self.__place_sell_limit_order(symbol_pair, filled_buy_order_txid)
             sell_order_txid   = self.__get_sell_order_txid(sell_order_result)
+            result_set        = sql.con_query(f"SELECT MIN(safety_order_no) FROM {SQLTable.OPEN_BUY_ORDERS} WHERE symbol_pair='{symbol_pair}' AND filled=false")
             
-            result_set          = sql.con_query(f"SELECT MIN(safety_order_no) FROM {SQLTable.OPEN_BUY_ORDERS} WHERE symbol_pair='{symbol_pair}' AND filled=false")
-            safety_order_number = sql.parse_so_number(result_set)
-            row                 = sql.con_get_row(SQLTable.OPEN_BUY_ORDERS, symbol_pair, safety_order_number)
-
-            # insert sell order into sql
-            sql.con_update(f"""INSERT INTO open_sell_orders {sql.oso_columns} VALUES 
-                          ('{row[0]}',         '{row[1]}', {row[2]},  {row[3]},
-                            {row[4]},           {row[5]},  {row[6]},  {row[7]},
-                            {row[8]},           {row[9]},  {row[10]}, {row[11]},
-                            {row[12]},          false,     false,    '{sell_order_txid}', {row[15]}
-                          )""")
+            if result_set.rowcount > 0:
+                safety_order_number = sql.parse_so_number(result_set)
+                row                 = sql.con_get_row(SQLTable.OPEN_BUY_ORDERS, symbol_pair, safety_order_number)
+                
+                # insert sell order into sql
+                sql.con_update(f"""INSERT INTO open_sell_orders {sql.oso_columns} VALUES 
+                              ('{row[0]}', '{row[1]}', {row[2]},   {row[3]},
+                                {row[4]},   {row[5]},  {row[6]},   {row[7]},
+                                {row[8]},   {row[9]},  {row[10]},  {row[11]},
+                                {row[12]},  false,     false,     '{sell_order_txid}',
+                                {row[15]}
+                            )""")
         except Exception as e:
             G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return
