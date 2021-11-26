@@ -53,7 +53,7 @@ class Sell(Base):
             self.cancel_order(txid)
             sql.con_update(f"UPDATE open_sell_orders SET cancelled=true WHERE symbol_pair='{symbol_pair}' AND cancelled=false AND filled=false and oso_txid='{txid}'")
         return
-    
+
     
     def __place_sell_limit_order(self, symbol_pair: str, filled_buy_order_txid: str) -> dict:
         """

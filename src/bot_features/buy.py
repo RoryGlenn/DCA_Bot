@@ -23,7 +23,6 @@ from bot_features.colors       import Color
 from my_sql.sql                import SQL
 
 
-
 class Buy(Base, TradingView):
     def __init__(self, parameter_dict: dict) -> None:
         super().__init__(parameter_dict)
@@ -90,6 +89,8 @@ class Buy(Base, TradingView):
     def __place_safety_orders(self, symbol: str) -> None:
         """Place safety orders."""
         sql = SQL()
+        
+        print(self.dca.safety_orders)
         
         for price, quantity in self.dca.safety_orders.items():
             try:
@@ -178,7 +179,7 @@ class Buy(Base, TradingView):
             
             # if the max active orders are already put in, and are still active, there is nothing left to do.
             if num_open_orders < DCA_.SAFETY_ORDERS_ACTIVE_MAX:
-                self.__place_safety_orders(symbol)
+                self.__place_safety_orders(symbol)# does not generate safety orders in self.dca
         except Exception as e:
             G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return
@@ -422,7 +423,7 @@ class Buy(Base, TradingView):
     def buy_loop(self) -> None:
         """The main function for trading coins."""
         self.__init_loop_variables()
-        self.nuke_and_restart()
+        # self.nuke_and_restart()
 
         while True:
             bought_set = self.__update_bought_set()

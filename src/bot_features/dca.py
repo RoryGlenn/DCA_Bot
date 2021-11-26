@@ -18,7 +18,7 @@ class DCA(DCA_):
         self.profit_levels:                     list         = [ ]
         self.cost_levels:                       list         = [ ]
         self.total_cost_levels:                 list         = [ ]
-        self.so_numbers:                             list         = [ ]
+        self.so_numbers:                        list         = [ ]
         self.symbol:                            str          = symbol
         self.symbol_pair:                       str          = symbol_pair
         self.bid_price:                         float        = bid_price
@@ -58,7 +58,7 @@ class DCA(DCA_):
             self.__set_total_cost_levels()            
             self.__set_safety_order_table()
         
-        self.__set_so_numbers()
+        # self.__set_so_numbers()
         self.__set_buy_orders()
         return
 
@@ -218,11 +218,11 @@ class DCA(DCA_):
         order_numbers = [i for i in range(1, DCA_.SAFETY_ORDERS_MAX+1)]
 
         sql = SQL()
-        sql.create_db_connection()
+        
         for i in range(DCA_.SAFETY_ORDERS_MAX):
-            sql.update(f"""INSERT INTO safety_orders {sql.so_columns} VALUES (
-                '{self.symbol_pair}', 
-                '{self.symbol}', 
+            sql.con_update(f"""INSERT INTO safety_orders {sql.so_columns} VALUES (
+               '{self.symbol_pair}', 
+               '{self.symbol}', 
                 {order_numbers[i]}, 
                 {self.percentage_deviation_levels[i]},
                 {self.quantities[i]},
@@ -236,7 +236,6 @@ class DCA(DCA_):
                 {self.total_cost_levels[i]},
                 false,
                 so_no)""")
-        sql.close_db_connection()
         return
     
     def __set_so_numbers(self) -> None:

@@ -4,7 +4,7 @@ import sys
 
 from util.globals              import G
 from kraken_files.kraken_enums import *
-
+from mysql.connector.cursor    import MySQLCursorBuffered
 
 class SQL():
     def __init__(self, host_name: str = "localhost", user_name: str = "root", user_password: str = "12345", db_name: str = "dca") -> None:
@@ -155,10 +155,10 @@ class SQL():
 
     def con_get_symbols(self) -> set:
         bought_set = set()
-        self.create_db_connection()
-        result_set = self.query("SELECT symbol FROM safety_orders")
-        result_set.close()
-        self.close_db_connection()
+        # self.create_db_connection()
+        result_set = self.con_query("SELECT symbol FROM safety_orders")
+        # result_set.close()
+        # self.close_db_connection()
         
         if result_set.rowcount > 0:
             for symbol in result_set.fetchall():
@@ -168,47 +168,40 @@ class SQL():
     def con_get_symbol_pairs(self) -> set:
         """Gets the symbol pairs that are currently in the database under the safety_orders table."""
         bought_set = set()
-        self.create_db_connection()
-        result_set = self.query("SELECT symbol_pair FROM safety_orders")
-        result_set.close()
-        self.close_db_connection()
+        # self.create_db_connection()
+        result_set = self.con_query("SELECT symbol_pair FROM safety_orders")
+        # result_set.close()
+        # self.close_db_connection()
         if result_set.rowcount > 0:
             for symbol in result_set.fetchall():
                 bought_set.add(symbol[0])
         return bought_set
         
     def con_get_required_price(self, table_name: str, symbol_pair: str) -> float:
-        self.create_db_connection()
-        result_set = self.query(f"SELECT required_price FROM {table_name} WHERE symbol_pair='{symbol_pair}' AND order_placed=false LIMIT 1")
-        result_set.close()
-        self.close_db_connection()
+        # self.create_db_connection()
+        result_set = self.con_query(f"SELECT required_price FROM {table_name} WHERE symbol_pair='{symbol_pair}' AND order_placed=false LIMIT 1")
+        # result_set.close()
+        # self.close_db_connection()
         if result_set.rowcount > 0:
             req_price_list = result_set.fetchall()
         return req_price_list[0][0] if result_set.rowcount > 0 else -1
     
     def con_get_open_buy_orders(self, symbol_pair: str) -> int:
-        self.create_db_connection()
-        result_set = self.query(f"SELECT symbol_pair FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
-        result_set.close()
-        self.close_db_connection()
+        # self.create_db_connection()
+        result_set = self.con_query(f"SELECT symbol_pair FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
+        # result_set.close()
+        # self.close_db_connection()
         if result_set.rowcount > 0:
             return len(result_set.fetchall())
         return 0
         
     def con_get_quantities(self, symbol_pair: str) -> list:
-        self.create_db_connection()
-        result_set = self.query(f"SELECT quantity FROM safety_orders WHERE symbol_pair='{symbol_pair}' AND order_placed=false")
-        result_set.close()
-        self.close_db_connection()
+        result_set: MySQLCursorBuffered = self.con_query(f"SELECT quantity FROM safety_orders WHERE symbol_pair='{symbol_pair}' AND order_placed=false")
         return [quantity[0] for quantity in result_set.fetchall()] if result_set.rowcount > 0 else []
     
     def con_get_prices(self, symbol_pair: str) -> list:
-        self.create_db_connection()
-        result_set = self.query(f"SELECT price FROM safety_orders WHERE symbol_pair='{symbol_pair}' AND order_placed=false")
-        result_set.close()
-        self.close_db_connection()
+        result_set = self.con_query(f"SELECT price FROM safety_orders WHERE symbol_pair='{symbol_pair}' AND order_placed=false")
         return [price[0] for price in result_set.fetchall()] if result_set.rowcount > 0 else []
-    
     
     def con_get_row(self, tablename: str, symbol_pair: str, safety_order_number: int) -> tuple:
         result_set = self.con_query(f"SELECT * FROM {tablename} WHERE symbol_pair='{symbol_pair}' AND safety_order_no={safety_order_number}")
