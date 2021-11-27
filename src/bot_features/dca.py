@@ -18,7 +18,7 @@ class DCA(DCA_):
         self.profit_levels:                     list         = [ ]
         self.cost_levels:                       list         = [ ]
         self.total_cost_levels:                 list         = [ ]
-        self.so_numbers:                        list         = [ ]
+        # self.so_numbers:                        list         = [ ]
         self.symbol:                            str          = symbol
         self.symbol_pair:                       str          = symbol_pair
         self.bid_price:                         float        = bid_price
@@ -238,16 +238,16 @@ class DCA(DCA_):
                 so_no)""")
         return
     
-    def __set_so_numbers(self) -> None:
-        sql = SQL()
-        result_set = sql.con_query(f"SELECT MIN(so_no) FROM safety_orders WHERE symbol_pair='{self.symbol_pair}' GROUP BY so_no")
+    # def __set_so_numbers(self) -> None:
+    #     sql = SQL()
+    #     result_set = sql.con_query(f"SELECT MIN(so_no) FROM safety_orders WHERE symbol_pair='{self.symbol_pair}' GROUP BY so_no")
         
-        if result_set.rowcount > 0:
-            numbers = result_set.fetchall()
+    #     if result_set.rowcount > 0:
+    #         numbers = result_set.fetchall()
             
-            for num in numbers:
-                self.so_numbers.append(num[0])
-        return
+    #         for num in numbers:
+    #             self.so_numbers.append(num[0])
+    #     return
 
     def __set_buy_orders(self) -> None:
         """Read rows in the .xlsx file into memory."""

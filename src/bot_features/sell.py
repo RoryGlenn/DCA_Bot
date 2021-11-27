@@ -28,12 +28,6 @@ class Sell(Base):
                         return float(qty)
         return 0.0
 
-    def __get_max_price_prec(self, symbol_pair: str) -> int:
-        return self.get_max_price_precision(symbol_pair[:-4]) if StableCoins.ZUSD in symbol_pair else self.get_max_price_precision(symbol_pair[:-3])
-
-    def __get_max_volume_prec(self, symbol_pair: str) -> int:
-        return self.get_max_volume_precision(symbol_pair[:-4]) if StableCoins.ZUSD in symbol_pair else self.get_max_volume_precision(symbol_pair[:-3])
-
     def __get_sell_order_txid(self, sell_order_result) -> str:
         if not self.has_result(sell_order_result):
             raise Exception(f"sell.__get_sell_order_txid: {sell_order_result}")        
@@ -68,9 +62,9 @@ class Sell(Base):
         sql = SQL()
 
         nonrounded_req_price = sql.con_get_required_price(SQLTable.SAFETY_ORDERS, symbol_pair)
-        max_prec             = self.__get_max_price_prec(symbol_pair)
+        max_prec             = self.get_max_price_precision(symbol_pair)
         required_price       = self.round_decimals_down(nonrounded_req_price, max_prec)
-        max_prec             = self.__get_max_volume_prec(symbol_pair)
+        max_prec             = self.get_max_volume_precision(symbol_pair)
         qty_owned            = self.__get_quantity_owned(symbol_pair)
         
         qty_to_sell          = self.round_decimals_down(qty_owned, max_prec)
@@ -96,7 +90,7 @@ class Sell(Base):
         self.__cancel_open_sell_order(symbol_pair)
         
         required_price    = entry_price + (entry_price*DCA_.TARGET_PROFIT_PERCENT/100)
-        required_price    = self.round_decimals_down(required_price, self.__get_max_price_prec(symbol_pair))
+        required_price    = self.round_decimals_down(required_price, self.get_max_price_precision(symbol_pair))
         sell_order_result = self.limit_order(Trade.SELL, quantity, symbol_pair, required_price)
 
         if self.has_result(sell_order_result):

@@ -56,30 +56,6 @@ class Buy(Base, TradingView):
         """Returns the next time to buy as specified in the config file."""
         return ( datetime.timedelta(minutes=Buy_.TIME_MINUTES) + datetime.datetime.now() ).strftime("%H:%M:%S")
 
-    def __set_pre_buy_variables(self, symbol: str) -> None:
-        """Sets the buy variables for each symbol."""
-        try:
-            # self.symbol_pair = self.get_tradable_asset_pair(symbol)
-            symbol_pair = self.get_tradable_asset_pair(symbol)
-            # self.bid_price   = self.get_bid_price(symbol_pair)
-            alt_name         = self.get_alt_name(symbol)
-            self.is_buy      = self.is_strong_buy(alt_name+StableCoins.USD)
-        except Exception as e:
-            G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
-        return
-
-    def __set_post_buy_variables(self, symbol: str) -> None:
-        """Sets variables in order to make an buy order."""
-        try:
-            self.wait(timeout=Nap.LONG)
-            self.order_min           = self.get_order_min(symbol)
-            symbol_pair              = self.get_tradable_asset_pair(symbol)
-            self.pair_decimals       = self.get_pair_decimals(symbol_pair)
-            self.open_orders         = self.get_open_orders()
-        except Exception as e:
-            G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
-        return
-
     def __place_base_order(self, order_min: float, symbol_pair: str) -> dict:
         """
         Place the base order for the coin we want to trade.
@@ -96,7 +72,7 @@ class Buy(Base, TradingView):
             try:
                 price_max_prec      = self.get_pair_decimals(symbol_pair)
                 rounded_price       = self.round_decimals_down(price, price_max_prec)
-                max_vol_prec        = self.get_max_volume_precision(symbol) # CHANGE THIS TO SYMBOL_PAIR ONLY!!!!!!!!!!
+                max_vol_prec        = self.get_max_volume_precision(symbol_pair) # CHANGE THIS TO SYMBOL_PAIR ONLY!!!!!!!!!!
                 rounded_quantity    = self.round_decimals_down(quantity, max_vol_prec)
                 limit_order_result  = self.limit_order(Trade.BUY, rounded_quantity, symbol_pair, rounded_price)
 
@@ -152,7 +128,7 @@ class Buy(Base, TradingView):
         self.wait(timeout=Nap.LONG)
         
         sql           = SQL()
-        order_min     = self.get_order_min(symbol) # CHANGE THIS TO SYMBOL PAIR ONLY !!!!!!!!!!!!!!!!!!!!!!!!
+        order_min     = self.get_order_min(symbol_pair)
         
         try:
             if symbol_pair in sql.con_get_symbol_pairs():
@@ -439,7 +415,7 @@ class Buy(Base, TradingView):
     def buy_loop(self) -> None:
         """The main function for trading coins."""
         self.__init_loop_variables()
-        self.nuke_and_restart()
+        # self.nuke_and_restart()
 
         while True:
             bought_set = self.__update_bought_set()

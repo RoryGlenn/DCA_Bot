@@ -48,53 +48,36 @@ class Base(KrakenAPI):
         response = requests.get(URL_ASSET_PAIRS)
         return ast.literal_eval(response.text)
             
-    def get_order_min(self, symbol: str) -> float:  
+    def get_order_min(self, symbol_pair: str) -> float:  
         """
         Returns the min quantity of coin we can order per USD.
         
         """
-
-        pair = self.get_tradable_asset_pair(symbol)
-        return float(self.asset_pairs_dict[pair][Dicts.ORDER_MIN])
+        return float(self.asset_pairs_dict[symbol_pair][Dicts.ORDER_MIN])
     
-    def get_max_price_precision(self, symbol: str) -> int:
+    def get_max_price_precision(self, symbol_pair: str) -> int:
         """
         Returns the maximum price precision in number of decimals
         
         """
+        return int(self.asset_pairs_dict[symbol_pair][Dicts.PAIR_DECIMALS])
 
-        pair = self.get_tradable_asset_pair(symbol)
-        return int(self.asset_pairs_dict[pair][Dicts.PAIR_DECIMALS])
-
-    def get_max_volume_precision(self, symbol: str) -> int:
+    def get_max_volume_precision(self, symbol_pair: str) -> int:
         """
         Returns the maximum volume precision in terms number of decimals
         
         """
-        pair = self.get_tradable_asset_pair(symbol)
-        return int(self.asset_pairs_dict[pair][Dicts.LOT_DECIMALS])
+        return int(self.asset_pairs_dict[symbol_pair][Dicts.LOT_DECIMALS])
         
     def get_withdrawal_precision_max(self, symbol: str) -> int:
         """Gets maximum decimal places when withdrawal of coin"""
         return int(self.get_asset_info()[Dicts.RESULT][symbol][Dicts.DECIMALS])
         
-
-    # def get_roi_percent(self, current_value: float, entry_value: float) -> float:
-    #     """
-    #     Calculate the return on investment (roi) of the symbols current_value and entry_value.
-    #     Then convert from percent to decimal by multiplying by 100.
-        
-    #     """
-        
-    #     return ((current_value / entry_value) - 1) * 100
-
-
     def get_ask_price(self, symbol_pair: str) -> float:
         """
         Gets the current ask price for a symbol pair on kraken. 
         
         """
-        
         current_price = self.get_ticker_information(pair=symbol_pair)
         current_price = self.parse_ticker_information(current_price)
         return self.parse_ask_price(current_price)
@@ -137,56 +120,9 @@ class Base(KrakenAPI):
         If "result" not in dict, an error occurred."""
         return bool(Dicts.RESULT in dictionary.keys())
 
-    # def print_order_result(self, symbol: str, order_result: dict) -> None:
-    #     if self.has_result(order_result):
-    #         G.log_file.print_and_log(f"sell_loop: limit order {symbol}: {order_result}", money=True)
-    #     else:
-    #         G.log_file.print_and_log(f"sell_loop: did not sell {symbol} {order_result}", money=True)        
-    #     return
-
-    # def get_withdrawal_minimum(self, symbol: str) -> float:
-    #     """
-    #     Gets the minimum withdrawal quantity for any coin on kraken
-
-    #     """
-
-    #     df = pd.read_csv(KrakenFiles.WITHDRAWAL_MINIMUMS)
-    #     for _, row in df.iterrows():
-    #         if row[Dicts.ASSET] == symbol:
-    #             return row[Dicts.MINIMUM]
-
-    #     """
-    #     If we couldn't find the first symbol, search again without the first character
-    #     We have to do this with symbols like XXLM, or XLTC"""
-    #     return self.get_withdrawal_minimum(symbol[1:])
-
     def get_quantity_owned(self, symbol: str) -> float:
         account_balance = self.get_account_balance()
         for sym, value in account_balance.items():
             if sym == symbol:
                 return float(value)
         return 0
-
-    # def convert_quantities(self, coin1_qty: float, coin2_ask_price: float) -> float:
-    #     """Get the value of coin1 in terms of coin2.
-        
-    #     For example If we have 100 USD and we want to 
-    #     buy Bitcoin when it is valued at 50,000 dollars for 1, return 0.002 BTC
-
-    #     """
-    #     coin2_quantity = coin1_qty / coin2_ask_price
-    #     return coin2_quantity
-
-
-    # def get_decimal_places(self, number: float) -> int:
-    #     """Returns the number of decimal places after the period in a floating point number.
-    #     For example: 
-    #         6 = get_decimal_places(12.234829)
-    #     """
-    #     number:              str = str(number)
-    #     decimal_place_index: int = number.find(".")
-    #     return len(number[decimal_place_index:])
-        
-
-    # def get_minimum_value(self, price: float, symbol: str) -> float:
-    #     return price * self.get_order_min(symbol)
