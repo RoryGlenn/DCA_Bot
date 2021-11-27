@@ -36,7 +36,7 @@ class Color:
     # Blue
     fgBlue = "\033[34m"
     fgBrightBlue = "\033[34;1m"
-    bgBlue = "\033[44m"
+    BG_BLUE = "\033[44m"
     bgBrightBlue = "\033[44;1m"
 
     # Magenta

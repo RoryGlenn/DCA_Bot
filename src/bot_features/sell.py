@@ -79,7 +79,7 @@ class Sell(Base):
         if self.has_result(sell_order_result):
             result_set       = sql.con_query(f"SELECT profit FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND obo_txid='{filled_buy_order_txid}'")
             profit_potential = round(result_set.fetchone()[0] if result_set.rowcount > 0 else 0, 6)
-            G.log_file.print_and_log(Color.bgBlue + f"Sell limit order placed{Color.ENDC} {symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: ${profit_potential}")
+            G.log_file.print_and_log(Color.BG_BLUE + f"Sell limit order placed{Color.ENDC} {symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: ${profit_potential}")
         else:
             G.log_file.print_and_log(Color.FG_YELLOW + f"Sell: {Color.ENDC} {symbol_pair} {sell_order_result[Dicts.ERROR]}" )
         return sell_order_result
@@ -101,7 +101,7 @@ class Sell(Base):
 
         if self.has_result(sell_order_result):
             profit_potential = round(entry_price * quantity * DCA_.TARGET_PROFIT_PERCENT/100, 6)
-            G.log_file.print_and_log(Color.bgBlue + f"Sell limit order placed{Color.ENDC} {symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: ${profit_potential}" + Color.ENDC)
+            G.log_file.print_and_log(Color.BG_BLUE + f"Sell limit order placed{Color.ENDC} {symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: ${profit_potential}" + Color.ENDC)
             sell_order_txid = sell_order_result[Dicts.RESULT][Data.TXID][0]
 
             # get the values from the safety order in order to place it into open_sell_orders table

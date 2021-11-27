@@ -1,10 +1,11 @@
 import mysql.connector
 import os
-import sys
 
-from util.globals              import G
-from kraken_files.kraken_enums import *
-from mysql.connector.cursor    import MySQLCursorBuffered
+
+from mysql.connector.cursor     import MySQLCursorBuffered
+from mysql.connector.connection import MySQLConnection, MySQLCursor
+from util.globals               import G
+from kraken_files.kraken_enums  import *
 
 class SQL():
     def __init__(self, host_name: str = "localhost", user_name: str = "root", user_password: str = "12345", db_name: str = "dca") -> None:
@@ -15,7 +16,7 @@ class SQL():
         self.so_columns:    str              = "(symbol_pair, symbol, safety_order_no, deviation, quantity, total_quantity, price, average_price, required_price, required_change, profit, cost, total_cost, order_placed, so_no)"
         self.obo_columns:   str              = "(symbol_pair, symbol, safety_order_no, deviation, quantity, total_quantity, price, average_price, required_price, required_change, profit, cost, total_cost, filled, obo_txid, obo_no)"
         self.oso_columns:   str              = "(symbol_pair, symbol, safety_order_no, deviation, quantity, total_quantity, price, average_price, required_price, required_change, profit, cost, total_cost, cancelled, filled, oso_txid, oso_no)"
-        self.connection = None
+        self.connection:    MySQLConnection  = None
         return
 
     def create_db_connection(self) -> None:
@@ -35,7 +36,7 @@ class SQL():
             print("MySQL no connection open")
         return
 
-    def update(self, query: str):
+    def update(self, query: str) -> MySQLCursor:
         cursor = self.connection.cursor()
         cursor.execute(query)
         self.connection.commit()
@@ -155,11 +156,7 @@ class SQL():
 
     def con_get_symbols(self) -> set:
         bought_set = set()
-        # self.create_db_connection()
         result_set = self.con_query("SELECT symbol FROM safety_orders")
-        # result_set.close()
-        # self.close_db_connection()
-        
         if result_set.rowcount > 0:
             for symbol in result_set.fetchall():
                 bought_set.add(symbol[0])
@@ -168,29 +165,20 @@ class SQL():
     def con_get_symbol_pairs(self) -> set:
         """Gets the symbol pairs that are currently in the database under the safety_orders table."""
         bought_set = set()
-        # self.create_db_connection()
         result_set = self.con_query("SELECT symbol_pair FROM safety_orders")
-        # result_set.close()
-        # self.close_db_connection()
         if result_set.rowcount > 0:
             for symbol in result_set.fetchall():
                 bought_set.add(symbol[0])
         return bought_set
         
     def con_get_required_price(self, table_name: str, symbol_pair: str) -> float:
-        # self.create_db_connection()
         result_set = self.con_query(f"SELECT required_price FROM {table_name} WHERE symbol_pair='{symbol_pair}' AND order_placed=false LIMIT 1")
-        # result_set.close()
-        # self.close_db_connection()
         if result_set.rowcount > 0:
             req_price_list = result_set.fetchall()
         return req_price_list[0][0] if result_set.rowcount > 0 else -1
     
     def con_get_open_buy_orders(self, symbol_pair: str) -> int:
-        # self.create_db_connection()
         result_set = self.con_query(f"SELECT symbol_pair FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
-        # result_set.close()
-        # self.close_db_connection()
         if result_set.rowcount > 0:
             return len(result_set.fetchall())
         return 0

@@ -29,10 +29,10 @@ class Buy(Base, TradingView):
         self.account_balance:         dict        = { }
         self.kraken_assets_dict:      dict        = { }
         self.exception_list:          list        = ["XTZ"]
-        self.bid_price:               float       = 0.0
+        # self.bid_price:               float       = 0.0
         self.quantity_to_buy:         float       = 0.0
         self.order_min:               float       = 0.0
-        self.symbol_pair:             str         = ""
+        # self.symbol_pair:             str         = ""
         self.is_buy:                  bool        = False
         self.dca:                     DCA         = None
         self.sell:                    Sell        = Sell(parameter_dict)
@@ -61,7 +61,7 @@ class Buy(Base, TradingView):
         try:
             # self.symbol_pair = self.get_tradable_asset_pair(symbol)
             symbol_pair = self.get_tradable_asset_pair(symbol)
-            self.bid_price   = self.get_bid_price(symbol_pair)
+            # self.bid_price   = self.get_bid_price(symbol_pair)
             alt_name         = self.get_alt_name(symbol)
             self.is_buy      = self.is_strong_buy(alt_name+StableCoins.USD)
         except Exception as e:
@@ -96,12 +96,12 @@ class Buy(Base, TradingView):
             try:
                 price_max_prec      = self.get_pair_decimals(symbol_pair)
                 rounded_price       = self.round_decimals_down(price, price_max_prec)
-                max_vol_prec        = self.get_max_volume_precision(symbol)
+                max_vol_prec        = self.get_max_volume_precision(symbol) # CHANGE THIS TO SYMBOL_PAIR ONLY!!!!!!!!!!
                 rounded_quantity    = self.round_decimals_down(quantity, max_vol_prec)
                 limit_order_result  = self.limit_order(Trade.BUY, rounded_quantity, symbol_pair, rounded_price)
 
                 if self.has_result(limit_order_result):
-                    G.log_file.print_and_log(message=Color.BG_GREEN + f"Safety order placed    {Color.ENDC} {symbol_pair} {limit_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}", money=True)
+                    G.log_file.print_and_log(message=Color.BG_BLUE + f"Safety order placed    {Color.ENDC} {symbol_pair} {limit_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}", money=True)
                     obo_txid            = limit_order_result[Dicts.RESULT][Data.TXID][0]
                     
                     result_set          = sql.con_query(f"SELECT MIN(safety_order_no) FROM safety_orders WHERE symbol_pair='{symbol_pair}' AND order_placed=false")
@@ -131,7 +131,7 @@ class Buy(Base, TradingView):
                 G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return
 
-    def __place_limit_orders(self, symbol: str) -> None:
+    def __place_limit_orders(self, symbol: str, symbol_pair: str) -> None:
         """
         The Base order will be a market order but all the safety orders will be a limit order.
         Place the safety orders that were set inside of the DCA class.
@@ -152,10 +152,7 @@ class Buy(Base, TradingView):
         self.wait(timeout=Nap.LONG)
         
         sql           = SQL()
-        order_min     = self.get_order_min(symbol)
-        symbol_pair   = self.get_tradable_asset_pair(symbol)
-        # pair_decimals = self.get_pair_decimals(self.symbol_pair)
-        # open_orders   = self.get_open_orders()
+        order_min     = self.get_order_min(symbol) # CHANGE THIS TO SYMBOL PAIR ONLY !!!!!!!!!!!!!!!!!!!!!!!!
         
         try:
             if symbol_pair in sql.con_get_symbol_pairs():
@@ -168,7 +165,7 @@ class Buy(Base, TradingView):
                 if self.has_result(base_order_result):
                     base_price = self.__get_bought_price(base_order_result)
                     
-                    G.log_file.print_and_log(Color.BG_GREEN + f"Base order filled      {Color.ENDC} {base_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]} {base_price}")
+                    G.log_file.print_and_log(Color.BG_BLUE + f"Base order filled      {Color.ENDC} {base_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]} {base_price}")
                     
                     base_order_qty = float(str(base_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]).split(" ")[1])
                     self.dca       = DCA(symbol_pair, symbol, base_order_qty, base_price)
@@ -202,7 +199,7 @@ class Buy(Base, TradingView):
                 bought_set.add(symbol[0])
         return bought_set
 
-    def __update_completed_trades(self, symbol: str) -> None:
+    def __update_completed_trades(self, symbol_pair: str) -> None:
         """
         If the sell order was filled, cancel all buy orders, 
         remove symbol from bought_list, delete excel_file. 
@@ -217,7 +214,6 @@ class Buy(Base, TradingView):
         """
         
         try:
-            symbol_pair           = self.get_tradable_asset_pair(symbol)
             bought_set            = set()
             open_sell_order_txids = set()
             sql                   = SQL()
@@ -252,25 +248,29 @@ class Buy(Base, TradingView):
                 if sell_order_txid in filled_sell_order_txids.keys():
                     # the sell order has filled and we have completed the entire process!!!
                     result_set      = sql.con_query(f"SELECT profit FROM open_sell_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")        
-                    profit          = result_set.fetchall()
-                    
+                    profit          = result_set.fetchall()[0] if result_set.rowcount > 0 else 0
+                    profit          = profit[0][0] if isinstance(profit[0], tuple) else profit[0]
+
                     result_set      = sql.con_query(f"SELECT obo_txid FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
-                    open_buy_orders = result_set.fetchall()
+                    open_buy_orders = result_set.fetchall()[0] if result_set.rowcount > 0 else []
                     
                     for txid in open_buy_orders:
-                        self.cancel_order(txid[0])
+                        if isinstance(txid, str):
+                            self.cancel_order(txid)
+                        elif isinstance(txid, tuple):
+                            self.cancel_order(txid[0])
                         
                     # remove rows associated with symbol_pair from all tables
                     sql.con_update(f"DELETE FROM safety_orders    WHERE symbol_pair='{symbol_pair}'")
                     sql.con_update(f"DELETE FROM open_buy_orders  WHERE symbol_pair='{symbol_pair}'")
                     sql.con_update(f"DELETE FROM open_sell_orders WHERE symbol_pair='{symbol_pair}'")
                     
-                    G.log_file.print_and_log(message=Color.BG_GREEN + f"Trade complete         {Color.ENDC} {symbol_pair}, profit: {profit[0][0]}", money=True)
+                    G.log_file.print_and_log(message=Color.BG_GREEN + Color.UNDERLINE + f"Trade complete $$$     {Color.ENDC} {symbol_pair}, profit: {profit}", money=True)
         except Exception as e:
             G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return
 
-    def __update_open_buy_orders(self, symbol: str) -> None:
+    def __update_open_buy_orders(self, symbol_pair: str) -> None:
         """
         Updates the open_buy_orders sheet if a buy limit order has been filled.
         Accomplishes this by checking to see if the txid exists in the trade history list.
@@ -282,10 +282,9 @@ class Buy(Base, TradingView):
         Note: Function is called only once inside of the buy loop.
         
         """
-        self.wait(message=f"Checking {symbol}", timeout=Nap.LONG)
         
         try:
-            symbol_pair = self.get_tradable_asset_pair(symbol)
+            
             txid_set    = set()
             sql         = SQL()
             
@@ -423,12 +422,9 @@ class Buy(Base, TradingView):
         we need to manage it
         
         """
-        
-        symbol_pair = self.get_tradable_asset_pair(symbol)
-        self.bid_price   = self.get_bid_price(symbol_pair)
-        alt_name         = self.get_alt_name(symbol)
-        self.is_buy      = self.is_strong_buy(alt_name+StableCoins.USD)        
-        return not bool(not self.is_buy and symbol not in bought_set)
+        alt_name = self.get_alt_name(symbol)
+        is_buy   = self.is_strong_buy(alt_name+StableCoins.USD)        
+        return not bool(not is_buy and symbol not in bought_set)
 
     def nuke_and_restart(self):
         sql = SQL()
@@ -443,22 +439,21 @@ class Buy(Base, TradingView):
     def buy_loop(self) -> None:
         """The main function for trading coins."""
         self.__init_loop_variables()
-        # self.nuke_and_restart()
+        self.nuke_and_restart()
 
         while True:
             bought_set = self.__update_bought_set()
             self.__set_buy_set(bought_set)
             
             for symbol in Buy_.SET:
-                self.__update_open_buy_orders(symbol)
-                self.__update_completed_trades(symbol)
-                # self.__set_pre_buy_variables(symbol)
+                symbol_pair = self.get_tradable_asset_pair(symbol)
+                self.wait(message=f"Checking {symbol}", timeout=Nap.LONG)
+                self.__update_open_buy_orders(symbol_pair)
+                self.__update_completed_trades(symbol_pair)
                 
                 if self.__is_buy(symbol, bought_set):
-                    # self.__set_post_buy_variables(symbol)
-                    self.__place_limit_orders(symbol)
+                    self.__place_limit_orders(symbol, symbol_pair)
             
             print()
             self.wait(message=Color.FG_BRIGHT_BLACK + f"Waiting till {self.__get_buy_time()} to buy" + Color.ENDC, timeout=Buy_.TIME_MINUTES*60)
         return
-    
