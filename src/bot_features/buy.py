@@ -74,13 +74,15 @@ class Buy(Base, TradingView):
                 rounded_quantity    = self.round_decimals_down(quantity, max_vol_prec)
                 limit_order_result  = self.limit_order(Trade.BUY, rounded_quantity, symbol_pair, rounded_price)
 
+                # print out the safety order number that was placed
+
                 if self.has_result(limit_order_result):
-                    G.log_file.print_and_log(message=Color.BG_BLUE + f"Safety order placed    {Color.ENDC} {symbol_pair} {limit_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}", money=True)
+                    result_set          = sql.con_query(f"SELECT MIN(safety_order_no) FROM safety_orders WHERE symbol_pair='{symbol_pair}' AND order_placed=false")
+                    safety_order_number = sql.parse_so_number(result_set)                    
+                    
+                    G.log_file.print_and_log(message=Color.BG_BLUE + f"Safety order {safety_order_number} placed  {Color.ENDC} {symbol_pair} {limit_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}", money=True)
                     obo_txid            = limit_order_result[Dicts.RESULT][Data.TXID][0]
                     
-                    result_set          = sql.con_query(f"SELECT MIN(safety_order_no) FROM safety_orders WHERE symbol_pair='{symbol_pair}' AND order_placed=false")
-                    safety_order_number = sql.parse_so_number(result_set)
-
                     # change order_placed to true in safety_orders table
                     sql.con_update(f"UPDATE safety_orders SET order_placed=true WHERE symbol_pair='{symbol_pair}' AND order_placed=false LIMIT 1")
                     
@@ -95,7 +97,7 @@ class Buy(Base, TradingView):
                                     """)
                 else:
                     if limit_order_result[Dicts.ERROR][0] == KError.INSUFFICIENT_FUNDS:
-                        G.log_file.print_and_log( Color.FG_YELLOW + f"Not enough USD to place remaining safety orders{Color.ENDC}: {symbol_pair}")
+                        G.log_file.print_and_log(Color.FG_YELLOW + f"Not enough USD to place remaining safety orders{Color.ENDC}: {symbol_pair}")
                         return
                     elif limit_order_result[Dicts.ERROR][0] == KError.INVALID_VOLUME:
                         G.log_file.print_and_log(f"{symbol_pair} volume error.")
@@ -239,7 +241,7 @@ class Buy(Base, TradingView):
                     sql.con_update(f"DELETE FROM open_buy_orders  WHERE symbol_pair='{symbol_pair}'")
                     sql.con_update(f"DELETE FROM open_sell_orders WHERE symbol_pair='{symbol_pair}'")
                     
-                    G.log_file.print_and_log(message=Color.BG_GREEN + Color.UNDERLINE + f"Trade complete $$$     {Color.ENDC} {symbol_pair}, profit: {profit}", money=True)
+                    G.log_file.print_and_log(message=Color.BG_GREEN + f"Trade complete $$$     {Color.ENDC} {symbol_pair}, profit: {profit}", money=True)
         except Exception as e:
             G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return
@@ -419,9 +421,6 @@ class Buy(Base, TradingView):
         """The main function for trading coins."""
         self.__init_loop_variables()
         # self.nuke_and_restart()
-
-        sql = SQL()
-        sql.con_update("DELETE FROM kraken_coins WHERE symbol='REN'")
 
         while True:
             bought_set = self.__update_bought_set()
