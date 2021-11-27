@@ -405,7 +405,7 @@ class Buy(Base, TradingView):
         
         """
         alt_name = self.get_alt_name(symbol)
-        is_buy = self._is_buy(alt_name+StableCoins.USD)
+        is_buy   = self._is_buy(alt_name+StableCoins.USD)
         return not bool(not is_buy and symbol not in bought_set)
 
     def nuke_and_restart(self):
