@@ -1,12 +1,11 @@
 """tradingview.py - pulls data from tradingview.com to see which coins we should buy."""
 
-import os
-
 from tradingview_ta            import TA_Handler, Interval
 from pprint                    import pprint
 from kraken_files.kraken_enums import *
 from util.globals              import G
 from my_sql.sql                import SQL
+
 
 class TVData:
     SCREENER       = "crypto"
@@ -107,26 +106,27 @@ class TradingView():
         get the analysis to see which one is a buy according to the time intervals.
         
         """
-        if not os.path.exists(KRAKEN_COINS):
-            return []
+        sql       = SQL()
+        buy_set   = set()
+        iteration = 1
 
-        buy_set = set()
-
-        with open(KRAKEN_COINS) as file:
-            lines     = file.readlines()
-            iteration = 1
-            total     = len(lines)
-
-            for symbol in sorted(lines):
-                symbol = symbol.replace("\n", "")
-
+        result_set = sql.con_query("SELECT symbol FROM kraken_coins")
+        
+        if result_set.rowcount > 0:
+            symbol_list = result_set.fetchall()
+            total       = len(symbol_list)
+            
+            for _tuple in symbol_list:
+                symbol = _tuple[0]
                 G.log_file.print_and_log(f"{iteration} of {total}: {symbol}")
-
+                
                 if symbol not in StableCoins.STABLE_COINS_LIST:
-                    if self.is_buy_long(symbol+StableCoins.USD):
+                    if self.is_buy_long(symbol + StableCoins.USD):
                         buy_set.add(symbol)
-                iteration += 1
-        return buy_set
+                iteration+=1
+        return buy_set        
+        
+        
 
     def get_strong_buy_set(self) -> set:
         """
@@ -134,23 +134,22 @@ class TradingView():
         get the analysis to see which one is a buy according to the time intervals.
         
         """
-        if not os.path.exists(KRAKEN_COINS):
-            return []
+        sql       = SQL()
+        buy_set   = set()
+        iteration = 1
 
-        buy_set = set()
-
-        with open(KRAKEN_COINS) as file:
-            lines     = file.readlines()
-            iteration = 1
-            total     = len(lines)
-
-            for symbol in sorted(lines):
-                symbol = symbol.replace("\n", "")
-
+        result_set = sql.con_query("SELECT symbol FROM kraken_coins")
+        
+        if result_set.rowcount > 0:
+            symbol_list = result_set.fetchall()
+            total       = len(symbol_list)
+            
+            for _tuple in symbol_list:
+                symbol = _tuple[0]
                 G.log_file.print_and_log(f"{iteration} of {total}: {symbol}")
-
+                
                 if symbol not in StableCoins.STABLE_COINS_LIST:
-                    if self.is_strong_buy(symbol+StableCoins.USD):
+                    if self.is_strong_buy(symbol + StableCoins.USD):
                         buy_set.add(symbol)
-                iteration += 1
-        return buy_set
+                iteration+=1
+        return buy_set   

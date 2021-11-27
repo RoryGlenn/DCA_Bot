@@ -28,11 +28,8 @@ class Buy(Base, TradingView):
         super().__init__(parameter_dict)
         self.account_balance:         dict        = { }
         self.kraken_assets_dict:      dict        = { }
-        
-        
         self.quantity_to_buy:         float       = 0.0
         self.order_min:               float       = 0.0
-        
         self.is_buy:                  bool        = False
         self.dca:                     DCA         = None
         self.sell:                    Sell        = Sell(parameter_dict)
@@ -229,7 +226,7 @@ class Buy(Base, TradingView):
                     profit          = profit[0][0] if isinstance(profit[0], tuple) else profit[0]
 
                     result_set      = sql.con_query(f"SELECT obo_txid FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
-                    open_buy_orders = result_set.fetchall()[0] if result_set.rowcount > 0 else []
+                    open_buy_orders = result_set.fetchall() if result_set.rowcount > 0 else []
                     
                     for txid in open_buy_orders:
                         if isinstance(txid, str):
@@ -422,6 +419,9 @@ class Buy(Base, TradingView):
         """The main function for trading coins."""
         self.__init_loop_variables()
         # self.nuke_and_restart()
+
+        sql = SQL()
+        sql.con_update("DELETE FROM kraken_coins WHERE symbol='REN'")
 
         while True:
             bought_set = self.__update_bought_set()

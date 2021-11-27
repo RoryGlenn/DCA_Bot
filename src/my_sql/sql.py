@@ -1,11 +1,11 @@
 import mysql.connector
 import os
 
-
 from mysql.connector.cursor     import MySQLCursorBuffered
 from mysql.connector.connection import MySQLConnection, MySQLCursor
 from util.globals               import G
 from kraken_files.kraken_enums  import *
+
 
 class SQL():
     def __init__(self, host_name: str = "localhost", user_name: str = "root", user_password: str = "12345", db_name: str = "dca") -> None:
@@ -19,7 +19,7 @@ class SQL():
         self.connection:    MySQLConnection  = None
         return
 
-    def create_db_connection(self) -> None:
+    def __create_db_connection(self) -> None:
         self.connection = mysql.connector.connect(
             host=self.host_name,
             user=self.user_name,
@@ -27,7 +27,7 @@ class SQL():
             database=self.db_name)
         return 
     
-    def close_db_connection(self) -> None:
+    def __close_db_connection(self) -> None:
         if self.connection is not None:
             cursor  = self.connection.cursor()
             cursor.close()
@@ -36,28 +36,28 @@ class SQL():
             print("MySQL no connection open")
         return
 
-    def update(self, query: str) -> MySQLCursor:
+    def __update(self, query: str) -> MySQLCursor:
         cursor = self.connection.cursor()
         cursor.execute(query)
         self.connection.commit()
         return cursor
 
-    def query(self, query: str) -> MySQLCursorBuffered:
+    def __query(self, query: str) -> MySQLCursorBuffered:
         cursor = self.connection.cursor(buffered=True)
         cursor.execute(query)
         return cursor
     
     def con_query(self, query: str) -> MySQLCursorBuffered:
-        self.create_db_connection()
-        result_set = self.query(query)
-        self.close_db_connection()
+        self.__create_db_connection()
+        result_set = self.__query(query)
+        self.__close_db_connection()
         return result_set
     
     def con_update(self, query: str) -> None:
-        self.create_db_connection()
-        result_set = self.update(query)
+        self.__create_db_connection()
+        result_set = self.__update(query)
         result_set.close()
-        self.close_db_connection()
+        self.__close_db_connection()
         return
     
     def drop_all_tables(self) -> None:
