@@ -28,14 +28,15 @@ class Buy(Base, TradingView):
         super().__init__(parameter_dict)
         self.account_balance:         dict        = { }
         self.kraken_assets_dict:      dict        = { }
-        self.exception_list:          list        = ["XTZ"]
-        # self.bid_price:               float       = 0.0
+        
+        
         self.quantity_to_buy:         float       = 0.0
         self.order_min:               float       = 0.0
-        # self.symbol_pair:             str         = ""
+        
         self.is_buy:                  bool        = False
         self.dca:                     DCA         = None
         self.sell:                    Sell        = Sell(parameter_dict)
+        self.exception_list:          list        = ["XTZ"]
         self.x_list:                  list        = ['XETC', 'XETH', 'XLTC', 'XMLN', 'XREP', 'XXBT', 'XXDG', 'XXLM', 'XXMR', 'XXRP', 'XZEC']
         self.reg_list:                list        = ['ETC',  'ETH',  'LTC',  'MLN',  'REP',  'XBT',  'XDG',  'XLM',  'XMR',  'XRP',  'ZEC' ]
         return
@@ -64,7 +65,7 @@ class Buy(Base, TradingView):
         """
         return self.market_order(Trade.BUY, order_min, symbol_pair)
     
-    def __place_safety_orders(self, symbol: str, symbol_pair: str) -> None:
+    def __place_safety_orders(self, symbol_pair: str) -> None:
         """Place safety orders."""
         sql = SQL()
         
@@ -72,7 +73,7 @@ class Buy(Base, TradingView):
             try:
                 price_max_prec      = self.get_pair_decimals(symbol_pair)
                 rounded_price       = self.round_decimals_down(price, price_max_prec)
-                max_vol_prec        = self.get_max_volume_precision(symbol_pair) # CHANGE THIS TO SYMBOL_PAIR ONLY!!!!!!!!!!
+                max_vol_prec        = self.get_max_volume_precision(symbol_pair)
                 rounded_quantity    = self.round_decimals_down(quantity, max_vol_prec)
                 limit_order_result  = self.limit_order(Trade.BUY, rounded_quantity, symbol_pair, rounded_price)
 
@@ -157,7 +158,7 @@ class Buy(Base, TradingView):
             
             # if the max active orders are already put in, and are still active, there is nothing left to do.
             if num_open_orders < DCA_.SAFETY_ORDERS_ACTIVE_MAX:
-                self.__place_safety_orders(symbol, symbol_pair)# does not generate safety orders in self.dca
+                self.__place_safety_orders(symbol_pair)
         except Exception as e:
             G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return
@@ -322,7 +323,7 @@ class Buy(Base, TradingView):
         buy_set = set()
         sql     = SQL()
         
-        for symbol in self.get_buy_long():
+        for symbol in self.get_buy_set():
             if symbol in self.reg_list:
                 buy_set.add("X" + symbol)
             else:
@@ -331,7 +332,10 @@ class Buy(Base, TradingView):
         bought_set = sql.con_get_symbols()
         Buy_.SET   = set(sorted(bought_set.union(buy_set)))
         
-        G.log_file.print_and_log(Color.bgCyan + f"Buy Set                {Color.ENDC} {Buy_.SET}" )
+        if len(Buy_.SET) <= 0:
+            G.log_file.print_and_log(Color.bgCyan + f"Buy Set                {Color.ENDC} No coins available" )            
+        else:
+            G.log_file.print_and_log(Color.bgCyan + f"Buy Set                {Color.ENDC} {Buy_.SET}" )
         return
 
     def __set_buy_set(self, bought_set: set) -> None:
@@ -340,7 +344,7 @@ class Buy(Base, TradingView):
         result_set = set()
         try:
             if self.future_time < datetime.datetime.now().strftime("%H:%M:%S"):
-                for symbol in self.get_buy_long():
+                for symbol in self.get_buy_set():
                     if symbol in self.reg_list:
                         result_set.add("X" + symbol)
                     else:
@@ -365,6 +369,8 @@ class Buy(Base, TradingView):
             for symbol, quantity in account[Dicts.RESULT].items():
                 quantity = float(quantity)
                 if float(quantity) > 0:
+                    if symbol[-2:] == ".S": # coin is staked
+                        symbol = symbol[:-2]
                     if symbol in self.x_list:
                         symbol = symbol[1:]
                     if symbol == StableCoins.ZUSD or symbol == StableCoins.USD or symbol == StableCoins.USDT:
@@ -399,7 +405,7 @@ class Buy(Base, TradingView):
         
         """
         alt_name = self.get_alt_name(symbol)
-        is_buy   = self.is_strong_buy(alt_name+StableCoins.USD)        
+        is_buy = self._is_buy(alt_name+StableCoins.USD)
         return not bool(not is_buy and symbol not in bought_set)
 
     def nuke_and_restart(self):
@@ -424,6 +430,7 @@ class Buy(Base, TradingView):
             for symbol in Buy_.SET:
                 symbol_pair = self.get_tradable_asset_pair(symbol)
                 self.wait(message=f"Checking {symbol}", timeout=Nap.LONG)
+                
                 self.__update_open_buy_orders(symbol_pair)
                 self.__update_completed_trades(symbol_pair)
                 

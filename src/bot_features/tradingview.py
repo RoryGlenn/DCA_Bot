@@ -6,6 +6,7 @@ from tradingview_ta            import TA_Handler, Interval
 from pprint                    import pprint
 from kraken_files.kraken_enums import *
 from util.globals              import G
+from my_sql.sql                import SQL
 
 class TVData:
     SCREENER       = "crypto"
@@ -26,8 +27,9 @@ class TVData:
     SCALP_INTERVALS = [
         Interval.INTERVAL_1_MINUTE, 
         Interval.INTERVAL_5_MINUTES, 
-        Interval.INTERVAL_15_MINUTES, 
-        Interval.INTERVAL_1_HOUR, 
+        Interval.INTERVAL_15_MINUTES,
+        Interval.INTERVAL_1_HOUR,
+        Interval.INTERVAL_2_HOURS,
         Interval.INTERVAL_4_HOURS]
 
 
@@ -45,7 +47,7 @@ class TradingView():
             G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return []
 
-    def is_buy(self, symbol_pair: list) -> bool:
+    def _is_buy(self, symbol_pair: str):
         """Get recommendations for all intervals in TVData. 
         Buy the coin if all intervals indicate a BUY or STRONG_BUY."""
         
@@ -55,7 +57,7 @@ class TradingView():
                 return False
         return True
 
-    def is_buy_long(self, symbol_pair: list) -> bool:
+    def is_buy_long(self, symbol_pair: str) -> bool:
         """Get recommendations for all intervals in TVData. 
         Buy the coin if all intervals indicate a BUY or STRONG_BUY."""
         
@@ -65,41 +67,41 @@ class TradingView():
                 return False
         return True
 
-    def is_strong_buy(self, symbol_pair: list) -> bool:
+    def is_strong_buy(self, symbol_pair: str) -> bool:
         for interval in TVData.SCALP_INTERVALS:
             recomendation = self.__get_recommendation(symbol_pair, interval)
             if recomendation != TVData.STRONG_BUY:
                 return False
         return True
 
-    def get_buy(self) -> set:
+    def get_buy_set(self) -> set:
         """
         For every coin on the kraken exchange, 
         get the analysis to see which one is a buy according to the time intervals.
         
         """
-        if not os.path.exists(KRAKEN_COINS):
-            return []
 
-        buy_set = set()
+        sql       = SQL()
+        buy_set   = set()
+        iteration = 1
 
-        with open(KRAKEN_COINS) as file:
-            lines     = file.readlines()
-            iteration = 1
-            total     = len(lines)
-
-            for symbol in sorted(lines):
-                symbol = symbol.replace("\n", "")
-
+        result_set = sql.con_query("SELECT symbol FROM kraken_coins")
+        
+        if result_set.rowcount > 0:
+            symbol_list = result_set.fetchall()
+            total       = len(symbol_list)
+            
+            for _tuple in symbol_list:
+                symbol = _tuple[0]
                 G.log_file.print_and_log(f"{iteration} of {total}: {symbol}")
-
+                
                 if symbol not in StableCoins.STABLE_COINS_LIST:
-                    if self.is_buy(symbol+StableCoins.USD):
+                    if self._is_buy(symbol + StableCoins.USD):
                         buy_set.add(symbol)
-                iteration += 1
+                iteration+=1
         return buy_set
 
-    def get_buy_long(self) -> set:
+    def get_buy_long_set(self) -> set:
         """
         For every coin on the kraken exchange, 
         get the analysis to see which one is a buy according to the time intervals.
@@ -126,9 +128,7 @@ class TradingView():
                 iteration += 1
         return buy_set
 
-
-
-    def get_strong_buy(self) -> set:
+    def get_strong_buy_set(self) -> set:
         """
         For every coin on the kraken exchange, 
         get the analysis to see which one is a buy according to the time intervals.
