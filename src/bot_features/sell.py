@@ -39,19 +39,23 @@ class Sell(Base):
         Set cancelled=true in open_sell_orders table.
 
         """
-        
-        sql = SQL()
-        
-        result_set = sql.con_query(f"SELECT oso_txid FROM open_sell_orders WHERE symbol_pair='{symbol_pair}' AND cancelled=false AND filled=false")
-        
-        if result_set.rowcount > 0:
-            for oso_txid in result_set.fetchall():
-                self.cancel_order(oso_txid[0])
-                sql.con_update(f"UPDATE open_sell_orders SET cancelled=true WHERE symbol_pair='{symbol_pair}' AND cancelled=false AND filled=false and oso_txid='{oso_txid[0]}'")
-                row = sql.con_query(f"SELECT * FROM open_sell_orders WHERE symbol_pair='{symbol_pair}' AND cancelled=true AND filled=false and oso_txid='{oso_txid[0]}'")
-                if row.rowcount > 0:
-                    row = row.fetchall()
-                    G.log_file.print_and_log(Color.BG_GREY + f"Cancelled Sell order {row[2]} {Color.ENDC}{row[0]}")
+        try:
+            sql = SQL()
+            
+            result_set = sql.con_query(f"SELECT oso_txid FROM open_sell_orders WHERE symbol_pair='{symbol_pair}' AND cancelled=false AND filled=false")
+            
+            if result_set.rowcount > 0:
+                for oso_txid in result_set.fetchall():
+                    self.cancel_order(oso_txid[0])
+                    sql.con_update(f"UPDATE open_sell_orders SET cancelled=true WHERE symbol_pair='{symbol_pair}' AND cancelled=false AND filled=false and oso_txid='{oso_txid[0]}'")
+                    
+                    row = sql.con_query(f"SELECT * FROM open_sell_orders WHERE symbol_pair='{symbol_pair}' AND cancelled=true AND filled=false and oso_txid='{oso_txid[0]}'")
+                    
+                    if row.rowcount > 0:
+                        row = row.fetchall()[0]
+                        G.log_file.print_and_log(Color.BG_GREY + f"Cancelled Sell order {row[2]} {Color.ENDC} {row[0]}")
+        except Exception as e:
+            G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return
 
     
@@ -128,7 +132,7 @@ class Sell(Base):
         try:
             sql = SQL()
             
-            self.__cancel_open_sell_order(symbol_pair)
+            self.__cancel_open_sell_order(symbol_pair) # ERROR: || list index out of range, IndexError C:\Users\Rory Glenn\Documents\python_repos\Kraken\DCA_Bot\src\bot_features\sell.py 131
 
             sell_order_result = self.__place_sell_limit_order(symbol_pair, filled_buy_order_txid)
             sell_order_txid   = self.__get_sell_order_txid(sell_order_result)

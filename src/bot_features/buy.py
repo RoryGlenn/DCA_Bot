@@ -417,7 +417,9 @@ class Buy(Base, TradingView):
 
     def buy_loop(self) -> None:
         """The main function for trading coins."""
+        self.nuke_and_restart()
         self.__init_loop_variables()
+        
 
         while True:
             bought_set = self.__update_bought_set()
