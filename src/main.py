@@ -15,8 +15,8 @@ import sys
 
 from datetime                  import datetime
 from bot_features.buy          import Buy
+from bot_features.kraken_enums import *
 from util.config_parser        import ConfigParser
-from kraken_files.kraken_enums import *
 from util.globals              import G
 
 

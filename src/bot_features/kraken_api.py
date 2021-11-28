@@ -7,9 +7,9 @@ import time
 import urllib.parse
 import requests
 
-from util.globals              import G
-from pprint                    import pprint
-from kraken_files.kraken_enums import *
+from util.globals import G
+from pprint       import pprint
+from bot_features.kraken_enums import *
 
 
 class KrakenAPI(object):

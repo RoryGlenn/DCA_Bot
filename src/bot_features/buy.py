@@ -13,9 +13,9 @@ import datetime
 import time
 
 from pprint                    import pprint
-from kraken_files.kraken_enums import *
+from bot_features.kraken_enums import *
 from util.globals              import G
-from bot_features.base         import Base
+from bot_features.kraken_base  import KrakenBase
 from bot_features.dca          import DCA
 from bot_features.sell         import Sell
 from bot_features.tradingview  import TradingView
@@ -23,7 +23,7 @@ from bot_features.colors       import Color
 from my_sql.sql                import SQL
 
 
-class Buy(Base, TradingView):
+class Buy(KrakenBase, TradingView):
     def __init__(self, parameter_dict: dict) -> None:
         super().__init__(parameter_dict)
         self.account_balance:         dict        = { }
@@ -213,9 +213,9 @@ class Buy(Base, TradingView):
                 return
 
             result_set = sql.con_query(f"SELECT oso_txid FROM open_sell_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
-            
-            for txid in result_set.fetchall():
-                open_sell_order_txids.add(txid[0])
+            if result_set.rowcount > 0:
+                for txid in result_set.fetchall():
+                    open_sell_order_txids.add(txid[0])
 
             for trade_txid, dictionary in trade_history[Dicts.RESULT][Data.TRADES].items():
                 filled_sell_order_txids[dictionary[Data.ORDER_TXID]] = trade_txid
@@ -226,6 +226,8 @@ class Buy(Base, TradingView):
                     result_set      = sql.con_query(f"SELECT profit FROM open_sell_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")        
                     profit          = result_set.fetchall()[0] if result_set.rowcount > 0 else 0
                     profit          = profit[0][0] if isinstance(profit[0], tuple) else profit[0]
+                    
+                    G.log_file.print_and_log(message=Color.BG_GREEN + f"Trade complete $$$     {Color.ENDC} {symbol_pair}, profit: {profit}", money=True)
 
                     result_set      = sql.con_query(f"SELECT obo_txid FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
                     open_buy_orders = result_set.fetchall() if result_set.rowcount > 0 else []
@@ -240,8 +242,6 @@ class Buy(Base, TradingView):
                     sql.con_update(f"DELETE FROM safety_orders    WHERE symbol_pair='{symbol_pair}'")
                     sql.con_update(f"DELETE FROM open_buy_orders  WHERE symbol_pair='{symbol_pair}'")
                     sql.con_update(f"DELETE FROM open_sell_orders WHERE symbol_pair='{symbol_pair}'")
-                    
-                    G.log_file.print_and_log(message=Color.BG_GREEN + f"Trade complete $$$     {Color.ENDC} {symbol_pair}, profit: {profit}", money=True)
         except Exception as e:
             G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return
@@ -329,10 +329,14 @@ class Buy(Base, TradingView):
         bought_set = sql.con_get_symbols()
         Buy_.SET   = set(sorted(bought_set.union(buy_set)))
         
+        buy_str = ""
+        for symbol in Buy_.SET:
+            buy_str += symbol + " "
+        
         if len(Buy_.SET) <= 0:
             G.log_file.print_and_log(Color.BG_CYAN + f"Buy Set                {Color.ENDC} No coins available" )            
         else:
-            G.log_file.print_and_log(Color.BG_CYAN + f"Buy Set                {Color.ENDC} {Buy_.SET}" )
+            G.log_file.print_and_log(Color.BG_CYAN + f"Buy Set                {Color.ENDC} {buy_str}" )
         return
 
     def __set_buy_set(self, bought_set: set) -> None:
@@ -417,9 +421,7 @@ class Buy(Base, TradingView):
 
     def buy_loop(self) -> None:
         """The main function for trading coins."""
-        self.nuke_and_restart()
         self.__init_loop_variables()
-        
 
         while True:
             bought_set = self.__update_bought_set()

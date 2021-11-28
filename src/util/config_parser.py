@@ -2,16 +2,11 @@
 
 import sys
 
-from datetime                  import datetime
-from kraken_files.kraken_enums import *
+from bot_features.kraken_enums import *
 from util.globals              import G
 
 
 class ConfigParser():
-    def __get_current_time(self) -> str:
-        """Returns the current time in hours:minutes:seconds format."""
-        return datetime.now().strftime("%H:%M:%S")
-
     def __get_parameter_list(self) -> list:
         return [
             # kraken

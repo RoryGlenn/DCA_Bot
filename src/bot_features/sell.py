@@ -3,14 +3,14 @@
 
 from pprint                    import pprint
 from bot_features.dca          import DCA
-from kraken_files.kraken_enums import *
+from bot_features.kraken_enums import *
 from util.globals              import G
-from bot_features.base         import Base
+from bot_features.kraken_base  import KrakenBase
 from my_sql.sql                import SQL
 from bot_features.colors       import Color
 
 
-class Sell(Base):
+class Sell(KrakenBase):
     def __init__(self, parameter_dict: dict) -> None:
         super().__init__(parameter_dict)
         self.asset_pairs_dict:  dict = self.get_all_tradable_asset_pairs()[Dicts.RESULT]
