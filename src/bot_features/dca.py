@@ -1,8 +1,8 @@
 """dca.py - DCA is a dollar cost averaging technique. 
 This bot uses DCA in order lower the average buy price for a purchased coin."""
 
-from bot_features.kraken_enums import *
-from my_sql.sql                import SQL
+from bot_features.low_level.kraken_enums import *
+from my_sql.sql                          import SQL
 
 
 class DCA(DCA_):

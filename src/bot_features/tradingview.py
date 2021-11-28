@@ -1,10 +1,10 @@
 """tradingview.py - pulls data from tradingview.com to see which coins we should buy."""
 
-from tradingview_ta            import TA_Handler, Interval
-from pprint                    import pprint
-from bot_features.kraken_enums import *
-from util.globals              import G
-from my_sql.sql                import SQL
+from tradingview_ta                      import TA_Handler, Interval
+from pprint                              import pprint
+from bot_features.low_level.kraken_enums import *
+from util.globals                        import G
+from my_sql.sql                          import SQL
 
 
 class TVData:
@@ -33,8 +33,8 @@ class TVData:
 
 
 class TradingView():
-    def __init__(self) -> None:
-        pass
+    # def __init__(self) -> None:
+    #     pass
     
     def __get_recommendation(self, symbol_pair: str, interval: str) -> list:
         """Get a recommendation (buy or sell) for the symbol."""
@@ -125,8 +125,6 @@ class TradingView():
                         buy_set.add(symbol)
                 iteration+=1
         return buy_set        
-        
-        
 
     def get_strong_buy_set(self) -> set:
         """

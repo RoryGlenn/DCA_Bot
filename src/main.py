@@ -13,11 +13,11 @@ __status__     = "Production"
 import os
 import sys
 
-from datetime                  import datetime
-from bot_features.buy          import Buy
-from bot_features.kraken_enums import *
-from util.config_parser        import ConfigParser
-from util.globals              import G
+from datetime                            import datetime
+from bot_features.buy                    import Buy
+from bot_features.low_level.kraken_enums import *
+from util.config_parser                  import ConfigParser
+from util.globals                        import G
 
 
 class General:

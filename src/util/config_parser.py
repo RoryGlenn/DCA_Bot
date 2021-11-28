@@ -2,8 +2,8 @@
 
 import sys
 
-from bot_features.kraken_enums import *
-from util.globals              import G
+from bot_features.low_level.kraken_enums import *
+from util.globals                        import G
 
 
 class ConfigParser():

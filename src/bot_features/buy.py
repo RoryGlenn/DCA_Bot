@@ -12,15 +12,15 @@ buy.py - Buys coin on kraken exchange based on users config file.
 import datetime
 import time
 
-from pprint                    import pprint
-from bot_features.kraken_enums import *
-from util.globals              import G
-from bot_features.kraken_base  import KrakenBase
-from bot_features.dca          import DCA
-from bot_features.sell         import Sell
-from bot_features.tradingview  import TradingView
-from bot_features.colors       import Color
-from my_sql.sql                import SQL
+from pprint                              import pprint
+from bot_features.low_level.kraken_enums import *
+from bot_features.low_level.kraken_base  import KrakenBase
+from util.globals                        import G
+from bot_features.dca                    import DCA
+from bot_features.sell                   import Sell
+from bot_features.tradingview            import TradingView
+from bot_features.colors                 import Color
+from my_sql.sql                          import SQL
 
 
 class Buy(KrakenBase, TradingView):
@@ -109,21 +109,19 @@ class Buy(KrakenBase, TradingView):
 
     def __place_limit_orders(self, symbol: str, symbol_pair: str) -> None:
         """
-        The Base order will be a market order but all the safety orders will be a limit order.
-        Place the safety orders that were set inside of the DCA class.
-        If the limit order was entered successfully, update the excel sheet by removing the order we just placed.
+            The Base order will be a market order but all the safety orders will be a limit order.
+            Place the safety orders that were set inside of the DCA class.
+            If the limit order was entered successfully, update the excel sheet by removing the order we just placed.
 
-        The next sell limit order should always be from the top of the safety orders,
-        
-        For example:
-            Base order = 1,   $100
-            SO1        = 1,   $98.7
-            SO2        = 2.5, $96.5
+            The next sell limit order should always be from the top of the safety orders,
+                For example:
+                    Base order = 1,   $100
+                    SO1        = 1,   $98.7
+                    SO2        = 2.5, $96.5
 
-            Then our first sell order should be 1, for $100 + 0.5%
-            If SO1, is filled, the previous sell order should be cancelled and a new sell order should be placed: Base Order+SO1, required_price1
-            If SO2, is filled, the previous sell order should be cancelled and a new sell order should be placed: Base Order+SO1+SO2, required_price2
-        
+                    Then our first sell order should be 1, for $100 + 0.5%
+                    If SO1, is filled, the previous sell order should be cancelled and a new sell order should be placed: Base Order+SO1, required_price1
+                    If SO2, is filled, the previous sell order should be cancelled and a new sell order should be placed: Base Order+SO1+SO2, required_price2
         """
         self.wait(timeout=Nap.LONG)
         
@@ -177,16 +175,16 @@ class Buy(KrakenBase, TradingView):
 
     def __update_completed_trades(self, symbol_pair: str) -> None:
         """
-        If the sell order was filled, cancel all buy orders, 
-        remove symbol from bought_list, delete excel_file. 
-        
-        If the sell order has been filled, we have sold the coin for a profit.
-        The things left to do is:
-          1. cancel any remaining buy order
-          2. delete the excel file
-          3. remove symbol from bought_set
-          4. start the process all over again!
-        
+            If the sell order was filled, cancel all buy orders, 
+            remove symbol from bought_list, delete excel_file. 
+            
+            If the sell order has been filled, we have sold the coin for a profit.
+            The things left to do is:
+            1. cancel any remaining buy order
+            2. delete the excel file
+            3. remove symbol from bought_set
+            4. start the process all over again!
+            
         """
         
         try:
@@ -248,15 +246,15 @@ class Buy(KrakenBase, TradingView):
 
     def __update_open_buy_orders(self, symbol_pair: str) -> None:
         """
-        Updates the open_buy_orders sheet if a buy limit order has been filled.
-        Accomplishes this by checking to see if the txid exists in the trade history list.
+            Updates the open_buy_orders sheet if a buy limit order has been filled.
+            Accomplishes this by checking to see if the txid exists in the trade history list.
 
-        1. Read all txids from txids.xlsx file into DataFrame.
-        2. For every txid in the dataframe, check if the associated order has been filled.
-        3. If the limit buy order has been filled, update the AVERAGE_PRICES_FILE with the new average and new quantity.
-        
-        Note: Function is called only once inside of the buy loop.
-        
+            1. Read all txids from txids.xlsx file into DataFrame.
+            2. For every txid in the dataframe, check if the associated order has been filled.
+            3. If the limit buy order has been filled, update the AVERAGE_PRICES_FILE with the new average and new quantity.
+            
+            Note: Function is called only once inside of the buy loop.
+            
         """
         
         try:
@@ -313,9 +311,9 @@ class Buy(KrakenBase, TradingView):
 
     def __init_buy_set(self) -> None:
         """
-        On startup, run analysis on all tradable coins through kraken exchange and create set of the buy coins.
-        Combine this set with the list of coins we are still in the middle of a deal with.
-        Set Buy_.SET to these coins.
+            On startup, run analysis on all tradable coins through kraken exchange and create set of the buy coins.
+            Combine this set with the list of coins we are still in the middle of a deal with.
+            Set Buy_.SET to these coins.
         """
         buy_set = set()
         sql     = SQL()
@@ -340,8 +338,10 @@ class Buy(KrakenBase, TradingView):
         return
 
     def __set_buy_set(self, bought_set: set) -> None:
-        """Once every ... minutes, run this function. 
-        Add to the buy_list with these coins."""
+        """
+            Once every ... minutes, run this function. 
+            Add to the buy_list with these coins.
+        """
         result_set = set()
         try:
             if self.future_time < datetime.datetime.now().strftime("%H:%M:%S"):
@@ -400,10 +400,10 @@ class Buy(KrakenBase, TradingView):
 
     def __is_buy(self, symbol: str, bought_set: set) -> bool:
         """
-        If symbol is in the bought list,
-        we don't care if it is a good time to buy or not,
-        we need to manage it
-        
+            If symbol is in the bought list,
+            we don't care if it is a good time to buy or not,
+            we need to manage it
+            
         """
         alt_name = self.get_alt_name(symbol)
         is_buy   = self._is_buy(alt_name+StableCoins.USD)

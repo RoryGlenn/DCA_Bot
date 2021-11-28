@@ -1,8 +1,8 @@
 import datetime
 import os
 
-from bot_features.kraken_enums import FileMode
-from bot_features.colors       import Color
+from bot_features.low_level.kraken_enums import FileMode
+from bot_features.colors                 import Color
 
 class Log():
     def __init__(self):
