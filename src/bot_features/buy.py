@@ -286,18 +286,16 @@ class Buy(Base, TradingView):
             
             for trade_txid, dictionary in trade_history[Dicts.RESULT][Data.TRADES].items():
                 filled_trades_order_txids[dictionary[Data.ORDER_TXID]] = trade_txid
-                
             
             for obo_txid in txid_set:
                 if obo_txid in filled_trades_order_txids.keys():
-                    
                     # update open_buy_orders table
                     sql.con_update(f"UPDATE open_buy_orders SET filled=true WHERE obo_txid='{obo_txid}' AND filled=false AND symbol_pair='{symbol_pair}'")                    
                     row = sql.con_query(f"SELECT * FROM {SQLTable.OPEN_BUY_ORDERS} WHERE symbol_pair='{symbol_pair}' AND obo_txid='{obo_txid}'")
 
                     if row.rowcount > 0:
                         row = row.fetchall()[0]
-                        G.log_file.print_and_log(Color.bgMagenta + f"""Safety order filled    {Color.ENDC} {row[0]} safety order number {row[2]}""")
+                        G.log_file.print_and_log(Color.BG_MAGENTA + f"""Safety order {row[2]} filled  {Color.ENDC} {row[0]}""")
                     
                     # if the txid is in the trade history, the order open_buy_order was filled.
                     self.sell.start(symbol_pair, obo_txid)
@@ -332,9 +330,9 @@ class Buy(Base, TradingView):
         Buy_.SET   = set(sorted(bought_set.union(buy_set)))
         
         if len(Buy_.SET) <= 0:
-            G.log_file.print_and_log(Color.bgCyan + f"Buy Set                {Color.ENDC} No coins available" )            
+            G.log_file.print_and_log(Color.BG_CYAN + f"Buy Set                {Color.ENDC} No coins available" )            
         else:
-            G.log_file.print_and_log(Color.bgCyan + f"Buy Set                {Color.ENDC} {Buy_.SET}" )
+            G.log_file.print_and_log(Color.BG_CYAN + f"Buy Set                {Color.ENDC} {Buy_.SET}" )
         return
 
     def __set_buy_set(self, bought_set: set) -> None:
@@ -354,7 +352,7 @@ class Buy(Base, TradingView):
                 # must be a union or else the buy_loop won't check if the symbol was ever sold.
                 Buy_.SET = set(sorted(result_set.union(bought_set)))
                 
-                G.log_file.print_and_log(Color.bgCyan + f"Buy Set                {Color.ENDC} {Buy_.SET}" )
+                G.log_file.print_and_log(Color.BG_CYAN + f"Buy Set                {Color.ENDC} {Buy_.SET}" )
         except Exception as e:
             G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return
@@ -420,7 +418,6 @@ class Buy(Base, TradingView):
     def buy_loop(self) -> None:
         """The main function for trading coins."""
         self.__init_loop_variables()
-        # self.nuke_and_restart()
 
         while True:
             bought_set = self.__update_bought_set()

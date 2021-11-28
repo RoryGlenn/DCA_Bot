@@ -39,18 +39,19 @@ class Sell(Base):
         Set cancelled=true in open_sell_orders table.
 
         """
-        txid_set = set()
-        sql      = SQL()
+        
+        sql = SQL()
         
         result_set = sql.con_query(f"SELECT oso_txid FROM open_sell_orders WHERE symbol_pair='{symbol_pair}' AND cancelled=false AND filled=false")
         
         if result_set.rowcount > 0:
             for oso_txid in result_set.fetchall():
-                txid_set.add(oso_txid[0])
-
-            for txid in txid_set:
-                self.cancel_order(txid)
-                sql.con_update(f"UPDATE open_sell_orders SET cancelled=true WHERE symbol_pair='{symbol_pair}' AND cancelled=false AND filled=false and oso_txid='{txid}'")
+                self.cancel_order(oso_txid[0])
+                sql.con_update(f"UPDATE open_sell_orders SET cancelled=true WHERE symbol_pair='{symbol_pair}' AND cancelled=false AND filled=false and oso_txid='{oso_txid[0]}'")
+                row = sql.con_query(f"SELECT * FROM open_sell_orders WHERE symbol_pair='{symbol_pair}' AND cancelled=true AND filled=false and oso_txid='{oso_txid[0]}'")
+                if row.rowcount > 0:
+                    row = row.fetchall()
+                    G.log_file.print_and_log(Color.BG_GREY + f"Cancelled Sell order {row[2]} {Color.ENDC}{row[0]}")
         return
 
     

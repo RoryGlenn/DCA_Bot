@@ -77,6 +77,7 @@ class General:
 
 def main() -> None:
     General.clear_terminal()
+    os.system("color")  
     G.log_file.directory_create()
     G.log_file.file_create()
     General.sync_time()
