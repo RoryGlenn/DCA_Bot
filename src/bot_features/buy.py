@@ -412,11 +412,38 @@ class Buy(KrakenBase, TradingView):
         is_buy   = self._is_buy(alt_name+StableCoins.USD)
         return not bool(not is_buy and symbol not in bought_set)
 
+    def sell_all_assets(self) -> None:
+        self.kraken_assets_dict = self.get_asset_info()[Dicts.RESULT]
+        self.account_balance    = self.get_parsed_account_balance()
+        self.asset_pairs_dict   = self.get_all_tradable_asset_pairs()[Dicts.RESULT]
+        account                 = self.get_account_balance()
+        
+        if self.has_result(account):
+            account = account[Dicts.RESULT]
+            for symbol, qty in account.items():
+                if float(qty) > 0 and symbol not in StableCoins.STABLE_COINS_LIST:
+                    if symbol[-2:] == ".S":
+                        continue
+                    if symbol in self.reg_list:
+                        symbol = "X" + symbol
+                        
+                    symbol_pair  = self.get_tradable_asset_pair(symbol)
+                    qty_max_prec = self.get_max_volume_precision(symbol_pair)
+                    qty          = self.round_decimals_down(qty, qty_max_prec)
+                    result       = self.market_order(Trade.SELL, qty, symbol_pair)
+                    
+                    print("symbol",      symbol)
+                    print("symbol_pair", symbol_pair)
+                    print(symbol_pair,   result)
+                    print()
+        return
+
     def nuke_and_restart(self):
         sql = SQL()
         sql.drop_all_tables()
         sql.create_tables()
         self.cancel_all_orders()
+        self.sell_all_assets()
 
 ##################################################################################################################################
 ### BUY_LOOP
@@ -424,12 +451,8 @@ class Buy(KrakenBase, TradingView):
 
     def buy_loop(self) -> None:
         """The main function for trading coins."""
+        # self.nuke_and_restart()
         self.__init_loop_variables()
-        
-        
-        
-        sql = SQL()
-        sql.con_update("DELETE FROM kraken_coins WHERE symbol_pair='SRMUSD'")
 
         while True:
             bought_set = self.__update_bought_set()
