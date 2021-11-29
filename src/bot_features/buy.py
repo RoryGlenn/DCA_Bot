@@ -34,8 +34,7 @@ class Buy(KrakenBase, TradingView):
         self.dca:                     DCA         = None
         self.sell:                    Sell        = Sell(parameter_dict)
         self.exception_list:          list        = ["XTZ"]
-        # self.x_list:                  list        = ['XETC', 'XETH', 'XLTC', 'XMLN', 'XREP', 'XXBT', 'XXDG', 'XXLM', 'XXMR', 'XXRP', 'XZEC']
-        self.reg_list:                list        = ['ETC',  'ETH',  'LTC',  'MLN',  'REP',  'XBT',  'XDG',  'XLM',  'XMR',  'XRP',  'ZEC' ]
+        self.total_profit:            float       = 0.0
         return
 
     def __init_loop_variables(self) -> None:
@@ -43,9 +42,6 @@ class Buy(KrakenBase, TradingView):
         self.kraken_assets_dict = self.get_asset_info()[Dicts.RESULT]
         self.account_balance    = self.get_parsed_account_balance()
         self.asset_pairs_dict   = self.get_all_tradable_asset_pairs()[Dicts.RESULT]
-        
-        # self.__init_buy_set()
-        # self.__set_future_time()
         
         G.log_file.print_and_log(message=Color.BG_GREEN + "Account Value          " + Color.ENDC + f" ${self.__get_account_value()}")
         return
@@ -56,8 +52,8 @@ class Buy(KrakenBase, TradingView):
 
     def __place_base_order(self, order_min: float, symbol_pair: str) -> dict:
         """
-        Place the base order for the coin we want to trade.
-        The base order should be a market order only!
+            Place the base order for the coin we want to trade.
+            The base order should be a market order only!
         
         """
         return self.market_order(Trade.BUY, order_min, symbol_pair)
@@ -207,7 +203,6 @@ class Buy(KrakenBase, TradingView):
             if symbol_pair not in bought_set:
                 return
             
-            # time.sleep(1)
             filled_sell_order_txids = dict()
             trade_history           = self.get_trades_history()
 
@@ -230,6 +225,7 @@ class Buy(KrakenBase, TradingView):
                     profit          = profit[0][0] if isinstance(profit[0], tuple) else profit[0]
                     
                     G.log_file.print_and_log(message=Color.BG_GREEN + f"Trade complete $$$     {Color.ENDC} {symbol_pair}, profit: {profit}", money=True)
+                    self.total_profit += float(profit)
 
                     result_set      = sql.con_query(f"SELECT obo_txid FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
                     open_buy_orders = result_set.fetchall() if result_set.rowcount > 0 else []
@@ -260,10 +256,7 @@ class Buy(KrakenBase, TradingView):
             Note: Function is called only once inside of the buy loop.
             
         """
-        
         try:
-            
-            
             txid_set    = set()
             sql         = SQL()
             
@@ -358,7 +351,7 @@ class Buy(KrakenBase, TradingView):
         self.account_balance    = self.get_parsed_account_balance()
         self.asset_pairs_dict   = self.get_all_tradable_asset_pairs()[Dicts.RESULT]
         account                 = self.get_account_balance()
-        reg_list                = ['ETC', 'ETH', 'LTC', 'MLN', 'REP', 'XBT', 'XDG', 'XLM', 'XMR', 'XRP', 'ZEC' ]
+        reg_list                = ['ETC', 'ETH', 'LTC', 'MLN', 'REP', 'XBT', 'XDG', 'XLM', 'XMR', 'XRP', 'ZEC']
 
         if self.has_result(account):
             account = account[Dicts.RESULT]
@@ -393,8 +386,13 @@ class Buy(KrakenBase, TradingView):
 
     def buy_loop(self) -> None:
         """The main function for trading coins."""
+        # remove SDN
+        # sql = SQL()
+        # sql.con_update("DELETE FROM kraken_coins WHERE symbol='SDN'")
+        # sql.con_update("DELETE FROM kraken_coins WHERE symbol='MOVR'")
+        
         self.__init_loop_variables()
-
+        
         while True:
             for symbol in Buy_.SET:
                 symbol_pair = self.get_tradable_asset_pair(symbol)
@@ -408,4 +406,6 @@ class Buy(KrakenBase, TradingView):
             
             print()
             self.wait(message=Color.FG_BRIGHT_BLACK + f"Waiting till {self.__get_buy_time()} to buy" + Color.ENDC, timeout=Buy_.TIME_MINUTES*60)
+            G.log_file.print_and_log(message=Color.BG_GREEN + "Account Value          " + Color.ENDC + f" ${self.__get_account_value()}")
+            G.log_file.print_and_log(message=Color.BG_GREEN + "Total Profit           " + Color.ENDC + f" ${self.round_decimals_down(self.total_profit, 8)}")
         return

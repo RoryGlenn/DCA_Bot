@@ -139,10 +139,11 @@ class SQL():
     def create_kraken_coins_table(self) -> None:
         self.con_update("DROP TABLE kraken_coins")
         self.con_update("""
-            CREATE TABLE kraken_coins 
-                (symbol    VARCHAR(10) NOT NULL,
-                symbol_no INT         NOT NULL AUTO_INCREMENT,
-                PRIMARY KEY (symbol_no) );""")
+            CREATE TABLE kraken_coins (
+                symbol     VARCHAR(10) NOT NULL,
+                symbol_no  INT         NOT NULL AUTO_INCREMENT,
+                PRIMARY KEY (symbol_no)
+                );""")
         
         if os.path.exists(KRAKEN_COINS):
             with open(KRAKEN_COINS, 'r') as file:
