@@ -11,14 +11,20 @@ from bot_features.low_level.kraken_enums import *
 class ConfigParser():
     def assign_enum_values() -> dict:
         """Assign values to the enums"""
+        reg_list = ['ETC',  'ETH',  'LTC',  'MLN',  'REP',  'XBT',  'XDG',  'XLM',  'XMR',  'XRP',  'ZEC' ]        
         
         if os.path.exists(CONFIG_JSON):
             with open(CONFIG_JSON) as file:
                 try:
                     config = json.load(file)[ConfigKeys.CONFIG]
                 
-                    # buy set
-                    Buy_.SET = config[ConfigKeys.BUY_SET]
+                    for symbol in config[ConfigKeys.BUY_SET]:
+                        if symbol in reg_list:
+                            Buy_.SET.add("X" + symbol)
+                        else:
+                            Buy_.SET.add(symbol)
+                    
+                    Buy_.SET = sorted(Buy_.SET)
                     
                     # DCA
                     DCA_.TARGET_PROFIT_PERCENT          = float(config[ConfigKeys.DCA_TARGET_PROFIT_PERCENT])

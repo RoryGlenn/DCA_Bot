@@ -34,7 +34,7 @@ class Buy(KrakenBase, TradingView):
         self.dca:                     DCA         = None
         self.sell:                    Sell        = Sell(parameter_dict)
         self.exception_list:          list        = ["XTZ"]
-        self.x_list:                  list        = ['XETC', 'XETH', 'XLTC', 'XMLN', 'XREP', 'XXBT', 'XXDG', 'XXLM', 'XXMR', 'XXRP', 'XZEC']
+        # self.x_list:                  list        = ['XETC', 'XETH', 'XLTC', 'XMLN', 'XREP', 'XXBT', 'XXDG', 'XXLM', 'XXMR', 'XXRP', 'XZEC']
         self.reg_list:                list        = ['ETC',  'ETH',  'LTC',  'MLN',  'REP',  'XBT',  'XDG',  'XLM',  'XMR',  'XRP',  'ZEC' ]
         return
 
@@ -44,8 +44,8 @@ class Buy(KrakenBase, TradingView):
         self.account_balance    = self.get_parsed_account_balance()
         self.asset_pairs_dict   = self.get_all_tradable_asset_pairs()[Dicts.RESULT]
         
-        self.__init_buy_set()
-        self.__set_future_time()
+        # self.__init_buy_set()
+        # self.__set_future_time()
         
         G.log_file.print_and_log(message=Color.BG_GREEN + "Account Value          " + Color.ENDC + f" ${self.__get_account_value()}")
         return
@@ -123,7 +123,7 @@ class Buy(KrakenBase, TradingView):
                     If SO1, is filled, the previous sell order should be cancelled and a new sell order should be placed: Base Order+SO1, required_price1
                     If SO2, is filled, the previous sell order should be cancelled and a new sell order should be placed: Base Order+SO1+SO2, required_price2
         """
-        self.wait(timeout=Nap.LONG)
+        self.wait(timeout=Nap.NORMAL)
         
         sql           = SQL()
         order_min     = self.get_order_min(symbol_pair)
@@ -143,7 +143,7 @@ class Buy(KrakenBase, TradingView):
                     
                     base_order_qty = float(str(base_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]).split(" ")[1])
                     self.dca       = DCA(symbol_pair, symbol, base_order_qty, base_price)
-                    self.sell.dca = self.dca
+                    self.sell.dca  = self.dca
                     
                     # upon placing the base_order, pass in the txid into dca to write to db
                     self.sell.place_sell_limit_base_order(symbol_pair, base_price, base_order_qty)
@@ -197,6 +197,7 @@ class Buy(KrakenBase, TradingView):
             
             result_set = sql.con_query(f"SELECT symbol_pair FROM safety_orders WHERE symbol_pair='{symbol_pair}'")
             
+            # if symbol is not in sql db, there is nothing to do.
             if result_set.rowcount <= 0:
                 return
             
@@ -206,7 +207,7 @@ class Buy(KrakenBase, TradingView):
             if symbol_pair not in bought_set:
                 return
             
-            time.sleep(1)
+            # time.sleep(1)
             filled_sell_order_txids = dict()
             trade_history           = self.get_trades_history()
 
@@ -262,18 +263,20 @@ class Buy(KrakenBase, TradingView):
         
         try:
             
+            
             txid_set    = set()
             sql         = SQL()
             
             result_set = sql.con_query(f"SELECT symbol_pair FROM safety_orders WHERE symbol_pair='{symbol_pair}' LIMIT 1")
     
+            # if symbol is not being traded, there is nothing to do
             if result_set.rowcount <= 0:
                 return
             
             if symbol_pair not in [ x[0] for x in result_set.fetchall() ]:
                 return 
             
-            time.sleep(1)
+            # time.sleep(1)
             filled_trades_order_txids = dict()
             trade_history        = self.get_trades_history()
             
@@ -303,71 +306,12 @@ class Buy(KrakenBase, TradingView):
         except Exception as e:
             G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return
-
-    def __get_future_time(self) -> str:
-        result = datetime.timedelta(minutes=60) + datetime.datetime.now()
-        return result.strftime("%H:%M:%S")
-
-    def __set_future_time(self) -> None:
-        self.future_time = self.__get_future_time()
-        return
-
-    def __init_buy_set(self) -> None:
-        """
-            On startup, run analysis on all tradable coins through kraken exchange and create set of the buy coins.
-            Combine this set with the list of coins we are still in the middle of a deal with.
-            Set Buy_.SET to these coins.
-        """
-        buy_set = set()
-        sql     = SQL()
-        
-        for symbol in self.get_buy_set():
-            if symbol in self.reg_list:
-                buy_set.add("X" + symbol)
-            else:
-                buy_set.add(symbol)
-        
-        bought_set = sql.con_get_symbols()
-        Buy_.SET   = set(sorted(bought_set.union(buy_set)))
-        
-        buy_str = ""
-        for symbol in Buy_.SET:
-            buy_str += symbol + " "
-        
-        if len(Buy_.SET) <= 0:
-            G.log_file.print_and_log(Color.BG_CYAN + f"Buy Set                {Color.ENDC} No coins available" )            
-        else:
-            G.log_file.print_and_log(Color.BG_CYAN + f"Buy Set                {Color.ENDC} {buy_str}" )
-        return
-
-    def __set_buy_set(self, bought_set: set) -> None:
-        """
-            Once every ... minutes, run this function. 
-            Add to the buy_list with these coins.
-        """
-        result_set = set()
-        try:
-            if self.future_time < datetime.datetime.now().strftime("%H:%M:%S"):
-                for symbol in self.get_buy_set():
-                    if symbol in self.reg_list:
-                        result_set.add("X" + symbol)
-                    else:
-                        result_set.add(symbol)
-
-                self.__set_future_time()
-                
-                # must be a union or else the buy_loop won't check if the symbol was ever sold.
-                Buy_.SET = set(sorted(result_set.union(bought_set)))
-                
-                G.log_file.print_and_log(Color.BG_CYAN + f"Buy Set                {Color.ENDC} {Buy_.SET}" )
-        except Exception as e:
-            G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
-        return
     
     def __get_account_value(self) -> float:
         """Get account value by adding all coin quantities together and putting in USD terms."""
         total   = 0.0
         account = self.get_account_balance()
+        x_list  = ['XETC', 'XETH', 'XLTC', 'XMLN', 'XREP', 'XXBT', 'XXDG', 'XXLM', 'XXMR', 'XXRP', 'XZEC']
 
         if self.has_result(account):
             for symbol, quantity in account[Dicts.RESULT].items():
@@ -375,7 +319,7 @@ class Buy(KrakenBase, TradingView):
                 if float(quantity) > 0:
                     if symbol[-2:] == ".S": # coin is staked
                         symbol = symbol[:-2]
-                    if symbol in self.x_list:
+                    if symbol in x_list:
                         symbol = symbol[1:]
                     if symbol == StableCoins.ZUSD or symbol == StableCoins.USD or symbol == StableCoins.USDT:
                         total += quantity
@@ -401,30 +345,28 @@ class Buy(KrakenBase, TradingView):
                             break
         return bought_price
 
-    def __is_buy(self, symbol: str, bought_set: set) -> bool:
+    def __is_buy(self, symbol: str) -> bool:
         """
-            If symbol is in the bought list,
-            we don't care if it is a good time to buy or not,
-            we need to manage it
+            Prepare the symbol in order to pull data from TradingView
             
         """
         alt_name = self.get_alt_name(symbol)
-        is_buy   = self._is_buy(alt_name+StableCoins.USD)
-        return not bool(not is_buy and symbol not in bought_set)
+        return self._is_buy(alt_name+StableCoins.USD)
 
     def sell_all_assets(self) -> None:
         self.kraken_assets_dict = self.get_asset_info()[Dicts.RESULT]
         self.account_balance    = self.get_parsed_account_balance()
         self.asset_pairs_dict   = self.get_all_tradable_asset_pairs()[Dicts.RESULT]
         account                 = self.get_account_balance()
-        
+        reg_list                = ['ETC', 'ETH', 'LTC', 'MLN', 'REP', 'XBT', 'XDG', 'XLM', 'XMR', 'XRP', 'ZEC' ]
+
         if self.has_result(account):
             account = account[Dicts.RESULT]
             for symbol, qty in account.items():
                 if float(qty) > 0 and symbol not in StableCoins.STABLE_COINS_LIST:
                     if symbol[-2:] == ".S":
                         continue
-                    if symbol in self.reg_list:
+                    if symbol in reg_list:
                         symbol = "X" + symbol
                         
                     symbol_pair  = self.get_tradable_asset_pair(symbol)
@@ -451,21 +393,17 @@ class Buy(KrakenBase, TradingView):
 
     def buy_loop(self) -> None:
         """The main function for trading coins."""
-        # self.nuke_and_restart()
         self.__init_loop_variables()
 
         while True:
-            bought_set = self.__update_bought_set()
-            self.__set_buy_set(bought_set)
-            
             for symbol in Buy_.SET:
                 symbol_pair = self.get_tradable_asset_pair(symbol)
-                self.wait(message=f"Checking {symbol}", timeout=Nap.LONG)
+                G.log_file.print_and_log(f"Checking {symbol}")
                 
                 self.__update_open_buy_orders(symbol_pair)
                 self.__update_completed_trades(symbol_pair)
                 
-                if self.__is_buy(symbol, bought_set):
+                if self.__is_buy(symbol):
                     self.__place_limit_orders(symbol, symbol_pair)
             
             print()

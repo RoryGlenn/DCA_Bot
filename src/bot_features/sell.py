@@ -67,9 +67,9 @@ class Sell(KrakenBase):
         try:
             sql = SQL()
 
-            result_set = sql.con_query(f"SELECT MIN(safety_order_no) FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
+            result_set      = sql.con_query(f"SELECT MIN(safety_order_no) FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
             safety_order_no = sql.parse_so_number(result_set)
-            row = sql.con_get_row(SQLTable.SAFETY_ORDERS, symbol_pair, safety_order_no)
+            row             = sql.con_get_row(SQLTable.SAFETY_ORDERS, symbol_pair, safety_order_no)
 
             nonrounded_req_price = row[7]
             max_prec             = self.get_max_price_precision(symbol_pair)
