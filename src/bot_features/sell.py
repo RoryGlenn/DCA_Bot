@@ -64,25 +64,30 @@ class Sell(KrakenBase):
         Place limit order to sell the coin.
         
         """
-        sql = SQL()
+        try:
+            sql = SQL()
 
-        nonrounded_req_price = sql.con_get_required_price(SQLTable.SAFETY_ORDERS, symbol_pair)
-        max_prec             = self.get_max_price_precision(symbol_pair)
-        required_price       = self.round_decimals_down(nonrounded_req_price, max_prec)
-        max_prec             = self.get_max_volume_precision(symbol_pair)
-        qty_owned            = self.__get_quantity_owned(symbol_pair)
-        
-        qty_to_sell          = self.round_decimals_down(qty_owned, max_prec)
-        sell_order_result    = self.limit_order(Trade.SELL, qty_to_sell, symbol_pair, required_price)
-        
-        if self.has_result(sell_order_result):
-            result_set       = sql.con_query(f"SELECT profit FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND obo_txid='{filled_buy_order_txid}'")
-            profit_potential = round(result_set.fetchone()[0] if result_set.rowcount > 0 else 0, 6)
-            G.log_file.print_and_log(Color.BG_BLUE + f"Sell limit order placed{Color.ENDC} {symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: ${profit_potential}")
-        else:
-            G.log_file.print_and_log(Color.FG_YELLOW + f"Sell: {Color.ENDC} {symbol_pair} {sell_order_result[Dicts.ERROR]}" )
-        return sell_order_result
+            result_set = sql.con_query(f"SELECT MIN(safety_order_no) FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
+            safety_order_no = sql.parse_so_number(result_set)
+            row = sql.con_get_row(SQLTable.SAFETY_ORDERS, symbol_pair, safety_order_no)
 
+            nonrounded_req_price = row[7]
+            max_prec             = self.get_max_price_precision(symbol_pair)
+            required_price       = self.round_decimals_down(nonrounded_req_price, max_prec)
+            max_prec             = self.get_max_volume_precision(symbol_pair)
+            qty_to_sell          = self.round_decimals_down(row[5], max_prec)
+            sell_order_result    = self.limit_order(Trade.SELL, qty_to_sell, symbol_pair, required_price)
+            
+            if self.has_result(sell_order_result):
+                result_set       = sql.con_query(f"SELECT profit FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND obo_txid='{filled_buy_order_txid}'")
+                profit_potential = round(result_set.fetchone()[0] if result_set.rowcount > 0 else 0, 6)
+                G.log_file.print_and_log(Color.BG_BLUE + f"Sell limit order placed{Color.ENDC} {symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: ${profit_potential}")
+            else:
+                G.log_file.print_and_log(Color.FG_YELLOW + f"Sell: {Color.ENDC} {symbol_pair} {sell_order_result[Dicts.ERROR]}" )
+            return sell_order_result
+        except Exception as e:
+            G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
+        return
 
 ##################################################################
 ### Place sell order for base order only!

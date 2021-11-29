@@ -48,7 +48,7 @@ class Log():
             print(Color.BG_RED + f"ERROR:{Color.ENDC} || {e}, {type(e).__name__} {__file__} {e.__traceback__.tb_lineno}" )
         return
 
-    def print_and_log(self, message: str = "", money: bool = False, end: bool = False, e=False, error_type: str = "", filename: str = "", tb_lineno: str = "") -> None:
+    def print_and_log(self, message: str = "", color: Color = None, money: bool = False, end: bool = False, e=False, error_type: str = "", filename: str = "", tb_lineno: str = "") -> None:
         """Print to the console and write to the log file. 
         If something went wrong, just print the error to console."""
         try:

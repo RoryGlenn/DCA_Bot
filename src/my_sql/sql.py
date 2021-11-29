@@ -171,7 +171,8 @@ class SQL():
         return bought_set
         
     def con_get_required_price(self, table_name: str, symbol_pair: str) -> float:
-        result_set: MySQLCursorBuffered = self.con_query(f"SELECT required_price FROM {table_name} WHERE symbol_pair='{symbol_pair}' AND order_placed=false LIMIT 1")
+        # result_set: MySQLCursorBuffered = self.con_query(f"SELECT required_price FROM {table_name} WHERE symbol_pair='{symbol_pair}' AND order_placed=false LIMIT 1")
+        result_set: MySQLCursorBuffered = self.con_query(f"SELECT MAX(required_price) FROM {table_name} WHERE symbol_pair='{symbol_pair}' AND filled=false LIMIT 1")
         if result_set.rowcount > 0:
             req_price_list = result_set.fetchall()
         return req_price_list[0][0] if result_set.rowcount > 0 else -1

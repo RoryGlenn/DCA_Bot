@@ -1,7 +1,6 @@
 from enum import auto
 
 
-KRAKEN_COINS = "src/kraken_files/txt_files/kraken_coins.txt"
 
 # DCA
 DECIMAL_MAX = 8
@@ -11,7 +10,9 @@ KRAKEN_API_KEY    = 'kraken_api_key'
 KRAKEN_SECRET_KEY = 'kraken_secret_key'
 URL_ASSET_PAIRS   = 'https://api.kraken.com/0/public/AssetPairs'
 
-KRAKEN_COINS = "src/kraken_files/txt_files/kraken_coins.txt"
+KRAKEN_COINS      = "src/kraken_files/txt_files/kraken_coins.txt"
+CONFIG_FILE       = 'src/kraken_files/txt_files/config.txt'
+CONFIG_JSON       = 'src/kraken_files/txt_files/config.json'
 
 
 class Buy_:
@@ -246,7 +247,6 @@ class FileMode:
     """
     Configuration file for the rake bot to use on users account and wallets
     """
-    CONFIG_FILE = 'src/kraken_files/txt_files/config.txt'
 
 
 class Misc:
@@ -260,12 +260,14 @@ class KrakenFiles:
     DEPOSIT_CONFIRMATIONS = "src/kraken_files/csv_files/Deposit_Confirmation.csv"
 
 class ConfigKeys:
+    CONFIG = "config"
+    
     # kraken
     KRAKEN_API_KEY = "kraken_api_key"
     KRAKEN_SECRET_KEY = "kraken_secret_key"
 
     # buy
-    BUY_SET = "buy_list"
+    BUY_SET = "buy_set"
 
     # dca
     DCA_TARGET_PROFIT_PERCENT = "dca_target_profit_percent"

@@ -12,6 +12,7 @@ __status__     = "Production"
 
 import os
 import sys
+import json
 
 from datetime                            import datetime
 from bot_features.buy                    import Buy
@@ -69,9 +70,9 @@ class General:
         Initialize threads for buying, selling, tipping and distribution. 
 
         """
-        cfg_dict    = ConfigParser().parse_config_file()
-        ConfigParser().assign_enum_values()
-        buy = Buy(cfg_dict)
+        ConfigParser.assign_enum_values()
+        cfg = ConfigParser.get_config()
+        buy = Buy(cfg)
         buy.buy_loop()
         return
 

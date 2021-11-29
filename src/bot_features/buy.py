@@ -148,7 +148,10 @@ class Buy(KrakenBase, TradingView):
                     # upon placing the base_order, pass in the txid into dca to write to db
                     self.sell.place_sell_limit_base_order(symbol_pair, base_price, base_order_qty)
                 else:
-                    G.log_file.print_and_log(Color.FG_YELLOW + f"Can't place base order:{Color.ENDC} {symbol_pair} {base_order_result[Dicts.ERROR]}")
+                    if base_order_result[Dicts.ERROR][0] == KError.INSUFFICIENT_FUNDS:
+                        G.log_file.print_and_log(Color.FG_YELLOW + f"Not enough USD to place base order:{Color.ENDC} {symbol_pair}")
+                    else:
+                        G.log_file.print_and_log(Color.FG_YELLOW + f"Can't place base order:{Color.ENDC} {symbol_pair} {base_order_result[Dicts.ERROR]}")
                     return
             
             num_open_orders = sql.con_get_open_buy_orders(symbol_pair)
@@ -422,6 +425,11 @@ class Buy(KrakenBase, TradingView):
     def buy_loop(self) -> None:
         """The main function for trading coins."""
         self.__init_loop_variables()
+        
+        
+        
+        sql = SQL()
+        sql.con_update("DELETE FROM kraken_coins WHERE symbol_pair='SRMUSD'")
 
         while True:
             bought_set = self.__update_bought_set()
