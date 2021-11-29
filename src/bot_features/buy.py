@@ -28,8 +28,8 @@ class Buy(KrakenBase, TradingView):
         super().__init__(parameter_dict)
         self.account_balance:         dict        = { }
         self.kraken_assets_dict:      dict        = { }
-        self.quantity_to_buy:         float       = 0.0
-        self.order_min:               float       = 0.0
+        # self.quantity_to_buy:         float       = 0.0
+        # self.order_min:               float       = 0.0
         self.is_buy:                  bool        = False
         self.dca:                     DCA         = None
         self.sell:                    Sell        = Sell(parameter_dict)
@@ -369,7 +369,6 @@ class Buy(KrakenBase, TradingView):
 
     def buy_loop(self) -> None:
         """The main function for trading coins."""
-        self.nuke_and_restart()
         self.__init_loop_variables()
         
         while True:

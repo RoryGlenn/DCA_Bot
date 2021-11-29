@@ -312,7 +312,6 @@ class KrakenAPI(object):
             G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return 0.0
 
-
     def get_available_usd_balance(self) -> float:
         """Get available usd balance by subtracting open buy orders from total usd in wallet."""
         open_orders = self.get_open_orders()
