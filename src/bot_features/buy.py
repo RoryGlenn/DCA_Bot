@@ -159,31 +159,13 @@ class Buy(KrakenBase, TradingView):
             G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return
 
-    def __update_bought_set(self) -> set:
-        """Get all the symbol names from the database
-            and create the set of coins we are currently buying."""
-        bought_set = set()
-        sql        = SQL()
-        
-        result_set = sql.con_query("SELECT symbol FROM safety_orders")
-        
-        if result_set.rowcount > 0:
-            for symbol in result_set.fetchall():
-                bought_set.add(symbol[0])
-        return bought_set
-
     def __update_completed_trades(self, symbol_pair: str) -> None:
         """
-            If the sell order was filled, cancel all buy orders, 
-            remove symbol from bought_list, delete excel_file. 
-            
             If the sell order has been filled, we have sold the coin for a profit.
             The things left to do is:
-            1. cancel any remaining buy order
-            2. delete the excel file
-            3. remove symbol from bought_set
-            4. start the process all over again!
-            
+                1. cancel remaining buy orders
+                2. delete the symbol data from the tables
+                4. start the process all over again!
         """
         
         try:
@@ -356,7 +338,8 @@ class Buy(KrakenBase, TradingView):
         if self.has_result(account):
             account = account[Dicts.RESULT]
             for symbol, qty in account.items():
-                if float(qty) > 0 and symbol not in StableCoins.STABLE_COINS_LIST:
+                qty = float(qty)
+                if qty > 0 and symbol not in StableCoins.STABLE_COINS_LIST:
                     if symbol[-2:] == ".S":
                         continue
                     if symbol in reg_list:
@@ -386,17 +369,13 @@ class Buy(KrakenBase, TradingView):
 
     def buy_loop(self) -> None:
         """The main function for trading coins."""
-        # remove SDN
-        # sql = SQL()
-        # sql.con_update("DELETE FROM kraken_coins WHERE symbol='SDN'")
-        # sql.con_update("DELETE FROM kraken_coins WHERE symbol='MOVR'")
-        
+        self.nuke_and_restart()
         self.__init_loop_variables()
         
         while True:
             for symbol in Buy_.SET:
                 symbol_pair = self.get_tradable_asset_pair(symbol)
-                G.log_file.print_and_log(f"Checking {symbol}")
+                self.wait(message=f"Checking {symbol}")
                 
                 self.__update_open_buy_orders(symbol_pair)
                 self.__update_completed_trades(symbol_pair)

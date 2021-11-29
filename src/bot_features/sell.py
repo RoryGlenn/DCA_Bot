@@ -61,7 +61,7 @@ class Sell(KrakenBase):
     
     def __place_sell_limit_order(self, symbol_pair: str, filled_buy_order_txid: str) -> dict:
         """
-        Place limit order to sell the coin.
+            Place limit order to sell the coin.
         
         """
         try:
@@ -137,7 +137,7 @@ class Sell(KrakenBase):
         try:
             sql = SQL()
             
-            self.__cancel_open_sell_order(symbol_pair) # ERROR: || list index out of range, IndexError C:\Users\Rory Glenn\Documents\python_repos\Kraken\DCA_Bot\src\bot_features\sell.py 131
+            self.__cancel_open_sell_order(symbol_pair)
 
             sell_order_result = self.__place_sell_limit_order(symbol_pair, filled_buy_order_txid)
             sell_order_txid   = self.__get_sell_order_txid(sell_order_result)
