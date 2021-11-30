@@ -13,6 +13,7 @@ import datetime
 import time
 
 from pprint                              import pprint
+from typing import Literal
 from bot_features.low_level.kraken_enums import *
 from bot_features.low_level.kraken_base  import KrakenBase
 from util.globals                        import G
@@ -28,8 +29,6 @@ class Buy(KrakenBase, TradingView):
         super().__init__(parameter_dict)
         self.account_balance:         dict        = { }
         self.kraken_assets_dict:      dict        = { }
-        # self.quantity_to_buy:         float       = 0.0
-        # self.order_min:               float       = 0.0
         self.is_buy:                  bool        = False
         self.dca:                     DCA         = None
         self.sell:                    Sell        = Sell(parameter_dict)
@@ -85,7 +84,7 @@ class Buy(KrakenBase, TradingView):
                     row = sql.con_get_row(SQLTable.SAFETY_ORDERS, symbol_pair, safety_order_number)
                     
                     # store open_buy_order row
-                    sql.con_update(f"""INSERT INTO open_buy_orders {sql.obo_columns} VALUES 
+                    sql.con_update(f"""INSERT INTO open_buy_orders {sql.obo_columns} VALUES
                                    ('{row[0]}', '{row[1]}',  {row[2]},    {row[3]},
                                      {row[4]},   {row[5]},   {row[6]},    {row[7]},
                                      {row[8]},   {row[9]},   {row[10]},   {row[11]},
@@ -122,7 +121,7 @@ class Buy(KrakenBase, TradingView):
         self.wait(timeout=Nap.NORMAL)
         
         sql           = SQL()
-        order_min     = self.get_order_min(symbol_pair)
+        base_order_qty     = self.get_order_min(symbol_pair)
         
         try:
             if symbol_pair in sql.con_get_symbol_pairs():
@@ -130,19 +129,26 @@ class Buy(KrakenBase, TradingView):
                 self.dca = DCA(symbol_pair, symbol, 0, 0)
             else:
                 # If symbol_pair exists in database then the base order has already been placed!
-                base_order_result = self.__place_base_order(order_min, symbol_pair)
+                base_order_result = self.__place_base_order(base_order_qty, symbol_pair)
 
                 if self.has_result(base_order_result):
-                    base_price = self.__get_bought_price(base_order_result)
+                    base_order_price = self.__get_bought_price(base_order_result)
                     
-                    G.log_file.print_and_log(Color.BG_BLUE + f"Base order filled      {Color.ENDC} {base_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]} {base_price}")
+                    G.log_file.print_and_log(Color.BG_BLUE + f"Base order filled      {Color.ENDC} {base_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]} {base_order_price}")
                     
                     base_order_qty = float(str(base_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]).split(" ")[1])
-                    self.dca       = DCA(symbol_pair, symbol, base_order_qty, base_price)
+                    self.dca       = DCA(symbol_pair, symbol, base_order_qty, base_order_price)
                     self.sell.dca  = self.dca
                     
+                    base_order_req_price = base_order_price + (base_order_price * DCA_.TARGET_PROFIT_PERCENT)
+                    base_order_profit    = base_order_price * base_order_qty * (DCA_.TARGET_PROFIT_PERCENT/100)
+                    base_order_cost      = base_order_price * base_order_qty
+                    base_order_txid      = base_order_result[Dicts.RESULT][Data.TXID][0]
+                    base_order_row       = BaseOrderRow(symbol_pair, symbol, 0, DCA_.TARGET_PROFIT_PERCENT/100, base_order_qty, base_order_qty, base_order_price, base_order_price, base_order_req_price, DCA_.TARGET_PROFIT_PERCENT/100, base_order_profit, base_order_cost, base_order_cost, False, False, base_order_txid, 0)
+                    
                     # upon placing the base_order, pass in the txid into dca to write to db
-                    self.sell.place_sell_limit_base_order(symbol_pair, base_price, base_order_qty)
+                    # self.sell.place_sell_limit_base_order(symbol_pair, base_order_price, base_order_qty)
+                    self.sell.place_sell_limit_base_order(base_order_row)
                 else:
                     if base_order_result[Dicts.ERROR][0] == KError.INSUFFICIENT_FUNDS:
                         G.log_file.print_and_log(Color.FG_YELLOW + f"Not enough USD to place base order:{Color.ENDC} {symbol_pair}")

@@ -289,3 +289,24 @@ class SQLTable:
     OPEN_BUY_ORDERS   = "open_buy_orders"
     OPEN_SELL_ORDERS  = "open_sell_orders"
     
+    
+class BaseOrderRow():
+    def __init__(self, symbol_pair: str = "", symbol: str = "", safety_order_no: int = 0, deviation: float = DCA_.TARGET_PROFIT_PERCENT, quantity: float  = 0.0, total_quantity: float = 0.0, price: float = 0.0, average_price: float = 0.0, required_price: float = 0.0, required_change: float = DCA_.TARGET_PROFIT_PERCENT, profit: float = 0.0, cost: float = 0.0, total_cost: float = 0.0, cancelled: bool = False, filled: bool = False, oso_txid: str = "", oso_no: int = 0) -> None:
+        self.symbol_pair:     str   = symbol_pair
+        self.symbol:          str   = symbol
+        self.safety_order_no: int   = safety_order_no
+        self.deviation:       float = deviation
+        self.quantity:        float = quantity
+        self.total_quantity:  float = total_quantity
+        self.price:           float = price
+        self.average_price:   float = average_price
+        self.required_price:  float = required_price
+        self.required_change: float = required_change
+        self.profit:          float = profit
+        self.cost:            float = cost
+        self.total_cost:      float = total_cost
+        self.cancelled:       bool  = cancelled
+        self.filled:          bool  = filled
+        self.oso_txid:        str   = oso_txid
+        self.oso_no:          int   = oso_no
+        return
