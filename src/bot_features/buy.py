@@ -13,7 +13,6 @@ import datetime
 import time
 
 from pprint                              import pprint
-from typing import Literal
 from bot_features.low_level.kraken_enums import *
 from bot_features.low_level.kraken_base  import KrakenBase
 from util.globals                        import G
@@ -34,6 +33,7 @@ class Buy(KrakenBase, TradingView):
         self.sell:                    Sell        = Sell(parameter_dict)
         self.exception_list:          list        = ["XTZ"]
         self.total_profit:            float       = 0.0
+        self.obo_txid:                str         = ""
         return
 
     def __init_loop_variables(self) -> None:
@@ -57,6 +57,76 @@ class Buy(KrakenBase, TradingView):
         """
         return self.market_order(Trade.BUY, order_min, symbol_pair)
     
+    
+    def __has_order_filled(self, symbol_pair: str) -> bool:
+        """Check if the order has filled."""
+        sql                       = SQL()
+        filled_trades_order_txids = dict()
+        
+        result_set = sql.con_query(f"SELECT symbol_pair FROM safety_orders WHERE symbol_pair='{symbol_pair}'")
+
+        # if symbol is not being traded, then nothing has been filled
+        if result_set.rowcount <= 0:
+            return False
+        
+        trade_history = self.get_trades_history()
+        
+        if not self.has_result(trade_history):
+            G.log_file.print_and_log("Can't get trade history")
+            raise Exception("Can't get trade history")
+        
+        # get all open_buy_orders from the database to check whether the have been filled
+        result_set = sql.con_query(f"SELECT obo_txid FROM open_buy_orders WHERE filled=false AND symbol_pair='{symbol_pair}'")
+        
+        # if there is nothing to get, nothing has been filled
+        if result_set.rowcount <= 0:
+            return False
+        
+        txid_set                  = {txid[0] for txid in result_set.fetchall()}
+        trade_history             = trade_history[Dicts.RESULT][Data.TRADES]
+        filled_trades_order_txids = {dictionary[Data.ORDER_TXID]: trade_txid for (trade_txid, dictionary) in trade_history.items()}
+        
+        for obo_txid in txid_set:
+            if obo_txid in filled_trades_order_txids.keys():
+                # open buy order has been filled!
+                self.obo_txid = obo_txid
+                return True
+        return False
+                
+    def __has_completed(self, symbol_pair: str) -> bool:
+            bought_set = set()
+            oso_txids  = set()
+            sql        = SQL()
+            
+            result_set = sql.con_query(f"SELECT symbol_pair FROM safety_orders WHERE symbol_pair='{symbol_pair}'")
+            
+            # if symbol is not in sql db, there is nothing to do.
+            if result_set.rowcount <= 0:
+                return False
+            
+            bought_set = {symbol[0] for symbol in result_set.fetchall()}
+            
+            if symbol_pair not in bought_set:
+                return False
+            
+            trade_history = self.get_trades_history()
+            
+            if not self.has_result(trade_history):
+                G.log_file.print_and_log("Can't get trade history")
+                raise Exception("Can't get trade history")
+            
+            result_set = sql.con_query(f"SELECT oso_txid FROM open_sell_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
+            if result_set.rowcount <= 0:
+                return False
+            
+            oso_txids                 = {txid[0] for txid in result_set.fetchall()}
+            filled_trades_order_txids = {dictionary[Data.ORDER_TXID]: trade_txid for (trade_txid, dictionary) in trade_history.items()}
+
+            for oso_txid in oso_txids:
+                if oso_txid in filled_trades_order_txids.keys():
+                    return True
+            return False      
+        
     def __place_safety_orders(self, symbol_pair: str) -> None:
         """Place safety orders."""
         sql = SQL()
@@ -175,59 +245,29 @@ class Buy(KrakenBase, TradingView):
                 
         """
         try:
-            bought_set            = set()
-            open_sell_order_txids = set()
-            sql                   = SQL()
-            
-            result_set = sql.con_query(f"SELECT symbol_pair FROM safety_orders WHERE symbol_pair='{symbol_pair}'")
-            
-            # if symbol is not in sql db, there is nothing to do.
-            if result_set.rowcount <= 0:
-                return
-            
-            for symbol in result_set.fetchall():
-                bought_set.add(symbol[0])
-            
-            if symbol_pair not in bought_set:
-                return
-            
-            filled_sell_order_txids = dict()
-            trade_history           = self.get_trades_history()
-
-            if not self.has_result(trade_history):
-                return
-
-            result_set = sql.con_query(f"SELECT oso_txid FROM open_sell_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
-            if result_set.rowcount > 0:
-                for txid in result_set.fetchall():
-                    open_sell_order_txids.add(txid[0])
-
-            for trade_txid, dictionary in trade_history[Dicts.RESULT][Data.TRADES].items():
-                filled_sell_order_txids[dictionary[Data.ORDER_TXID]] = trade_txid
-
-            for sell_order_txid in open_sell_order_txids:
-                if sell_order_txid in filled_sell_order_txids.keys():
-                    # the sell order has filled and we have completed the entire process!!!
-                    result_set      = sql.con_query(f"SELECT profit FROM open_sell_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")        
-                    profit          = result_set.fetchall()[0] if result_set.rowcount > 0 else 0
-                    profit          = profit[0][0] if isinstance(profit[0], tuple) else profit[0]
+            sql = SQL()
                     
-                    G.log_file.print_and_log(message=Color.BG_GREEN + f"Trade complete $$$     {Color.ENDC} {symbol_pair}, profit: {profit}", money=True)
-                    self.total_profit += float(profit)
+            if self.__has_completed(symbol_pair):
+                result_set      = sql.con_query(f"SELECT profit FROM open_sell_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")        
+                profit          = result_set.fetchall()[0] if result_set.rowcount > 0 else 0
+                profit          = profit[0][0] if isinstance(profit[0], tuple) else profit[0]
+                
+                G.log_file.print_and_log(message=Color.BG_GREEN + f"Trade complete $$$     {Color.ENDC} {symbol_pair}, profit: {profit}", money=True)
+                self.total_profit += float(profit)
 
-                    result_set      = sql.con_query(f"SELECT obo_txid FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
-                    open_buy_orders = result_set.fetchall() if result_set.rowcount > 0 else []
+                result_set      = sql.con_query(f"SELECT obo_txid FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
+                open_buy_orders = result_set.fetchall() if result_set.rowcount > 0 else []
+                
+                for txid in open_buy_orders:
+                    if isinstance(txid, str):
+                        self.cancel_order(txid)
+                    elif isinstance(txid, tuple):
+                        self.cancel_order(txid[0])
                     
-                    for txid in open_buy_orders:
-                        if isinstance(txid, str):
-                            self.cancel_order(txid)
-                        elif isinstance(txid, tuple):
-                            self.cancel_order(txid[0])
-                        
-                    # remove rows associated with symbol_pair from all tables
-                    sql.con_update(f"DELETE FROM safety_orders    WHERE symbol_pair='{symbol_pair}'")
-                    sql.con_update(f"DELETE FROM open_buy_orders  WHERE symbol_pair='{symbol_pair}'")
-                    sql.con_update(f"DELETE FROM open_sell_orders WHERE symbol_pair='{symbol_pair}'")
+                # remove rows associated with symbol_pair from all tables
+                sql.con_update(f"DELETE FROM safety_orders    WHERE symbol_pair='{symbol_pair}'")
+                sql.con_update(f"DELETE FROM open_buy_orders  WHERE symbol_pair='{symbol_pair}'")
+                sql.con_update(f"DELETE FROM open_sell_orders WHERE symbol_pair='{symbol_pair}'")
         except Exception as e:
             G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return
@@ -245,44 +285,18 @@ class Buy(KrakenBase, TradingView):
             
         """
         try:
-            txid_set    = set()
-            sql         = SQL()
-            
-            result_set = sql.con_query(f"SELECT symbol_pair FROM safety_orders WHERE symbol_pair='{symbol_pair}' LIMIT 1")
-    
-            # if symbol is not being traded, there is nothing to do
-            if result_set.rowcount <= 0:
-                return
-            
-            if symbol_pair not in [ x[0] for x in result_set.fetchall() ]:
-                return 
-            
-            filled_trades_order_txids = dict()
-            trade_history        = self.get_trades_history()
-            
-            if not self.has_result(trade_history):
-                return
-            
-            result_set = sql.con_query(f"SELECT obo_txid FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
-            
-            for txid in result_set.fetchall():
-                txid_set.add(txid[0])
-            
-            for trade_txid, dictionary in trade_history[Dicts.RESULT][Data.TRADES].items():
-                filled_trades_order_txids[dictionary[Data.ORDER_TXID]] = trade_txid
-            
-            for obo_txid in txid_set:
-                if obo_txid in filled_trades_order_txids.keys():
-                    # update open_buy_orders table
-                    sql.con_update(f"UPDATE open_buy_orders SET filled=true WHERE obo_txid='{obo_txid}' AND filled=false AND symbol_pair='{symbol_pair}'")
-                    row = sql.con_query(f"SELECT * FROM {SQLTable.OPEN_BUY_ORDERS} WHERE symbol_pair='{symbol_pair}' AND obo_txid='{obo_txid}'")
-
-                    if row.rowcount > 0:
-                        row = row.fetchall()[0]
-                        G.log_file.print_and_log(Color.BG_MAGENTA + f"""Safety order {row[2]} filled  {Color.ENDC} {row[0]}""")
+            sql = SQL()
                     
+            if self.__has_order_filled(symbol_pair):
+                sql.con_update(f"UPDATE open_buy_orders SET filled=true WHERE obo_txid='{self.obo_txid}' AND filled=false AND symbol_pair='{symbol_pair}'")
+                row = sql.con_query(f"SELECT * FROM {SQLTable.OPEN_BUY_ORDERS} WHERE symbol_pair='{symbol_pair}' AND obo_txid='{self.obo_txid}'")
+
+                if row.rowcount > 0:
+                    row = row.fetchall()[0]
+                    G.log_file.print_and_log(Color.BG_MAGENTA + f"""Safety order {row[2]} filled  {Color.ENDC} {row[0]}""")
+
                     # if the txid is in the trade history, the order open_buy_order was filled.
-                    self.sell.start(symbol_pair, obo_txid)
+                    self.sell.start(symbol_pair, self.obo_txid)
         except Exception as e:
             G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return
