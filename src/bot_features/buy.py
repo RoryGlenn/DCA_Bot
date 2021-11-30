@@ -120,14 +120,15 @@ class Buy(KrakenBase, TradingView):
         """
         self.wait(timeout=Nap.NORMAL)
         
-        sql           = SQL()
-        base_order_qty     = self.get_order_min(symbol_pair)
+        sql = SQL()
         
         try:
             if symbol_pair in sql.con_get_symbol_pairs():
                 # If the symbol is in the database then we have bought it before
                 self.dca = DCA(symbol_pair, symbol, 0, 0)
             else:
+                base_order_qty = self.get_order_min(symbol_pair)
+                
                 # If symbol_pair exists in database then the base order has already been placed!
                 base_order_result = self.__place_base_order(base_order_qty, symbol_pair)
 
@@ -136,18 +137,17 @@ class Buy(KrakenBase, TradingView):
                     
                     G.log_file.print_and_log(Color.BG_BLUE + f"Base order filled      {Color.ENDC} {base_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]} {base_order_price}")
                     
-                    base_order_qty = float(str(base_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]).split(" ")[1])
-                    self.dca       = DCA(symbol_pair, symbol, base_order_qty, base_order_price)
-                    self.sell.dca  = self.dca
-                    
-                    base_order_req_price = base_order_price + (base_order_price * DCA_.TARGET_PROFIT_PERCENT)
+                    # base_order_qty       = float(str(base_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]).split(" ")[1])
+                    base_order_req_price = base_order_price + (base_order_price * DCA_.TARGET_PROFIT_PERCENT/100)
                     base_order_profit    = base_order_price * base_order_qty * (DCA_.TARGET_PROFIT_PERCENT/100)
                     base_order_cost      = base_order_price * base_order_qty
                     base_order_txid      = base_order_result[Dicts.RESULT][Data.TXID][0]
                     base_order_row       = BaseOrderRow(symbol_pair, symbol, 0, DCA_.TARGET_PROFIT_PERCENT/100, base_order_qty, base_order_qty, base_order_price, base_order_price, base_order_req_price, DCA_.TARGET_PROFIT_PERCENT/100, base_order_profit, base_order_cost, base_order_cost, False, False, base_order_txid, 0)
                     
+                    self.dca       = DCA(symbol_pair, symbol, base_order_qty, base_order_price)
+                    self.sell.dca  = self.dca                    
+                    
                     # upon placing the base_order, pass in the txid into dca to write to db
-                    # self.sell.place_sell_limit_base_order(symbol_pair, base_order_price, base_order_qty)
                     self.sell.place_sell_limit_base_order(base_order_row)
                 else:
                     if base_order_result[Dicts.ERROR][0] == KError.INSUFFICIENT_FUNDS:
@@ -172,8 +172,8 @@ class Buy(KrakenBase, TradingView):
                 1. cancel remaining buy orders
                 2. delete the symbol data from the tables
                 4. start the process all over again!
+                
         """
-        
         try:
             bought_set            = set()
             open_sell_order_txids = set()
@@ -257,7 +257,6 @@ class Buy(KrakenBase, TradingView):
             if symbol_pair not in [ x[0] for x in result_set.fetchall() ]:
                 return 
             
-            # time.sleep(1)
             filled_trades_order_txids = dict()
             trade_history        = self.get_trades_history()
             
@@ -275,7 +274,7 @@ class Buy(KrakenBase, TradingView):
             for obo_txid in txid_set:
                 if obo_txid in filled_trades_order_txids.keys():
                     # update open_buy_orders table
-                    sql.con_update(f"UPDATE open_buy_orders SET filled=true WHERE obo_txid='{obo_txid}' AND filled=false AND symbol_pair='{symbol_pair}'")                    
+                    sql.con_update(f"UPDATE open_buy_orders SET filled=true WHERE obo_txid='{obo_txid}' AND filled=false AND symbol_pair='{symbol_pair}'")
                     row = sql.con_query(f"SELECT * FROM {SQLTable.OPEN_BUY_ORDERS} WHERE symbol_pair='{symbol_pair}' AND obo_txid='{obo_txid}'")
 
                     if row.rowcount > 0:

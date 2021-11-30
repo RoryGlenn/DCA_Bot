@@ -291,7 +291,7 @@ class SQLTable:
     
     
 class BaseOrderRow():
-    def __init__(self, symbol_pair: str = "", symbol: str = "", safety_order_no: int = 0, deviation: float = DCA_.TARGET_PROFIT_PERCENT, quantity: float  = 0.0, total_quantity: float = 0.0, price: float = 0.0, average_price: float = 0.0, required_price: float = 0.0, required_change: float = DCA_.TARGET_PROFIT_PERCENT, profit: float = 0.0, cost: float = 0.0, total_cost: float = 0.0, cancelled: bool = False, filled: bool = False, oso_txid: str = "", oso_no: int = 0) -> None:
+    def __init__(self, symbol_pair: str , symbol: str , safety_order_no: int, deviation: float, quantity: float, total_quantity: float, price: float, average_price: float, required_price: float, required_change: float, profit: float, cost: float, total_cost: float, cancelled: bool, filled: bool, oso_txid: str, oso_no: int) -> None:
         self.symbol_pair:     str   = symbol_pair
         self.symbol:          str   = symbol
         self.safety_order_no: int   = safety_order_no

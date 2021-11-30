@@ -75,7 +75,7 @@ class Sell(KrakenBase):
             
             if self.has_result(sell_order_result):
                 result_set       = sql.con_query(f"SELECT profit FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND obo_txid='{filled_buy_order_txid}'")
-                profit_potential = round(result_set.fetchone()[0] if result_set.rowcount > 0 else 0, 6)
+                profit_potential = round(result_set.fetchone()[0] if result_set.rowcount > 0 else 0, 6) # # ERROR: should pull one row after current position
                 G.log_file.print_and_log(Color.BG_BLUE + f"Sell limit order placed{Color.ENDC} {symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: ${profit_potential}")
             else:
                 G.log_file.print_and_log(Color.FG_YELLOW + f"Sell: {Color.ENDC} {symbol_pair} {sell_order_result[Dicts.ERROR]}" )
