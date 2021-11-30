@@ -56,14 +56,11 @@ elif api_feed in api_public:
             else:
                 api_symbols += '","' + sys.argv[count].upper()
     if api_feed == 'book':
-        api_data = '{"event":"subscribe", "subscription":{"name":"%(feed)s", "depth":%(depth)d}, "pair":["%(symbols)s"]}' % {
-            "feed": api_feed, "symbols": api_symbols, "depth": api_number if api_number != 0 else 10}
+        api_data = '{"event":"subscribe", "subscription":{"name":"%(feed)s", "depth":%(depth)d}, "pair":["%(symbols)s"]}' % {"feed": api_feed, "symbols": api_symbols, "depth": api_number if api_number != 0 else 10}
     elif api_feed == 'ohlc':
-        api_data = '{"event":"subscribe", "subscription":{"name":"%(feed)s", "interval":%(interval)d}, "pair":["%(symbols)s"]}' % {
-            "feed": api_feed, "symbols": api_symbols, "interval": api_number if api_number != 0 else 1}
+        api_data = '{"event":"subscribe", "subscription":{"name":"%(feed)s", "interval":%(interval)d}, "pair":["%(symbols)s"]}' % {"feed": api_feed, "symbols": api_symbols, "interval": api_number if api_number != 0 else 1}
     else:
-        api_data = '{"event":"subscribe", "subscription":{"name":"%(feed)s"}, "pair":["%(symbols)s"]}' % {
-            "feed": api_feed, "symbols": api_symbols}
+        api_data = '{"event":"subscribe", "subscription":{"name":"%(feed)s"}, "pair":["%(symbols)s"]}' % {"feed": api_feed, "symbols": api_symbols}
     api_domain = api_domain_public
 elif api_feed in api_private:
     api_domain = api_domain_private
@@ -74,17 +71,13 @@ elif api_feed in api_private:
         sys.exit(1)
     if len(sys.argv) >= 3:
         if api_feed == 'openOrders':
-            api_data = '{"event":"subscribe", "subscription":{"name":"%(feed)s", "ratecounter":%(ratecounter)s, "token":"%(token)s"}}' % {
-                "feed": api_feed, "ratecounter": sys.argv[2].split('=')[1], "token": api_token}
+            api_data = '{"event":"subscribe", "subscription":{"name":"%(feed)s", "ratecounter":%(ratecounter)s, "token":"%(token)s"}}' % {"feed": api_feed, "ratecounter": sys.argv[2].split('=')[1], "token": api_token}
         elif api_feed == 'ownTrades':
-            api_data = '{"event":"subscribe", "subscription":{"name":"%(feed)s", "snapshot":%(snapshot)s, "token":"%(token)s"}}' % {
-                "feed": api_feed, "snapshot": sys.argv[2].split('=')[1], "token": api_token}
+            api_data = '{"event":"subscribe", "subscription":{"name":"%(feed)s", "snapshot":%(snapshot)s, "token":"%(token)s"}}' % {"feed": api_feed, "snapshot": sys.argv[2].split('=')[1], "token": api_token}
         else:
-            api_data = '{"event":"subscribe", "subscription":{"name":"%(feed)s", "token":"%(token)s"}}' % {
-                "feed": api_feed, "token": api_token}
+            api_data = '{"event":"subscribe", "subscription":{"name":"%(feed)s", "token":"%(token)s"}}' % {"feed": api_feed, "token": api_token}
     else:
-        api_data = '{"event":"subscribe", "subscription":{"name":"%(feed)s", "token":"%(token)s"}}' % {
-            "feed": api_feed, "token": api_token}
+        api_data = '{"event":"subscribe", "subscription":{"name":"%(feed)s", "token":"%(token)s"}}' % {"feed": api_feed, "token": api_token}
 elif api_feed in api_trading:
     api_domain = api_domain_private
     try:
@@ -92,21 +85,16 @@ elif api_feed in api_trading:
     except:
         print("WebSocket authentication token missing (WS_Token)")
         sys.exit(1)
-    api_data = '{"event":"%(feed)s", "token":"%(token)s"' % {
-        "feed": api_feed, "token": api_token}
+    api_data = '{"event":"%(feed)s", "token":"%(token)s"' % {"feed": api_feed, "token": api_token}
     for count in range(2, len(sys.argv)):
         if sys.argv[count].split('=')[0] == 'txid':
-            api_data = api_data + ', "%(name)s":["%(value)s"]' % {"name": sys.argv[count].split(
-                '=')[0], "value": sys.argv[count].split('=')[1].replace(',', '","')}
+            api_data = api_data + ', "%(name)s":["%(value)s"]' % {"name": sys.argv[count].split('=')[0], "value": sys.argv[count].split('=')[1].replace(',', '","')}
         elif sys.argv[count].split('=')[0] == 'reqid':
-            api_data = api_data + ', "%(name)s":%(value)s' % {"name": sys.argv[count].split(
-                '=')[0], "value": sys.argv[count].split('=')[1]}
+            api_data = api_data + ', "%(name)s":%(value)s' % {"name": sys.argv[count].split('=')[0], "value": sys.argv[count].split('=')[1]}
         elif sys.argv[count].split('=')[0] == 'timeout':
-            api_data = api_data + ', "%(name)s":%(value)s' % {"name": sys.argv[count].split(
-                '=')[0], "value": sys.argv[count].split('=')[1]}
+            api_data = api_data + ', "%(name)s":%(value)s' % {"name": sys.argv[count].split('=')[0], "value": sys.argv[count].split('=')[1]}
         else:
-            api_data = api_data + ', "%(name)s":"%(value)s"' % {
-                "name": sys.argv[count].split('=')[0], "value": sys.argv[count].split('=')[1]}
+            api_data = api_data + ', "%(name)s":"%(value)s"' % {"name": sys.argv[count].split('=')[0], "value": sys.argv[count].split('=')[1]}
     api_data = api_data + '}'
     signal.alarm(3)
 else:

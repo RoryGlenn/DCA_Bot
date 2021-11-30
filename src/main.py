@@ -12,7 +12,6 @@ __status__     = "Production"
 
 import os
 import sys
-import json
 
 from datetime                            import datetime
 from bot_features.buy                    import Buy
@@ -78,7 +77,7 @@ class General:
 
 def main() -> None:
     General.clear_terminal()
-    os.system("color")  
+    os.system("color")
     G.log_file.directory_create()
     G.log_file.file_create()
     General.sync_time()

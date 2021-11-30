@@ -54,8 +54,7 @@ CREATE TABLE open_sell_orders (
     cancelled           BOOLEAN     NOT NULL,
     filled              BOOLEAN     NOT NULL,
     oso_txid            VARCHAR(30) NOT NULL,
-    oso_no              INT         NOT NULL,
-    PRIMARY KEY (oso_no)
+    oso_no              INT         NOT NULL
 );  
 
 CREATE TABLE kraken_coins (

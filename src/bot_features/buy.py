@@ -94,38 +94,45 @@ class Buy(KrakenBase, TradingView):
         return False
                 
     def __has_completed(self, symbol_pair: str) -> bool:
-            bought_set = set()
-            oso_txids  = set()
-            sql        = SQL()
-            
-            result_set = sql.con_query(f"SELECT symbol_pair FROM safety_orders WHERE symbol_pair='{symbol_pair}'")
-            
-            # if symbol is not in sql db, there is nothing to do.
-            if result_set.rowcount <= 0:
-                return False
-            
-            bought_set = {symbol[0] for symbol in result_set.fetchall()}
-            
-            if symbol_pair not in bought_set:
-                return False
-            
-            trade_history = self.get_trades_history()
-            
-            if not self.has_result(trade_history):
-                G.log_file.print_and_log("Can't get trade history")
-                raise Exception("Can't get trade history")
-            
-            result_set = sql.con_query(f"SELECT oso_txid FROM open_sell_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
-            if result_set.rowcount <= 0:
-                return False
-            
-            oso_txids                 = {txid[0] for txid in result_set.fetchall()}
-            filled_trades_order_txids = {dictionary[Data.ORDER_TXID]: trade_txid for (trade_txid, dictionary) in trade_history.items()}
+            sql = SQL()
+            filled_trades_order_txids = dict()
 
-            for oso_txid in oso_txids:
-                if oso_txid in filled_trades_order_txids.keys():
-                    return True
-            return False      
+            try:
+                result_set = sql.con_query(f"SELECT symbol_pair FROM safety_orders WHERE symbol_pair='{symbol_pair}'")
+                
+                # if symbol is not in sql db, there is nothing to do.
+                if result_set.rowcount <= 0:
+                    return False
+                
+                bought_set = {symbol[0] for symbol in result_set.fetchall()}
+                
+                if symbol_pair not in bought_set:
+                    return False
+                
+                trade_history = self.get_trades_history()
+                
+                if not self.has_result(trade_history):
+                    G.log_file.print_and_log("Can't get trade history")
+                    raise Exception("Can't get trade history")
+                
+                result_set = sql.con_query(f"SELECT oso_txid FROM open_sell_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
+                if result_set.rowcount <= 0:
+                    return False
+                
+                oso_txids = {txid[0] for txid in result_set.fetchall()}
+                
+                trade_history = trade_history[Dicts.RESULT][Data.TRADES]
+                for trade_txid, dictionary in trade_history.items():
+                    filled_trades_order_txids[dictionary[Data.ORDER_TXID]] = trade_txid
+                
+                filled_trades_order_txids = {dictionary[Data.ORDER_TXID]: trade_txid for (trade_txid, dictionary) in trade_history.items()}
+
+                for oso_txid in oso_txids:
+                    if oso_txid in filled_trades_order_txids.keys():
+                        return True
+            except Exception as e:
+                G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
+            return False
         
     def __place_safety_orders(self, symbol_pair: str) -> None:
         """Place safety orders."""
@@ -139,11 +146,9 @@ class Buy(KrakenBase, TradingView):
                 rounded_quantity    = self.round_decimals_down(quantity, max_vol_prec)
                 limit_order_result  = self.limit_order(Trade.BUY, rounded_quantity, symbol_pair, rounded_price)
 
-                # print out the safety order number that was placed
-
                 if self.has_result(limit_order_result):
                     result_set          = sql.con_query(f"SELECT MIN(safety_order_no) FROM safety_orders WHERE symbol_pair='{symbol_pair}' AND order_placed=false")
-                    safety_order_number = sql.parse_so_number(result_set)                    
+                    safety_order_number = sql.parse_so_number(result_set)
                     
                     G.log_file.print_and_log(message=Color.BG_BLUE + f"Safety order {safety_order_number} placed  {Color.ENDC} {symbol_pair} {limit_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}", money=True)
                     obo_txid            = limit_order_result[Dicts.RESULT][Data.TXID][0]
@@ -207,15 +212,14 @@ class Buy(KrakenBase, TradingView):
                     
                     G.log_file.print_and_log(Color.BG_BLUE + f"Base order filled      {Color.ENDC} {base_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]} {base_order_price}")
                     
-                    # base_order_qty       = float(str(base_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]).split(" ")[1])
                     base_order_req_price = base_order_price + (base_order_price * DCA_.TARGET_PROFIT_PERCENT/100)
                     base_order_profit    = base_order_price * base_order_qty * (DCA_.TARGET_PROFIT_PERCENT/100)
                     base_order_cost      = base_order_price * base_order_qty
                     base_order_txid      = base_order_result[Dicts.RESULT][Data.TXID][0]
-                    base_order_row       = BaseOrderRow(symbol_pair, symbol, 0, DCA_.TARGET_PROFIT_PERCENT/100, base_order_qty, base_order_qty, base_order_price, base_order_price, base_order_req_price, DCA_.TARGET_PROFIT_PERCENT/100, base_order_profit, base_order_cost, base_order_cost, False, False, base_order_txid, 0)
+                    base_order_row       = BaseOrderRow(symbol_pair, symbol, 0, DCA_.TARGET_PROFIT_PERCENT, base_order_qty, base_order_qty, base_order_price, base_order_price, base_order_req_price, DCA_.TARGET_PROFIT_PERCENT, base_order_profit, base_order_cost, base_order_cost, False, False, base_order_txid, 0)
                     
                     self.dca       = DCA(symbol_pair, symbol, base_order_qty, base_order_price)
-                    self.sell.dca  = self.dca                    
+                    self.sell.dca  = self.dca
                     
                     # upon placing the base_order, pass in the txid into dca to write to db
                     self.sell.place_sell_limit_base_order(base_order_row)
@@ -375,12 +379,15 @@ class Buy(KrakenBase, TradingView):
                     print()
         return
 
-    def nuke_and_restart(self):
+    def nuke_and_restart(self, sell: bool=False):
         sql = SQL()
         sql.drop_all_tables()
         sql.create_tables()
         self.cancel_all_orders()
-        self.sell_all_assets()
+        
+        if sell:
+            self.sell_all_assets()
+
 
 ##################################################################################################################################
 ### BUY_LOOP
@@ -388,6 +395,7 @@ class Buy(KrakenBase, TradingView):
 
     def buy_loop(self) -> None:
         """The main function for trading coins."""
+        # self.nuke_and_restart(True)
         self.__init_loop_variables()
         
         while True:
@@ -395,6 +403,7 @@ class Buy(KrakenBase, TradingView):
                 symbol_pair = self.get_tradable_asset_pair(symbol)
                 self.wait(message=f"Checking {symbol}")
                 
+                # should these be switched ????
                 self.__update_open_buy_orders(symbol_pair)
                 self.__update_completed_trades(symbol_pair)
                 

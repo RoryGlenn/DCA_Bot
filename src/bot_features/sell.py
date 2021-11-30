@@ -10,8 +10,6 @@ from my_sql.sql                          import SQL
 from bot_features.colors                 import Color
 
 
-
-
 class Sell(KrakenBase):
     def __init__(self, parameter_dict: dict) -> None:
         super().__init__(parameter_dict)
@@ -33,12 +31,12 @@ class Sell(KrakenBase):
         """
         try:
             sql = SQL()
-            # DO NOT STEP OVER THIS UNTIL YOU CHECK THE EXCHANGE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            
             result_set = sql.con_query(f"SELECT oso_txid FROM open_sell_orders WHERE symbol_pair='{symbol_pair}' AND cancelled=false AND filled=false")
             
             if result_set.rowcount > 0:
                 for oso_txid in result_set.fetchall():
-                    self.cancel_order(oso_txid[0]) # DO NOT STEP OVER THIS UNTIL YOU CHECK THE EXCHANGE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                    self.cancel_order(oso_txid[0])
                     sql.con_update(f"UPDATE open_sell_orders SET cancelled=true WHERE symbol_pair='{symbol_pair}' AND cancelled=false AND filled=false and oso_txid='{oso_txid[0]}'")
                     
                     row = sql.con_query(f"SELECT * FROM open_sell_orders WHERE symbol_pair='{symbol_pair}' AND cancelled=true AND filled=false and oso_txid='{oso_txid[0]}'")
@@ -59,18 +57,21 @@ class Sell(KrakenBase):
         try:
             sql = SQL()
             
+            # get row
             result_set      = sql.con_query(f"SELECT MAX(safety_order_no) FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND filled=true") # this works with quantity, req price needs to be one row after
-            
             safety_order_no = sql.parse_so_number(result_set)
             row             = sql.con_get_row(SQLTable.SAFETY_ORDERS, symbol_pair, safety_order_no)
-            max_prec        = self.get_max_volume_precision(symbol_pair)
-            qty_to_sell     = self.round_decimals_down(row[5], max_prec)
             
-            row                  = sql.con_get_row(SQLTable.SAFETY_ORDERS, symbol_pair, safety_order_no+1)
+            # get quantity
+            max_prec             = self.get_max_volume_precision(symbol_pair)
+            qty_to_sell          = self.round_decimals_down(row[5], max_prec)
+            
+            # get price
             nonrounded_req_price = row[8]
             max_prec             = self.get_max_price_precision(symbol_pair)
             required_price       = self.round_decimals_down(nonrounded_req_price, max_prec)
-
+            
+            # sell order
             sell_order_result    = self.limit_order(Trade.SELL, qty_to_sell, symbol_pair, required_price)
             
             if self.has_result(sell_order_result):
@@ -134,7 +135,7 @@ class Sell(KrakenBase):
 
             sell_order_result = self.__place_sell_limit_order(symbol_pair, filled_buy_order_txid)
             sell_order_txid   = self.__get_sell_order_txid(sell_order_result)
-            result_set        = sql.con_query(f"SELECT MIN(safety_order_no) FROM {SQLTable.OPEN_BUY_ORDERS} WHERE symbol_pair='{symbol_pair}' AND filled=false")
+            result_set        = sql.con_query(f"SELECT MAX(safety_order_no) FROM {SQLTable.OPEN_BUY_ORDERS} WHERE symbol_pair='{symbol_pair}' AND filled=true")
             
             if result_set.rowcount > 0:
                 safety_order_number = sql.parse_so_number(result_set)
