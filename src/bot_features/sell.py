@@ -7,7 +7,7 @@ from bot_features.low_level.kraken_enums import *
 from util.globals                        import G
 from bot_features.low_level.kraken_base  import KrakenBase
 from my_sql.sql                          import SQL
-from bot_features.colors                 import Color
+from util.colors                         import Color
 
 
 class Sell(KrakenBase):
