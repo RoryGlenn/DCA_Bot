@@ -4,8 +4,8 @@
 from pprint                              import pprint
 from bot_features.dca                    import DCA
 from bot_features.low_level.kraken_enums import *
-from util.globals                        import G
 from bot_features.low_level.kraken_base  import KrakenBase
+from util.globals                        import G
 from my_sql.sql                          import SQL
 from util.colors                         import Color
 
@@ -14,7 +14,6 @@ class Sell(KrakenBase):
     def __init__(self, parameter_dict: dict) -> None:
         super().__init__(parameter_dict)
         self.asset_pairs_dict:  dict = self.get_all_tradable_asset_pairs()[Dicts.RESULT]
-        self.sell_order_placed: bool = False
         self.dca:               DCA  = None
         return
     
@@ -25,8 +24,8 @@ class Sell(KrakenBase):
 
     def __cancel_open_sell_order(self, symbol_pair: str) -> None:
         """
-        Cancel the open sell order based on txid stored in the open_sell_orders table.
-        Set cancelled=true in open_sell_orders table.
+            Cancel the open sell order based on txid stored in the open_sell_orders table.
+            Set cancelled=true in open_sell_orders table.
 
         """
         try:
@@ -91,29 +90,32 @@ class Sell(KrakenBase):
     def place_sell_limit_base_order(self, base_order_row: BaseOrderRow) -> dict:
         """Create a sell limit order for the base order only!"""
         sql = SQL()
-        
-        base_order_row.required_price = self.round_decimals_down(base_order_row.required_price, self.get_max_price_precision(base_order_row.symbol_pair))
-        sell_order_result = self.limit_order(Trade.SELL, base_order_row.quantity, base_order_row.symbol_pair, base_order_row.required_price)
+        try:
+            max_price_prec                = self.get_max_price_precision(base_order_row.symbol_pair)
+            base_order_row.required_price = self.round_decimals_down(base_order_row.required_price, max_price_prec)
+            sell_order_result             = self.limit_order(Trade.SELL, base_order_row.quantity, base_order_row.symbol_pair, base_order_row.required_price)
 
-        if self.has_result(sell_order_result):
-            base_order_row.profit   = round(base_order_row.price * base_order_row.quantity * DCA_.TARGET_PROFIT_PERCENT/100, DECIMAL_MAX)
-            base_order_row.oso_txid = sell_order_result[Dicts.RESULT][Data.TXID][0]
-            G.log_file.print_and_log(Color.BG_BLUE + f"Sell limit order placed{Color.ENDC} {base_order_row.symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: ${base_order_row.profit}" + Color.ENDC)
-            
-            result_set = sql.con_query(f"SELECT MIN(so_no) FROM safety_orders WHERE symbol_pair='{base_order_row.symbol_pair}'")
-            if result_set.rowcount > 0:
-                base_order_row.oso_no = result_set.fetchone()[0]
-            
-            # put in base order specs
-            sql.con_update(f"""INSERT INTO open_sell_orders {sql.oso_columns} VALUES 
-                           ('{base_order_row.symbol_pair}',    '{base_order_row.symbol}',         {base_order_row.safety_order_no}, {base_order_row.deviation},
-                             {base_order_row.quantity},         {base_order_row.total_quantity},  {base_order_row.price},           {base_order_row.average_price},
-                             {base_order_row.required_price},   {base_order_row.required_change}, {base_order_row.profit},          {base_order_row.cost},
-                             {base_order_row.total_cost},       {base_order_row.cancelled},       {base_order_row.filled},         '{base_order_row.oso_txid}',
-                             {base_order_row.oso_no}
-                            )""")
-        else:
-            G.log_file.print_and_log(f"place_sell_limit_base_order: {base_order_row.symbol_pair} {sell_order_result[Dicts.ERROR]}")
+            if self.has_result(sell_order_result):
+                base_order_row.profit   = round(base_order_row.price * base_order_row.quantity * DCA_.TARGET_PROFIT_PERCENT/100, DECIMAL_MAX)
+                base_order_row.oso_txid = sell_order_result[Dicts.RESULT][Data.TXID][0]
+                G.log_file.print_and_log(Color.BG_BLUE + f"Sell limit order placed{Color.ENDC} {base_order_row.symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: ${base_order_row.profit}" + Color.ENDC)
+                
+                result_set = sql.con_query(f"SELECT MIN(so_no) FROM safety_orders WHERE symbol_pair='{base_order_row.symbol_pair}'")
+                if result_set.rowcount > 0:
+                    base_order_row.oso_no = result_set.fetchone()[0]
+                
+                # put in base order specs
+                sql.con_update(f"""INSERT INTO open_sell_orders {sql.oso_columns} VALUES 
+                              ('{base_order_row.symbol_pair}',    '{base_order_row.symbol}',         {base_order_row.safety_order_no}, {base_order_row.deviation},
+                                {base_order_row.quantity},         {base_order_row.total_quantity},  {base_order_row.price},           {base_order_row.average_price},
+                                {base_order_row.required_price},   {base_order_row.required_change}, {base_order_row.profit},          {base_order_row.cost},
+                                {base_order_row.total_cost},       {base_order_row.cancelled},       {base_order_row.filled},         '{base_order_row.oso_txid}',
+                                {base_order_row.oso_no}
+                              )""")
+            else:
+                G.log_file.print_and_log(f"place_sell_limit_base_order: {base_order_row.symbol_pair} {sell_order_result[Dicts.ERROR]}")
+        except Exception as e:
+            G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return sell_order_result
     
     

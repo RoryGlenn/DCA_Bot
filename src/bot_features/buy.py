@@ -26,12 +26,10 @@ from my_sql.sql                          import SQL
 class Buy(KrakenBase, TradingView):
     def __init__(self, parameter_dict: dict) -> None:
         super().__init__(parameter_dict)
-        self.account_balance:         dict        = { }
-        self.kraken_assets_dict:      dict        = { }
-        self.is_buy:                  bool        = False
+        # self.account_balance:         dict        = { }
+        # self.kraken_assets_dict:      dict        = { }
         self.dca:                     DCA         = None
         self.sell:                    Sell        = Sell(parameter_dict)
-        self.exception_list:          list        = ["XTZ"]
         self.total_profit:            float       = 0.0
         self.obo_txid:                str         = ""
         return
@@ -60,37 +58,40 @@ class Buy(KrakenBase, TradingView):
     
     def __has_order_filled(self, symbol_pair: str) -> bool:
         """Check if the order has filled."""
-        sql                       = SQL()
-        filled_trades_order_txids = dict()
-        
-        result_set = sql.con_query(f"SELECT symbol_pair FROM safety_orders WHERE symbol_pair='{symbol_pair}'")
+        try:
+            sql                       = SQL()
+            filled_trades_order_txids = dict()
+            
+            result_set = sql.con_query(f"SELECT symbol_pair FROM safety_orders WHERE symbol_pair='{symbol_pair}'")
 
-        # if symbol is not being traded, then nothing has been filled
-        if result_set.rowcount <= 0:
-            return False
-        
-        trade_history = self.get_trades_history()
-        
-        if not self.has_result(trade_history):
-            G.log_file.print_and_log("Can't get trade history")
-            raise Exception("Can't get trade history")
-        
-        # get all open_buy_orders from the database to check whether the have been filled
-        result_set = sql.con_query(f"SELECT obo_txid FROM open_buy_orders WHERE filled=false AND symbol_pair='{symbol_pair}'")
-        
-        # if there is nothing to get, nothing has been filled
-        if result_set.rowcount <= 0:
-            return False
-        
-        txid_set                  = {txid[0] for txid in result_set.fetchall()}
-        trade_history             = trade_history[Dicts.RESULT][Data.TRADES]
-        filled_trades_order_txids = {dictionary[Data.ORDER_TXID]: trade_txid for (trade_txid, dictionary) in trade_history.items()}
-        
-        for obo_txid in txid_set:
-            if obo_txid in filled_trades_order_txids.keys():
-                # open buy order has been filled!
-                self.obo_txid = obo_txid
-                return True
+            # if symbol is not being traded, then nothing has been filled
+            if result_set.rowcount <= 0:
+                return False
+            
+            trade_history = self.get_trades_history()
+            
+            if not self.has_result(trade_history):
+                G.log_file.print_and_log("Can't get trade history")
+                raise Exception("Can't get trade history")
+            
+            # get all open_buy_orders from the database to check whether the have been filled
+            result_set = sql.con_query(f"SELECT obo_txid FROM open_buy_orders WHERE filled=false AND symbol_pair='{symbol_pair}'")
+            
+            # if there is nothing to get, nothing has been filled
+            if result_set.rowcount <= 0:
+                return False
+            
+            txid_set                  = {txid[0] for txid in result_set.fetchall()}
+            trade_history             = trade_history[Dicts.RESULT][Data.TRADES]
+            filled_trades_order_txids = {dictionary[Data.ORDER_TXID]: trade_txid for (trade_txid, dictionary) in trade_history.items()}
+            
+            for obo_txid in txid_set:
+                if obo_txid in filled_trades_order_txids.keys():
+                    # open buy order has been filled!
+                    self.obo_txid = obo_txid
+                    return True
+        except Exception as e:
+            G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return False
                 
     def __has_completed(self, symbol_pair: str) -> bool:
@@ -351,9 +352,9 @@ class Buy(KrakenBase, TradingView):
         alt_name = self.get_alt_name(symbol)
         return self._is_buy(alt_name+StableCoins.USD)
 
+    #----------------------------------------------------------------------------------------------------
     def sell_all_assets(self) -> None:
         self.kraken_assets_dict = self.get_asset_info()[Dicts.RESULT]
-        self.account_balance    = self.get_parsed_account_balance()
         self.asset_pairs_dict   = self.get_all_tradable_asset_pairs()[Dicts.RESULT]
         account                 = self.get_account_balance()
         reg_list                = ['ETC', 'ETH', 'LTC', 'MLN', 'REP', 'XBT', 'XDG', 'XLM', 'XMR', 'XRP', 'ZEC']
@@ -379,7 +380,7 @@ class Buy(KrakenBase, TradingView):
                     print()
         return
 
-    def nuke_and_restart(self, sell: bool=False):
+    def nuke_and_restart(self, sell: bool=False) -> None:
         sql = SQL()
         sql.drop_all_tables()
         sql.create_tables()
@@ -387,6 +388,8 @@ class Buy(KrakenBase, TradingView):
         
         if sell:
             self.sell_all_assets()
+        return
+    #----------------------------------------------------------------------------------------------------
 
 
 ##################################################################################################################################
@@ -395,7 +398,7 @@ class Buy(KrakenBase, TradingView):
 
     def buy_loop(self) -> None:
         """The main function for trading coins."""
-        # self.nuke_and_restart(True)
+        self.nuke_and_restart(True)
         self.__init_loop_variables()
         
         while True:

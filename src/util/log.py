@@ -50,12 +50,9 @@ class Log():
         return
 
     def __remove_color(self, message: str) -> str:
-        """Strip any color in the message and return a colorless string."""
-        
-        # strip out ansi escape sequence by using regular expression
+        """Strip out ansi escape sequence by using regular expression."""
         ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
-        message = ansi_escape.sub('', message)
-        return message
+        return ansi_escape.sub('', message)
 
     def print_and_log(self, message: str = "", money: bool = False, end: bool = False, e=False, error_type: str = "", filename: str = "", tb_lineno: str = "") -> None:
         """Print to the console and write to the log file. 

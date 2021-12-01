@@ -33,9 +33,6 @@ class TVData:
 
 
 class TradingView():
-    # def __init__(self) -> None:
-    #     pass
-    
     def __get_recommendation(self, symbol_pair: str, interval: str) -> list:
         """Get a recommendation (buy or sell) for the symbol."""
         try:
