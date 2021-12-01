@@ -144,8 +144,8 @@ class SQL():
                 PRIMARY KEY (symbol_no)
                 );""")
         
-        if os.path.exists(KRAKEN_COINS):
-            with open(KRAKEN_COINS, 'r') as file:
+        if os.path.exists(KRAKEN_COINS_JSON):
+            with open(KRAKEN_COINS_JSON, 'r') as file:
                 lines = file.readlines()
                 lines.sort()
                 for line in lines:

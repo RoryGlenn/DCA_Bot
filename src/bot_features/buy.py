@@ -20,7 +20,6 @@ from util.colors                         import Color
 from bot_features.dca                    import DCA
 from bot_features.sell                   import Sell
 from bot_features.tradingview            import TradingView
-
 from my_sql.sql                          import SQL
 
 

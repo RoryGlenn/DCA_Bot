@@ -1,5 +1,6 @@
 import datetime
 import os
+import re
 
 from bot_features.low_level.kraken_enums import FileMode
 from util.colors                         import Color, ColorArray
@@ -49,9 +50,11 @@ class Log():
         return
 
     def __remove_color(self, message: str) -> str:
-        for c in ColorArray.color_list:
-            if c in message:
-                return message.strip(c)        
+        """Strip any color in the message and return a colorless string."""
+        
+        # strip out ansi escape sequence by using regular expression
+        ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+        message = ansi_escape.sub('', message)
         return message
 
     def print_and_log(self, message: str = "", money: bool = False, end: bool = False, e=False, error_type: str = "", filename: str = "", tb_lineno: str = "") -> None:
@@ -61,26 +64,25 @@ class Log():
             current_time = self.get_current_time()
             current_date = self.get_current_date()
             
-            message_no_color = self.__remove_color(message)
-            
-            result = Color.FG_BRIGHT_BLACK + f"[{current_date} {current_time}]{Color.ENDC} {message}"
+            result_no_color = f"[{current_date} {current_time}] {self.__remove_color(message)}"
+            result          = Color.FG_BRIGHT_BLACK + f"[{current_date} {current_time}]{Color.ENDC} {message}"
 
             if money:
                 print(     f"{result}")
-                self.write(f"{message_no_color}")
+                self.write(f"{result_no_color}")
                 result.strip()
                 return
             if e:
                 print(f"{result}{Color.BG_RED}ERROR:{Color.ENDC} || {e}, {error_type} {filename} {tb_lineno}" )
-                self.write(f"{message_no_color} ERROR: || {e}, {error_type} {filename} {tb_lineno}")
+                self.write(f"{result_no_color} ERROR: || {e}, {error_type} {filename} {tb_lineno}")
                 return
             if end:
                 print(     f"{result}")
-                self.write(f"{message_no_color}")
+                self.write(f"{result_no_color}")
                 return
             
             print(     f"{result}")
-            self.write(f"{message_no_color}")
+            self.write(f"{result_no_color}")
                 
         except:
             print(f"{result} {Color.BG_RED}ERROR:{Color.ENDC} || {e}, {error_type} {filename} {tb_lineno}" )

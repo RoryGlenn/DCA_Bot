@@ -45,12 +45,10 @@ class Color:
 
     BG_GREY   = "\033[100;2;255;165;2m"
 
-    
     BOLD        = '\033[1m'
     UNDERLINE   = '\033[4m'
     CROSSED_OUT = '\033[9m'
     ENDC        = '\033[0m'
-    
     
 class ColorArray:
     color_list = [
@@ -89,10 +87,10 @@ class ColorArray:
         "\033[95m",
         "\033[36m",
         "\033[100;2;255;165;2m",
-        '\033[1m',
-        '\033[4m',
-        '\033[9m',
-        '\033[0m'                   
+        "\033[1m",
+        "\033[4m",
+        "\033[9m",
+        "\033[0m"
     ]
 
    

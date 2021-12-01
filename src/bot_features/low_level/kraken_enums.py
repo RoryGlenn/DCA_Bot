@@ -10,9 +10,8 @@ KRAKEN_API_KEY    = 'kraken_api_key'
 KRAKEN_SECRET_KEY = 'kraken_secret_key'
 URL_ASSET_PAIRS   = 'https://api.kraken.com/0/public/AssetPairs'
 
-KRAKEN_COINS      = "src/kraken_files/txt_files/kraken_coins.txt"
-CONFIG_FILE       = 'src/kraken_files/txt_files/config.txt'
-CONFIG_JSON       = 'src/kraken_files/txt_files/config.json'
+KRAKEN_COINS_JSON = "src/kraken_files/json_files/kraken_coins.json"
+CONFIG_JSON       = 'src/kraken_files/json_files/config.json'
 
 
 class Buy_:
