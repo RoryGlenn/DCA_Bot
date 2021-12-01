@@ -26,8 +26,6 @@ from my_sql.sql                          import SQL
 class Buy(KrakenBase, TradingView):
     def __init__(self, parameter_dict: dict) -> None:
         super().__init__(parameter_dict)
-        # self.account_balance:         dict        = { }
-        # self.kraken_assets_dict:      dict        = { }
         self.dca:                     DCA         = None
         self.sell:                    Sell        = Sell(parameter_dict)
         self.total_profit:            float       = 0.0
@@ -68,6 +66,7 @@ class Buy(KrakenBase, TradingView):
             if result_set.rowcount <= 0:
                 return False
             
+            time.sleep(1)
             trade_history = self.get_trades_history()
             
             if not self.has_result(trade_history):
@@ -110,6 +109,7 @@ class Buy(KrakenBase, TradingView):
                 if symbol_pair not in bought_set:
                     return False
                 
+                time.sleep(1)
                 trade_history = self.get_trades_history()
                 
                 if not self.has_result(trade_history):
@@ -137,7 +137,9 @@ class Buy(KrakenBase, TradingView):
         
     def __place_safety_orders(self, symbol_pair: str) -> None:
         """Place safety orders."""
+        
         sql = SQL()
+        self.wait(timeout=Nap.NORMAL)
         
         for price, quantity in self.dca.safety_orders.items():
             try:
@@ -195,7 +197,6 @@ class Buy(KrakenBase, TradingView):
                     If SO2, is filled, the previous sell order should be cancelled and a new sell order should be placed: Base Order+SO1+SO2, required_price2
         """
         self.wait(timeout=Nap.NORMAL)
-        
         sql = SQL()
         
         try:
@@ -398,13 +399,13 @@ class Buy(KrakenBase, TradingView):
 
     def buy_loop(self) -> None:
         """The main function for trading coins."""
-        self.nuke_and_restart(True)
+        # self.nuke_and_restart(sell=True)
         self.__init_loop_variables()
         
         while True:
             for symbol in Buy_.SET:
                 symbol_pair = self.get_tradable_asset_pair(symbol)
-                self.wait(message=f"Checking {symbol}")
+                self.wait(message=f"Checking {symbol}", timeout=Nap.NORMAL)
                 
                 # should these be switched ????
                 self.__update_open_buy_orders(symbol_pair)
