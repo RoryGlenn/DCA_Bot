@@ -40,7 +40,7 @@ class TradingView():
             if symbol_data is not None and symbol_data.get_analysis() is not None:
                 return symbol_data.get_analysis().summary[TVData.RECOMMENDATION]
         except Exception as e:
-            G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
+            G.log.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return []
 
     def _is_buy(self, symbol_pair: str):
@@ -89,7 +89,7 @@ class TradingView():
             
             for _tuple in symbol_list:
                 symbol = _tuple[0]
-                G.log_file.print_and_log(f"{iteration} of {total}: {symbol}")
+                G.log.print_and_log(f"{iteration} of {total}: {symbol}")
                 
                 if symbol not in StableCoins.STABLE_COINS_LIST:
                     if self._is_buy(symbol + StableCoins.USD):
@@ -115,7 +115,7 @@ class TradingView():
             
             for _tuple in symbol_list:
                 symbol = _tuple[0]
-                G.log_file.print_and_log(f"{iteration} of {total}: {symbol}")
+                G.log.print_and_log(f"{iteration} of {total}: {symbol}")
                 
                 if symbol not in StableCoins.STABLE_COINS_LIST:
                     if self.is_buy_long(symbol + StableCoins.USD):
@@ -141,7 +141,7 @@ class TradingView():
             
             for _tuple in symbol_list:
                 symbol = _tuple[0]
-                G.log_file.print_and_log(f"{iteration} of {total}: {symbol}")
+                G.log.print_and_log(f"{iteration} of {total}: {symbol}")
                 
                 if symbol not in StableCoins.STABLE_COINS_LIST:
                     if self.is_strong_buy(symbol + StableCoins.USD):

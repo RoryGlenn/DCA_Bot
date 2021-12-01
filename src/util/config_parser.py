@@ -34,10 +34,10 @@ class ConfigParser():
                     DCA_.SAFETY_ORDER_STEP_SCALE        = float(config[ConfigKeys.DCA_SAFETY_ORDER_STEP_SCALE])
                     DCA_.SAFETY_ORDER_PRICE_DEVIATION   = float(config[ConfigKeys.DCA_SAFETY_ORDER_PRICE_DEVIATION])
                 except Exception as e:
-                    G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
+                    G.log.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
                     sys.exit()
         else:
-            G.log_file.print_and_log("Could not find config.json file")
+            G.log.print_and_log("Could not find config.json file")
             sys.exit()
             
     def get_config():
@@ -46,8 +46,8 @@ class ConfigParser():
                 try:
                     return json.load(file)[ConfigKeys.CONFIG]
                 except Exception as e:
-                    G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
+                    G.log.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
                     sys.exit()
         else:
-            G.log_file.print_and_log("Could not find config.json file")
+            G.log.print_and_log("Could not find config.json file")
             sys.exit()            

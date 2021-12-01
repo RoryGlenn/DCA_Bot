@@ -30,7 +30,7 @@ class Sell(KrakenBase):
         """
         try:
             sql = SQL()
-            
+
             result_set = sql.con_query(f"SELECT oso_txid FROM open_sell_orders WHERE symbol_pair='{symbol_pair}' AND cancelled=false AND filled=false")
             
             if result_set.rowcount > 0:
@@ -42,12 +42,11 @@ class Sell(KrakenBase):
                     
                     if row.rowcount > 0:
                         row = row.fetchall()[0]
-                        G.log_file.print_and_log(Color.BG_GREY + f"Cancelled Sell order {row[2]} {Color.ENDC} {row[0]}")
+                        G.log.print_and_log(Color.BG_GREY + f"Cancelled Sell order {row[2]} {Color.ENDC} {row[0]}")
         except Exception as e:
-            G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
+            G.log.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return
 
-    
     def __place_sell_limit_order(self, symbol_pair: str, filled_buy_order_txid: str) -> dict:
         """
             Place limit order to sell the coin.
@@ -75,13 +74,13 @@ class Sell(KrakenBase):
             
             if self.has_result(sell_order_result):
                 result_set       = sql.con_query(f"SELECT profit FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND obo_txid='{filled_buy_order_txid}'")
-                profit_potential = round(result_set.fetchone()[0] if result_set.rowcount > 0 else 0, 6) # # ERROR: should pull one row after current position
-                G.log_file.print_and_log(Color.BG_BLUE + f"Sell limit order placed{Color.ENDC} {symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: ${profit_potential}")
+                profit_potential = round(result_set.fetchone()[0] if result_set.rowcount > 0 else 0, 6)
+                G.log.print_and_log(Color.BG_BLUE + f"Sell limit order placed{Color.ENDC} {symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: ${profit_potential}")
             else:
-                G.log_file.print_and_log(Color.FG_YELLOW + f"Sell: {Color.ENDC} {symbol_pair} {sell_order_result[Dicts.ERROR]}" )
+                G.log.print_and_log(Color.FG_YELLOW + f"Sell: {Color.ENDC} {symbol_pair} {sell_order_result[Dicts.ERROR]}" )
             return sell_order_result
         except Exception as e:
-            G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
+            G.log.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return
 
 ##################################################################
@@ -98,7 +97,7 @@ class Sell(KrakenBase):
             if self.has_result(sell_order_result):
                 base_order_row.profit   = round(base_order_row.price * base_order_row.quantity * DCA_.TARGET_PROFIT_PERCENT/100, DECIMAL_MAX)
                 base_order_row.oso_txid = sell_order_result[Dicts.RESULT][Data.TXID][0]
-                G.log_file.print_and_log(Color.BG_BLUE + f"Sell limit order placed{Color.ENDC} {base_order_row.symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: ${base_order_row.profit}" + Color.ENDC)
+                G.log.print_and_log(Color.BG_BLUE + f"Sell order placed      {Color.ENDC} {base_order_row.symbol_pair} {sell_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}, Profit Potential: ${base_order_row.profit}" + Color.ENDC)
                 
                 result_set = sql.con_query(f"SELECT MIN(so_no) FROM safety_orders WHERE symbol_pair='{base_order_row.symbol_pair}'")
                 if result_set.rowcount > 0:
@@ -113,9 +112,9 @@ class Sell(KrakenBase):
                                 {base_order_row.oso_no}
                               )""")
             else:
-                G.log_file.print_and_log(f"place_sell_limit_base_order: {base_order_row.symbol_pair} {sell_order_result[Dicts.ERROR]}")
+                G.log.print_and_log(f"place_sell_limit_base_order: {base_order_row.symbol_pair} {sell_order_result[Dicts.ERROR]}")
         except Exception as e:
-            G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
+            G.log.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return sell_order_result
     
     
@@ -132,13 +131,13 @@ class Sell(KrakenBase):
         """
         try:
             sql = SQL()
-            
+
             self.__cancel_open_sell_order(symbol_pair)
 
             sell_order_result = self.__place_sell_limit_order(symbol_pair, filled_buy_order_txid)
             sell_order_txid   = self.__get_sell_order_txid(sell_order_result)
             result_set        = sql.con_query(f"SELECT MAX(safety_order_no) FROM {SQLTable.OPEN_BUY_ORDERS} WHERE symbol_pair='{symbol_pair}' AND filled=true")
-            
+
             if result_set.rowcount > 0:
                 safety_order_number = sql.parse_so_number(result_set)
                 row                 = sql.con_get_row(SQLTable.OPEN_BUY_ORDERS, symbol_pair, safety_order_number)
@@ -152,5 +151,5 @@ class Sell(KrakenBase):
                                 {row[15]}
                             )""")
         except Exception as e:
-            G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
+            G.log.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return

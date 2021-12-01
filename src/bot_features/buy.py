@@ -1,11 +1,11 @@
 
 """
-buy.py - Buys coin on kraken exchange based on users config file.
-    1. Have a list of coins that you want to buy.
-    2. Pull data from trading view based on 3c settings.
-    3. Make decision on whether to buy or not.
-    4. After base order is filled, create sell limit order at % higher
-    5. every time a safety order is filled, cancel current sell limit order and create a new sell limit order
+    buy.py - Buys coin on kraken exchange based on users config file.
+        1. Have a list of coins that you want to buy.
+        2. Pull data from trading view based on 3c settings.
+        3. Make decision on whether to buy or not.
+        4. After base order is filled, create sell limit order at % higher
+        5. every time a safety order is filled, cancel current sell limit order and create a new sell limit order
 
 """
 
@@ -38,7 +38,7 @@ class Buy(KrakenBase, TradingView):
         self.account_balance    = self.get_parsed_account_balance()
         self.asset_pairs_dict   = self.get_all_tradable_asset_pairs()[Dicts.RESULT]
         
-        G.log_file.print_and_log(message=Color.BG_GREEN + "Account Value          " + Color.ENDC + f" ${self.__get_account_value()}")
+        G.log.print_and_log(message=Color.BG_GREEN + "Account Value          " + Color.ENDC + f" ${self.__get_account_value()}")
         return
 
     def __get_buy_time(self) -> str:
@@ -66,13 +66,15 @@ class Buy(KrakenBase, TradingView):
             if result_set.rowcount <= 0:
                 return False
             
-            time.sleep(1)
+            self.wait(timeout=Nap.NORMAL)
             trade_history = self.get_trades_history()
             
             if not self.has_result(trade_history):
-                G.log_file.print_and_log("Can't get trade history")
+                G.log.print_and_log("Can't get trade history")
+                self.wait(timeout=10)
                 raise Exception("Can't get trade history")
             
+            self.wait(timeout=Nap.NORMAL)
             # get all open_buy_orders from the database to check whether the have been filled
             result_set = sql.con_query(f"SELECT obo_txid FROM open_buy_orders WHERE filled=false AND symbol_pair='{symbol_pair}'")
             
@@ -80,17 +82,17 @@ class Buy(KrakenBase, TradingView):
             if result_set.rowcount <= 0:
                 return False
             
-            txid_set                  = {txid[0] for txid in result_set.fetchall()}
+            obo_txid_set              = {txid[0] for txid in result_set.fetchall()}
             trade_history             = trade_history[Dicts.RESULT][Data.TRADES]
             filled_trades_order_txids = {dictionary[Data.ORDER_TXID]: trade_txid for (trade_txid, dictionary) in trade_history.items()}
             
-            for obo_txid in txid_set:
+            for obo_txid in obo_txid_set:
                 if obo_txid in filled_trades_order_txids.keys():
                     # open buy order has been filled!
-                    self.obo_txid = obo_txid
+                    self.obo_txid = obo_txid # turn self.obo_txid into a list and append each filled trade?
                     return True
         except Exception as e:
-            G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
+            G.log.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return False
                 
     def __has_completed(self, symbol_pair: str) -> bool:
@@ -109,11 +111,12 @@ class Buy(KrakenBase, TradingView):
                 if symbol_pair not in bought_set:
                     return False
                 
-                time.sleep(1)
+                self.wait(timeout=Nap.NORMAL)
                 trade_history = self.get_trades_history()
                 
                 if not self.has_result(trade_history):
-                    G.log_file.print_and_log("Can't get trade history")
+                    G.log.print_and_log("Can't get trade history")
+                    self.wait(timeout=10)
                     raise Exception("Can't get trade history")
                 
                 result_set = sql.con_query(f"SELECT oso_txid FROM open_sell_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
@@ -132,7 +135,7 @@ class Buy(KrakenBase, TradingView):
                     if oso_txid in filled_trades_order_txids.keys():
                         return True
             except Exception as e:
-                G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
+                G.log.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
             return False
         
     def __place_safety_orders(self, symbol_pair: str) -> None:
@@ -153,7 +156,7 @@ class Buy(KrakenBase, TradingView):
                     result_set          = sql.con_query(f"SELECT MIN(safety_order_no) FROM safety_orders WHERE symbol_pair='{symbol_pair}' AND order_placed=false")
                     safety_order_number = sql.parse_so_number(result_set)
                     
-                    G.log_file.print_and_log(message=Color.BG_BLUE + f"Safety order {safety_order_number} placed  {Color.ENDC} {symbol_pair} {limit_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}", money=True)
+                    G.log.print_and_log(message=Color.BG_BLUE + f"Safety order {safety_order_number} placed  {Color.ENDC} {symbol_pair} {limit_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]}", money=True)
                     obo_txid            = limit_order_result[Dicts.RESULT][Data.TXID][0]
                     
                     # change order_placed to true in safety_orders table
@@ -170,14 +173,15 @@ class Buy(KrakenBase, TradingView):
                                     """)
                 else:
                     if limit_order_result[Dicts.ERROR][0] == KError.INSUFFICIENT_FUNDS:
-                        G.log_file.print_and_log(Color.FG_YELLOW + f"Not enough USD to place remaining safety orders{Color.ENDC}: {symbol_pair}")
+                        G.log.print_and_log(Color.FG_YELLOW + f"Not enough USD to place remaining safety orders{Color.ENDC}: {symbol_pair}")
                         return
                     elif limit_order_result[Dicts.ERROR][0] == KError.INVALID_VOLUME:
-                        G.log_file.print_and_log(f"{symbol_pair} volume error.")
+                        G.log.print_and_log(f"{symbol_pair} volume error.")
                     
-                    G.log_file.print_and_log(message=f"{limit_order_result}", money=True)
+                    G.log.print_and_log(message=f"{limit_order_result}", money=True)
             except Exception as e:
-                G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
+                G.log.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
+        
         return
 
     def __place_limit_orders(self, symbol: str, symbol_pair: str) -> None:
@@ -212,7 +216,7 @@ class Buy(KrakenBase, TradingView):
                 if self.has_result(base_order_result):
                     base_order_price = self.__get_bought_price(base_order_result)
                     
-                    G.log_file.print_and_log(Color.BG_BLUE + f"Base order filled      {Color.ENDC} {base_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]} {base_order_price}")
+                    G.log.print_and_log(Color.BG_BLUE + f"Base order filled      {Color.ENDC} {base_order_result[Dicts.RESULT][Dicts.DESCR][Dicts.ORDER]} {base_order_price}")
                     
                     base_order_req_price = base_order_price + (base_order_price * DCA_.TARGET_PROFIT_PERCENT/100)
                     base_order_profit    = base_order_price * base_order_qty * (DCA_.TARGET_PROFIT_PERCENT/100)
@@ -227,9 +231,9 @@ class Buy(KrakenBase, TradingView):
                     self.sell.place_sell_limit_base_order(base_order_row)
                 else:
                     if base_order_result[Dicts.ERROR][0] == KError.INSUFFICIENT_FUNDS:
-                        G.log_file.print_and_log(Color.FG_YELLOW + f"Not enough USD to place base order:{Color.ENDC} {symbol_pair}")
+                        G.log.print_and_log(Color.FG_YELLOW + f"Not enough USD to place base order:{Color.ENDC} {symbol_pair}")
                     else:
-                        G.log_file.print_and_log(Color.FG_YELLOW + f"Can't place base order:{Color.ENDC} {symbol_pair} {base_order_result[Dicts.ERROR]}")
+                        G.log.print_and_log(Color.FG_YELLOW + f"Can't place base order:{Color.ENDC} {symbol_pair} {base_order_result[Dicts.ERROR]}")
                     return
             
             num_open_orders = sql.con_get_open_buy_orders(symbol_pair)
@@ -238,7 +242,7 @@ class Buy(KrakenBase, TradingView):
             if num_open_orders < DCA_.SAFETY_ORDERS_ACTIVE_MAX:
                 self.__place_safety_orders(symbol_pair)
         except Exception as e:
-            G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
+            G.log.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return
 
     def __update_completed_trades(self, symbol_pair: str) -> None:
@@ -258,7 +262,7 @@ class Buy(KrakenBase, TradingView):
                 profit          = result_set.fetchall()[0] if result_set.rowcount > 0 else 0
                 profit          = profit[0][0] if isinstance(profit[0], tuple) else profit[0]
                 
-                G.log_file.print_and_log(message=Color.BG_GREEN + f"Trade complete $$$     {Color.ENDC} {symbol_pair}, profit: {profit}", money=True)
+                G.log.print_and_log(message=Color.BG_GREEN + f"Trade complete $$$     {Color.ENDC} {symbol_pair}, profit: {profit}", money=True)
                 self.total_profit += float(profit)
 
                 result_set      = sql.con_query(f"SELECT obo_txid FROM open_buy_orders WHERE symbol_pair='{symbol_pair}' AND filled=false")
@@ -275,7 +279,7 @@ class Buy(KrakenBase, TradingView):
                 sql.con_update(f"DELETE FROM open_buy_orders  WHERE symbol_pair='{symbol_pair}'")
                 sql.con_update(f"DELETE FROM open_sell_orders WHERE symbol_pair='{symbol_pair}'")
         except Exception as e:
-            G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
+            G.log.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return
 
     def __update_open_buy_orders(self, symbol_pair: str) -> None:
@@ -299,12 +303,12 @@ class Buy(KrakenBase, TradingView):
 
                 if row.rowcount > 0:
                     row = row.fetchall()[0]
-                    G.log_file.print_and_log(Color.BG_MAGENTA + f"""Safety order {row[2]} filled  {Color.ENDC} {row[0]}""")
+                    G.log.print_and_log(Color.BG_MAGENTA + f"""Safety order {row[2]} filled  {Color.ENDC} {row[0]}""")
 
                     # if the txid is in the trade history, the order open_buy_order was filled.
                     self.sell.start(symbol_pair, self.obo_txid)
         except Exception as e:
-            G.log_file.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
+            G.log.print_and_log(e=e, error_type=type(e).__name__, filename=__file__, tb_lineno=e.__traceback__.tb_lineno)
         return
     
     def __get_account_value(self) -> float:
@@ -335,7 +339,8 @@ class Buy(KrakenBase, TradingView):
         order_result = None
         
         if self.has_result(buy_result):
-            time.sleep(1)
+            
+            self.wait(timeout=Nap.NORMAL)
             order_result = self.query_orders_info(buy_result[Dicts.RESULT][Data.TXID][0])
             if self.has_result(order_result):
                 for txid in order_result[Dicts.RESULT]:
@@ -350,6 +355,7 @@ class Buy(KrakenBase, TradingView):
             Prepare the symbol in order to pull data from TradingView
             
         """
+        self.wait(timeout=Nap.NORMAL)
         alt_name = self.get_alt_name(symbol)
         return self._is_buy(alt_name+StableCoins.USD)
 
@@ -381,7 +387,7 @@ class Buy(KrakenBase, TradingView):
                     print()
         return
 
-    def nuke_and_restart(self, sell: bool=False) -> None:
+    def nuke_and_restart(self, sell: bool = False) -> None:
         sql = SQL()
         sql.drop_all_tables()
         sql.create_tables()
@@ -392,6 +398,13 @@ class Buy(KrakenBase, TradingView):
         return
     #----------------------------------------------------------------------------------------------------
 
+    def get_elapsed_time(self, start_time: float) -> str:
+        end_time     = time.time()
+        elapsed_time = round(end_time - start_time)
+        minutes      = elapsed_time // 60
+        seconds      = elapsed_time % 60
+        return f"{minutes} minutes {seconds} seconds"
+
 
 ##################################################################################################################################
 ### BUY_LOOP
@@ -399,23 +412,25 @@ class Buy(KrakenBase, TradingView):
 
     def buy_loop(self) -> None:
         """The main function for trading coins."""
-        # self.nuke_and_restart(sell=True)
         self.__init_loop_variables()
         
         while True:
+            start_time = time.time()
+            
             for symbol in Buy_.SET:
                 symbol_pair = self.get_tradable_asset_pair(symbol)
                 self.wait(message=f"Checking {symbol}", timeout=Nap.NORMAL)
                 
-                # should these be switched ????
-                self.__update_open_buy_orders(symbol_pair)
                 self.__update_completed_trades(symbol_pair)
+                self.__update_open_buy_orders(symbol_pair)
                 
                 if self.__is_buy(symbol):
                     self.__place_limit_orders(symbol, symbol_pair)
             
+            G.log.print_and_log(message=Color.FG_BRIGHT_BLACK + f"Checked all coins in {self.get_elapsed_time(start_time)}" + Color.ENDC)
             print()
+            
             self.wait(message=Color.FG_BRIGHT_BLACK + f"Waiting till {self.__get_buy_time()} to buy" + Color.ENDC, timeout=Buy_.TIME_MINUTES*60)
-            G.log_file.print_and_log(message=Color.BG_GREEN + "Account Value          " + Color.ENDC + f" ${self.__get_account_value()}")
-            G.log_file.print_and_log(message=Color.BG_GREEN + "Total Profit           " + Color.ENDC + f" ${self.round_decimals_down(self.total_profit, 8)}")
+            G.log.print_and_log(message=Color.BG_GREEN + "Account Value          " + Color.ENDC + f" ${self.__get_account_value()}")
+            G.log.print_and_log(message=Color.BG_GREEN + "Total Profit           " + Color.ENDC + f" ${self.round_decimals_down(self.total_profit, DECIMAL_MAX)}")
         return

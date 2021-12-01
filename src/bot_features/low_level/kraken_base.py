@@ -3,8 +3,9 @@
 import ast
 import requests
 
-from datetime     import datetime
-from util.globals import G
+from datetime                            import datetime
+
+from util.globals                        import G
 from bot_features.low_level.kraken_api   import KrakenAPI
 from bot_features.low_level.kraken_enums import *
 
@@ -29,10 +30,10 @@ class KrakenBase(KrakenAPI):
         
         """
         if message != "":
-            G.log_file.print_and_log(message)
+            G.log.print_and_log(message)
 
         # timeout in number of seconds
-        if not G.thread_exit_event.wait(timeout):
+        if not G.event.wait(timeout):
             return True
         return False
 

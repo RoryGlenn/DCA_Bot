@@ -5,8 +5,8 @@ from threading import Event
 
 
 class Globals:
-    thread_exit_event = Event()
-    log_file = Log()
+    event: Event = Event()
+    log:   Log   = Log()
     
 
 # Global variable "G" is shared between files and classes
