@@ -360,7 +360,7 @@ class Buy(KrakenBase, TradingView):
         return self._is_buy(alt_name+StableCoins.USD)
 
     #----------------------------------------------------------------------------------------------------
-    def sell_all_assets(self) -> None:
+    def __sell_all_assets(self) -> None:
         self.kraken_assets_dict = self.get_asset_info()[Dicts.RESULT]
         self.asset_pairs_dict   = self.get_all_tradable_asset_pairs()[Dicts.RESULT]
         account                 = self.get_account_balance()
@@ -387,14 +387,14 @@ class Buy(KrakenBase, TradingView):
                     print()
         return
 
-    def nuke_and_restart(self, sell: bool = False) -> None:
+    def __nuke_and_restart(self, sell: bool = False) -> None:
         sql = SQL()
         sql.drop_all_tables()
         sql.create_tables()
         self.cancel_all_orders()
         
         if sell:
-            self.sell_all_assets()
+            self.__sell_all_assets()
         return
     #----------------------------------------------------------------------------------------------------
 

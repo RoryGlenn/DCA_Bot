@@ -15,117 +15,133 @@
 
 import sys
 import signal
-from websocket import create_connection
+import websocket
+import json
 
 
-def timeoutfunction(signalnumber, frame):
-    raise KeyboardInterrupt
+# https://stackoverflow.com/questions/8420422/python-windows-equivalent-of-sigalrm
 
 
-signal.signal(signal.SIGALRM, timeoutfunction)
-
-api_status = {"ping"}
-api_public = {"trade", "book", "ticker", "spread", "ohlc"}
-api_private = {"openOrders", "ownTrades", "balances"}
-api_trading = {"addOrder", "cancelOrder", "cancelAll", "cancelAllOrdersAfter"}
-api_domain_public = "wss://ws.kraken.com/"
+api_status         = {"ping"}
+api_public         = {"trade", "book", "ticker", "spread", "ohlc"}
+api_private        = {"openOrders", "ownTrades", "balances"}
+api_trading        = {"addOrder", "cancelOrder", "cancelAll", "cancelAllOrdersAfter"}
+api_domain_public  = "wss://ws.kraken.com/"
 api_domain_private = "wss://ws-auth.kraken.com/"
-api_symbols = ""
-api_number = 0
+api_symbols        = ""
+api_number         = 0
 
-if len(sys.argv) < 2:
-    api_feed = "ping"
-else:
-    api_feed = sys.argv[1]
 
-if api_feed in api_status:
-    api_domain = api_domain_public
-    api_data = '{"event":"%(feed)s"}' % {"feed": api_feed}
-    signal.alarm(3)
-elif api_feed in api_public:
-    if len(sys.argv) < 3:
+def signal_handler(signalnumber, frame):
+    print("KeyboardInterrupt triggered!")
+    # raise KeyboardInterrupt
+    sys.exit(1)
+
+signal.signal(signal.SIGINT, signal_handler)
+
+
+if __name__ == '__main__':
+
+    if len(sys.argv) < 2:
+        api_feed = "ping"
+    else:
+        api_feed = sys.argv[1]
+
+    if api_feed in api_status:
+        api_domain = api_domain_public
+        api_data = '{"event":"%(feed)s"}' % {"feed": api_feed}
+        signal_handler(signal.SIGINT, signal.SIG_IGN)
+        
+    elif api_feed in api_public:
+        if len(sys.argv) < 3:
+            print("Usage: %s feed/endpoint [parameters]" % sys.argv[0])
+            print("Example: %s ticker XBT/USD" % sys.argv[0])
+            sys.exit(1)
+        for count in range(2, len(sys.argv)):
+            if sys.argv[count].isdecimal() == True:
+                api_number = int(sys.argv[count])
+            else:
+                if len(api_symbols) == 0:
+                    api_symbols += sys.argv[count].upper()
+                else:
+                    api_symbols += '","' + sys.argv[count].upper()
+        if api_feed == 'book':
+            api_data = '{"event":"subscribe", "subscription":{"name":"%(feed)s", "depth":%(depth)d}, "pair":["%(symbols)s"]}' % {"feed": api_feed, "symbols": api_symbols, "depth": api_number if api_number != 0 else 10}
+        elif api_feed == 'ohlc':
+            api_data = '{"event":"subscribe", "subscription":{"name":"%(feed)s", "interval":%(interval)d}, "pair":["%(symbols)s"]}' % {"feed": api_feed, "symbols": api_symbols, "interval": api_number if api_number != 0 else 1}
+        else:
+            api_data = '{"event":"subscribe", "subscription":{"name":"%(feed)s"}, "pair":["%(symbols)s"]}' % {"feed": api_feed, "symbols": api_symbols}
+        api_domain = api_domain_public
+    elif api_feed in api_private:
+        api_domain = api_domain_private
+        try:
+            api_token = open("WS_Token").read().strip()
+        except:
+            print("WebSocket authentication token missing (WS_Token)")
+            sys.exit(1)
+        if len(sys.argv) >= 3:
+            if api_feed == 'openOrders':
+                api_data = '{"event":"subscribe", "subscription":{"name":"%(feed)s", "ratecounter":%(ratecounter)s, "token":"%(token)s"}}' % {"feed": api_feed, "ratecounter": sys.argv[2].split('=')[1], "token": api_token}
+            elif api_feed == 'ownTrades':
+                api_data = '{"event":"subscribe", "subscription":{"name":"%(feed)s", "snapshot":%(snapshot)s, "token":"%(token)s"}}' % {"feed": api_feed, "snapshot": sys.argv[2].split('=')[1], "token": api_token}
+            else:
+                api_data = '{"event":"subscribe", "subscription":{"name":"%(feed)s", "token":"%(token)s"}}' % {"feed": api_feed, "token": api_token}
+        else:
+            api_data = '{"event":"subscribe", "subscription":{"name":"%(feed)s", "token":"%(token)s"}}' % {"feed": api_feed, "token": api_token}
+    elif api_feed in api_trading:
+        api_domain = api_domain_private
+        try:
+            api_token = open("WS_Token").read().strip()
+        except:
+            print("WebSocket authentication token missing (WS_Token)")
+            sys.exit(1)
+        api_data = '{"event":"%(feed)s", "token":"%(token)s"' % {"feed": api_feed, "token": api_token}
+        for count in range(2, len(sys.argv)):
+            if sys.argv[count].split('=')[0] == 'txid':
+                api_data = api_data + ', "%(name)s":["%(value)s"]' % {"name": sys.argv[count].split('=')[0], "value": sys.argv[count].split('=')[1].replace(',', '","')}
+            elif sys.argv[count].split('=')[0] == 'reqid':
+                api_data = api_data + ', "%(name)s":%(value)s' % {"name": sys.argv[count].split('=')[0], "value": sys.argv[count].split('=')[1]}
+            elif sys.argv[count].split('=')[0] == 'timeout':
+                api_data = api_data + ', "%(name)s":%(value)s' % {"name": sys.argv[count].split('=')[0], "value": sys.argv[count].split('=')[1]}
+            else:
+                api_data = api_data + ', "%(name)s":"%(value)s"' % {"name": sys.argv[count].split('=')[0], "value": sys.argv[count].split('=')[1]}
+        api_data = api_data + '}'
+        # signal.alarm(3)
+        signal_handler(signal.SIGINT, signal.SIG_IGN)
+
+    else:
         print("Usage: %s feed/endpoint [parameters]" % sys.argv[0])
         print("Example: %s ticker XBT/USD" % sys.argv[0])
         sys.exit(1)
-    for count in range(2, len(sys.argv)):
-        if sys.argv[count].isdecimal() == True:
-            api_number = int(sys.argv[count])
-        else:
-            if len(api_symbols) == 0:
-                api_symbols += sys.argv[count].upper()
-            else:
-                api_symbols += '","' + sys.argv[count].upper()
-    if api_feed == 'book':
-        api_data = '{"event":"subscribe", "subscription":{"name":"%(feed)s", "depth":%(depth)d}, "pair":["%(symbols)s"]}' % {"feed": api_feed, "symbols": api_symbols, "depth": api_number if api_number != 0 else 10}
-    elif api_feed == 'ohlc':
-        api_data = '{"event":"subscribe", "subscription":{"name":"%(feed)s", "interval":%(interval)d}, "pair":["%(symbols)s"]}' % {"feed": api_feed, "symbols": api_symbols, "interval": api_number if api_number != 0 else 1}
-    else:
-        api_data = '{"event":"subscribe", "subscription":{"name":"%(feed)s"}, "pair":["%(symbols)s"]}' % {"feed": api_feed, "symbols": api_symbols}
-    api_domain = api_domain_public
-elif api_feed in api_private:
-    api_domain = api_domain_private
-    try:
-        api_token = open("WS_Token").read().strip()
-    except:
-        print("WebSocket authentication token missing (WS_Token)")
-        sys.exit(1)
-    if len(sys.argv) >= 3:
-        if api_feed == 'openOrders':
-            api_data = '{"event":"subscribe", "subscription":{"name":"%(feed)s", "ratecounter":%(ratecounter)s, "token":"%(token)s"}}' % {"feed": api_feed, "ratecounter": sys.argv[2].split('=')[1], "token": api_token}
-        elif api_feed == 'ownTrades':
-            api_data = '{"event":"subscribe", "subscription":{"name":"%(feed)s", "snapshot":%(snapshot)s, "token":"%(token)s"}}' % {"feed": api_feed, "snapshot": sys.argv[2].split('=')[1], "token": api_token}
-        else:
-            api_data = '{"event":"subscribe", "subscription":{"name":"%(feed)s", "token":"%(token)s"}}' % {"feed": api_feed, "token": api_token}
-    else:
-        api_data = '{"event":"subscribe", "subscription":{"name":"%(feed)s", "token":"%(token)s"}}' % {"feed": api_feed, "token": api_token}
-elif api_feed in api_trading:
-    api_domain = api_domain_private
-    try:
-        api_token = open("WS_Token").read().strip()
-    except:
-        print("WebSocket authentication token missing (WS_Token)")
-        sys.exit(1)
-    api_data = '{"event":"%(feed)s", "token":"%(token)s"' % {"feed": api_feed, "token": api_token}
-    for count in range(2, len(sys.argv)):
-        if sys.argv[count].split('=')[0] == 'txid':
-            api_data = api_data + ', "%(name)s":["%(value)s"]' % {"name": sys.argv[count].split('=')[0], "value": sys.argv[count].split('=')[1].replace(',', '","')}
-        elif sys.argv[count].split('=')[0] == 'reqid':
-            api_data = api_data + ', "%(name)s":%(value)s' % {"name": sys.argv[count].split('=')[0], "value": sys.argv[count].split('=')[1]}
-        elif sys.argv[count].split('=')[0] == 'timeout':
-            api_data = api_data + ', "%(name)s":%(value)s' % {"name": sys.argv[count].split('=')[0], "value": sys.argv[count].split('=')[1]}
-        else:
-            api_data = api_data + ', "%(name)s":"%(value)s"' % {"name": sys.argv[count].split('=')[0], "value": sys.argv[count].split('=')[1]}
-    api_data = api_data + '}'
-    signal.alarm(3)
-else:
-    print("Usage: %s feed/endpoint [parameters]" % sys.argv[0])
-    print("Example: %s ticker XBT/USD" % sys.argv[0])
-    sys.exit(1)
 
-try:
-    ws = create_connection(api_domain)
-    print("WebSocket -> Client: %s" % ws.recv())
-except Exception as error:
-    print("WebSocket connection failed (%s)" % error)
-    sys.exit(1)
-
-try:
-    print("Client -> WebSocket: %s" % api_data)
-    ws.send(api_data)
-    print("WebSocket -> Client: %s" % ws.recv())
-except Exception as error:
-    print("WebSocket subscription/request failed (%s)" % error)
-    ws.close()
-    sys.exit(1)
-
-while True:
     try:
+        ws = websocket.create_connection(api_domain)
         print("WebSocket -> Client: %s" % ws.recv())
-    except KeyboardInterrupt:
-        ws.close()
-        sys.exit(0)
     except Exception as error:
-        print("WebSocket messages failed (%s)" % error)
+        print("WebSocket connection failed (%s)" % error)
         sys.exit(1)
 
-sys.exit(1)
+    try:
+        print("Client -> WebSocket: %s" % api_data)
+        ws.send(api_data)
+        print("WebSocket -> Client: %s" % ws.recv())
+    except Exception as error:
+        print("WebSocket subscription/request failed (%s)" % error)
+        ws.close()
+        sys.exit(1)
+
+    while True:
+        try:
+            json_dict = json.loads(str(ws.recv()))
+            
+            for elem in json_dict:
+                if elem != "event":
+                    print(f"{json_dict}")
+                    break
+            
+        except KeyboardInterrupt:
+            ws.close()
+            sys.exit(0)
+        except Exception as error:
+            print(error)
+            sys.exit(1)
