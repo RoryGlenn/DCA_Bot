@@ -3,14 +3,13 @@
 import ast
 import requests
 
-from datetime                            import datetime
+from datetime                                import datetime
+from util.globals                            import G
+from bot_features.low_level.kraken_rest_api  import KrakenRestAPI
+from bot_features.low_level.kraken_enums     import *
 
-from util.globals                        import G
-from bot_features.low_level.kraken_api   import KrakenAPI
-from bot_features.low_level.kraken_enums import *
 
-
-class KrakenBase(KrakenAPI):
+class KrakenBotBase(KrakenRestAPI):
     def __init__(self, parameter_dict: dict) -> None:
         """
         Returns new Spot object with specified data

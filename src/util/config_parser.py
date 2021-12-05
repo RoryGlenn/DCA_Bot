@@ -11,7 +11,7 @@ from bot_features.low_level.kraken_enums import *
 class ConfigParser():
     def assign_enum_values() -> dict:
         """Assign values to the enums"""
-        reg_list = ['ETC',  'ETH',  'LTC',  'MLN',  'REP',  'XBT',  'XDG',  'XLM',  'XMR',  'XRP',  'ZEC' ]        
+        reg_list = ['ETC',  'ETH',  'LTC',  'MLN',  'REP',  'XBT',  'XDG',  'XLM',  'XMR',  'XRP',  'ZEC' ]
         
         if os.path.exists(CONFIG_JSON):
             with open(CONFIG_JSON) as file:

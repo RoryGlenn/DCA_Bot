@@ -12,24 +12,24 @@
 import datetime
 import time
 
-from pprint                              import pprint
-from bot_features.low_level.kraken_enums import *
-from bot_features.low_level.kraken_base  import KrakenBase
-from util.globals                        import G
-from util.colors                         import Color
-from bot_features.dca                    import DCA
-from bot_features.sell                   import Sell
-from bot_features.tradingview            import TradingView
-from my_sql.sql                          import SQL
+from pprint                                 import pprint
+from bot_features.low_level.kraken_enums    import *
+from bot_features.low_level.kraken_bot_base import KrakenBotBase
+from util.globals                           import G
+from util.colors                            import Color
+from bot_features.dca                       import DCA
+from bot_features.sell                      import Sell
+from bot_features.tradingview               import TradingView
+from my_sql.sql                             import SQL
 
 
-class Buy(KrakenBase, TradingView):
+class Buy(KrakenBotBase, TradingView):
     def __init__(self, parameter_dict: dict) -> None:
         super().__init__(parameter_dict)
-        self.dca:                     DCA         = None
-        self.sell:                    Sell        = Sell(parameter_dict)
-        self.total_profit:            float       = 0.0
-        self.obo_txid:                str         = ""
+        self.dca:          DCA   = None
+        self.sell:         Sell  = Sell(parameter_dict)
+        self.total_profit: float = 0.0
+        self.obo_txid:     str   = ""
         return
 
     def __init_loop_variables(self) -> None:
@@ -208,6 +208,7 @@ class Buy(KrakenBase, TradingView):
                 # If the symbol is in the database then we have bought it before
                 self.dca = DCA(symbol_pair, symbol, 0, 0)
             else:
+                return # THIS IS ONLY TO PREVENT THE CREATION OF ANY NEW TRADE!!! REMOVE WHEN DESIRED!!!
                 base_order_qty = self.get_order_min(symbol_pair)
                 
                 # If symbol_pair exists in database then the base order has already been placed!

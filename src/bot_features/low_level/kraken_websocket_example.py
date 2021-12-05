@@ -16,8 +16,8 @@
 import sys
 import signal
 import websocket
-import json
 
+from kraken_rest_api import KrakenRestAPI
 
 # https://stackoverflow.com/questions/8420422/python-windows-equivalent-of-sigalrm
 
@@ -32,6 +32,11 @@ api_symbols        = ""
 api_number         = 0
 
 
+
+# ticker XBT/USD
+token = KrakenRestAPI.get_web_sockets_token()
+print(token)
+
 def signal_handler(signalnumber, frame):
     print("KeyboardInterrupt triggered!")
     # raise KeyboardInterrupt
@@ -41,7 +46,6 @@ signal.signal(signal.SIGINT, signal_handler)
 
 
 if __name__ == '__main__':
-
     if len(sys.argv) < 2:
         api_feed = "ping"
     else:
@@ -129,15 +133,16 @@ if __name__ == '__main__':
         print("WebSocket subscription/request failed (%s)" % error)
         ws.close()
         sys.exit(1)
-
     while True:
         try:
-            json_dict = json.loads(str(ws.recv()))
+            print("WebSocket -> Client: %s" % ws.recv())
             
-            for elem in json_dict:
-                if elem != "event":
-                    print(f"{json_dict}")
-                    break
+            # json_dict = json.loads(str(ws.recv()))
+            
+            # for elem in json_dict:
+            #     if elem != "event":
+            #         print(f"{json_dict}")
+            #         break
             
         except KeyboardInterrupt:
             ws.close()

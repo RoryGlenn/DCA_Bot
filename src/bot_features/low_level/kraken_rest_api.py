@@ -4,15 +4,15 @@ import hashlib
 import hmac
 import math
 import time
-import urllib.parse
 import requests
+import urllib.parse
 
-from util.globals                        import G
 from pprint                              import pprint
+from util.globals                        import G
 from bot_features.low_level.kraken_enums import *
 
 
-class KrakenAPI(object):
+class KrakenRestAPI():
     def __init__(self, key: str, secret: str) -> None:
         """ Create an object with authentication information. """
         self.key           = key

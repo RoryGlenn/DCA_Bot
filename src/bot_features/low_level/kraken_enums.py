@@ -1,7 +1,5 @@
 from enum import auto
 
-
-
 # DCA
 DECIMAL_MAX = 8
 

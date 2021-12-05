@@ -3,7 +3,7 @@ import os
 import re
 
 from bot_features.low_level.kraken_enums import FileMode
-from util.colors                         import Color, ColorArray
+from util.colors                         import Color
 
 class Log():
     def __init__(self):

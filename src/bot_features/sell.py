@@ -1,16 +1,16 @@
 
 """sell.py: Sells coin on kraken exchange based on users config file."""
 
-from pprint                              import pprint
-from bot_features.dca                    import DCA
-from bot_features.low_level.kraken_enums import *
-from bot_features.low_level.kraken_base  import KrakenBase
-from util.globals                        import G
-from my_sql.sql                          import SQL
-from util.colors                         import Color
+from pprint                                 import pprint
+from bot_features.dca                       import DCA
+from bot_features.low_level.kraken_enums    import *
+from bot_features.low_level.kraken_bot_base import KrakenBotBase
+from util.globals                           import G
+from my_sql.sql                             import SQL
+from util.colors                            import Color
 
 
-class Sell(KrakenBase):
+class Sell(KrakenBotBase):
     def __init__(self, parameter_dict: dict) -> None:
         super().__init__(parameter_dict)
         self.asset_pairs_dict:  dict = self.get_all_tradable_asset_pairs()[Dicts.RESULT]
